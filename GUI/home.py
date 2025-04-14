@@ -1,6 +1,11 @@
 from PyQt6.QtWidgets import QWidget, QStackedWidget, QFrame, QLabel, QVBoxLayout, QPushButton, QLineEdit, QTextEdit,QLayout
 from PyQt6.QtCore import Qt
 from notification import Frame2
+from dasboard import Dashboard
+from order import Orders
+from finance import Money
+from inventory import Inventory
+from settings import Settings
 
 class WidgetManager:
     def __init__(self, parent):
@@ -10,6 +15,11 @@ class WidgetManager:
 
         self.create_frame1()
         self.frame2 = None  # در ابتدا فریم ۲ ایجاد نمی‌شود
+        self.das_frame= None
+        self.frame_order= None
+        self.finance_frame= None
+        self.inventory_frame= None
+        self.settings_frame= None
 
     def create_frame1(self):
         frame1 = QFrame()
@@ -64,6 +74,37 @@ class WidgetManager:
                 self.frame2 = Frame2()
                 self.frames["frame2"] = self.frame2
                 self.stack.addWidget(self.frame2)
+        
+        if frame_name == "dash_frame":
+            if not self.das_frame:
+                self.das_frame= Dashboard()
+                self.frames["dash_frame"] = self.das_frame
+                self.stack.addWidget(self.das_frame)
+
+        if frame_name == "frame_order":
+            if not self.frame_order:
+                self.frame_order= Orders()
+                self.frames["frame_order"] = self.frame_order
+                self.stack.addWidget(self.frame_order)
+
+        if frame_name == "finance_frame":
+            if not self.finance_frame:
+                self.finance_frame= Money()
+                self.frames["finance_frame"] = self.finance_frame
+                self.stack.addWidget(self.finance_frame)
+
+        if frame_name == "inventory_frame":
+            if not self.inventory_frame:
+                self.inventory_frame= Inventory()
+                self.frames["inventory_frame"] = self.inventory_frame
+                self.stack.addWidget(self.inventory_frame)
+
+        if frame_name == "settings_frame":
+            if not self.settings_frame:
+                self.settings_frame= Settings()
+                self.frames["settings_frame"] = self.settings_frame
+                self.stack.addWidget(self.settings_frame)
+
         if frame_name in self.frames:
             self.stack.setCurrentWidget(self.frames[frame_name])
 

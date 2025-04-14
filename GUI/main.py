@@ -66,35 +66,35 @@ class mainwindow(QWidget):
         self.d_icons_black= QIcon(self.get_asset_path("dashboard_9055107.png"))
         self.dashboard_btn.setIcon(self.d_icon)
         self.dashboard_btn.setIconSize(QtCore.QSize(35,35))
-        self.dashboard_btn.clicked.connect(lambda: self.set_active_button(self.dashboard_btn))
+        self.dashboard_btn.clicked.connect(lambda: self.toggle_dashboard())
         ##orders
         self.order_btn= QPushButton(self.side_panel)
         self.order_icon= QIcon(self.get_asset_path("shopping-cart.png"))
         self.order_icon_black= QIcon(self.get_asset_path("shopping-cart_4824141.png"))
         self.order_btn.setIcon(self.order_icon)
         self.order_btn.setIconSize(QtCore.QSize(35,35))
-        self.order_btn.clicked.connect(lambda: self.set_active_button(self.order_btn))
+        self.order_btn.clicked.connect(lambda: self.toggle_orders())
         ##finance
         self.finance_btn= QPushButton(self.side_panel)
         self.finance_icon= QIcon(self.get_asset_path("money (1).png"))
         self.finance_icon_black= QIcon(self.get_asset_path("money_1604644.png"))
         self.finance_btn.setIcon(self.finance_icon)
         self.finance_btn.setIconSize(QtCore.QSize(35,35))
-        self.finance_btn.clicked.connect(lambda: self.set_active_button(self.finance_btn))
+        self.finance_btn.clicked.connect(lambda: self.toggle_finance())
         ##inventory
         self.inventory_btn= QPushButton(self.side_panel)
         self.inventory_icon= QIcon(self.get_asset_path("store (2).png"))
         self.inventory_icon_black= QIcon(self.get_asset_path("store_10103219.png"))
         self.inventory_btn.setIcon(self.inventory_icon)
         self.inventory_btn.setIconSize(QtCore.QSize(35,35))
-        self.inventory_btn.clicked.connect(lambda: self.set_active_button(self.inventory_btn))
+        self.inventory_btn.clicked.connect(lambda: self.toggle_inventory())
         ##settings
         self.settings_btn= QPushButton(self.side_panel)
         self.se_icon= QIcon(self.get_asset_path("gear 1.png"))
         self.se_icon_black= QIcon(self.get_asset_path("settings_3524659.png"))
         self.settings_btn.setIcon(self.se_icon)
         self.settings_btn.setIconSize(QtCore.QSize(35,35))
-        self.settings_btn.clicked.connect(lambda: self.set_active_button(self.settings_btn))
+        self.settings_btn.clicked.connect(lambda: self.toggle_settings())
 
         # ایجاد و مدیریت فریم‌ها
         self.widget_manager = WidgetManager(self)
@@ -140,6 +140,26 @@ class mainwindow(QWidget):
         self.widget_manager.switch_frame("frame2")
         self.set_active_button(self.notification_btn)
     ##
+    def toggle_dashboard(self):
+        self.widget_manager.switch_frame("dash_frame")
+        self.set_active_button(self.dashboard_btn)
+    ##
+    def toggle_orders(self):
+        self.widget_manager.switch_frame("frame_order")
+        self.set_active_button(self.order_btn)
+    ##
+    def toggle_finance(self):
+        self.widget_manager.switch_frame("finance_frame")
+        self.set_active_button(self.finance_btn)
+    ##
+    def toggle_inventory(self):
+        self.widget_manager.switch_frame("inventory_frame")
+        self.set_active_button(self.inventory_btn)
+    ##
+    def toggle_settings(self):
+        self.widget_manager.switch_frame("settings_frame")
+        self.set_active_button(self.settings_btn)
+
     def icons_UI(self):
         ##home
         self.home_btn.setStyleSheet('''
