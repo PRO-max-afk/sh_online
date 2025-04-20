@@ -114,7 +114,7 @@ class mainwindow(QWidget):
         panel_layout.setSpacing(20)  # 🔹 فاصله بین دکمه‌ها
 
         # 🔵 عکس پروفایل با کیفیت و کلیک‌پذیر
-        profile_image_path = self.get_asset_path("profile.png")  # مسیر پیش‌فرض عکس
+        profile_image_path = self.get_asset_path("ChatGPT Image Apr 14, 2025, 04_02_55 PM.png")  # مسیر پیش‌فرض عکس
         self.profile_widget = ProfileImage(profile_image_path, 70, self)
         panel_layout.insertWidget(0, self.profile_widget, alignment=Qt.AlignmentFlag.AlignHCenter)
 
