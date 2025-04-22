@@ -6,6 +6,7 @@ from PyQt6 import QtCore
 import jdatetime
 import os
 from info_box import  ProductBox
+from new_p import ProductForm
 
 
 class Inventory(QFrame):
@@ -125,6 +126,7 @@ class Inventory(QFrame):
         ##add btn
         self.add_btn.setMinimumSize(70,20)
         self.add_btn.setMaximumSize(120,35)
+        self.add_btn.clicked.connect(self.open_new_form)
         self.add_btn.setText(" ثبت محصول")
         self.add_icon= QIcon(self.get_asset_path("MacOS Maximize.png"))
         self.add_btn.setIcon(self.add_icon)
@@ -223,3 +225,8 @@ class Inventory(QFrame):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
+    ##open box_frames
+    def open_new_form(self):
+        self.pro_form= ProductForm()
+        self.pro_form.exec()
+

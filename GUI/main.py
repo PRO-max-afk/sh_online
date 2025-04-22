@@ -327,7 +327,6 @@ class mainwindow(QWidget):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
-
 if __name__== "__main__":
     app = QApplication(sys.argv)
     window = mainwindow()
