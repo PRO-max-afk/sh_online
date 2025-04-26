@@ -5,7 +5,15 @@ from PyQt6.QtGui import QPixmap, QFontDatabase, QPalette, QFont,QColor
 import os
 import sys
 from security_qustion import Security_login
-
+from message_b import MessageBox
+import requests
+import sqlite3
+import pymysql
+import ntplib
+import pytz
+from datetime import datetime, timezone
+import subprocess
+from main import mainwindow
 
 class Main_login(QMainWindow):
     def __init__(self):
@@ -160,7 +168,9 @@ class Main_login(QMainWindow):
         self.frame.setLayout(frame_layout)
 
         self.InUI()
+        self.db_data= self.get_db_config()
         self.load_all_fonts()
+        self.id= None
     
     def InUI(self):
         ##label
@@ -174,7 +184,7 @@ class Main_login(QMainWindow):
         self.password_label.setStyleSheet("font-size: 18px; color: #333333; font-family: Mirza; font-weight: bold; margin-right:15px;")    
         # تنظیم ویژگی‌های دکمه
         self.submit_btn.setFixedSize(140, 50)
-
+        self.submit_btn.clicked.connect(self.user_login)
         # تعریف استایل برای دکمه
         self.submit_btn.setStyleSheet('''
             QPushButton {
@@ -221,6 +231,11 @@ class Main_login(QMainWindow):
         # ایجاد LineEdit
         line_edit = QLineEdit(container)
         line_edit.setFixedSize(500, 50)
+
+        # اگر فیلد رمز عبور بود، حالت نمایش را مخفی کن
+        if placeholder_text.lower() == "password":
+            line_edit.setEchoMode(QLineEdit.EchoMode.Password)
+
         line_edit.setStyleSheet("""
             QLineEdit {
                 background: transparent;
@@ -237,20 +252,17 @@ class Main_login(QMainWindow):
             }
         """)
 
-        # افزودن سایه به LineEdit با radius هماهنگ
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)  # نرمی سایه دقیقاً اندازه radius
+        shadow.setBlurRadius(20)
         shadow.setXOffset(0)
         shadow.setYOffset(0)
-        shadow.setColor(QColor(0, 0, 0, 80))  # سایه مشکی ملایم با شفافیت
+        shadow.setColor(QColor(0, 0, 0, 80))
         line_edit.setGraphicsEffect(shadow)
 
-        # شفاف کردن پس‌زمینه QLineEdit
         palette = line_edit.palette()
         palette.setColor(QPalette.ColorRole.Base, Qt.GlobalColor.transparent)
         line_edit.setPalette(palette)
 
-        # ایجاد لیبل داخل LineEdit
         label = QLabel(placeholder_text, container)
         label.setFont(QFont("Roboto", 16))
         label.setStyleSheet("""
@@ -280,6 +292,8 @@ class Main_login(QMainWindow):
         line_edit._floating_animation = animation
         line_edit.textChanged.connect(lambda: self.update_label_visibility(label, line_edit))
 
+        # ذخیره LineEdit در container برای دسترسی راحت‌تر
+        container.line_edit = line_edit
         return container
 
     def eventFilter(self, obj, event):
@@ -334,6 +348,26 @@ class Main_login(QMainWindow):
             label.setStyleSheet("color: #2251DB; text-align: center; font-size: 10px; background: white; padding: 0 5px; text-decoration: underline; margin-left: 10px;")
         else:  # اگر فیلد خالی است، label باید در موقعیت اصلی خود باشد
             label.setStyleSheet("color: gray; text-align: center; font-size: 12px; background: white; padding: 0 5px; margin-left: 10px;")
+    ##
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+            self.user_login()
+    ##
+    def open_mainwindow_with_animation(self):
+        self.new_window = mainwindow()  # ساخت نمونه‌ای از صفحه اصلی
+        self.new_window.setWindowOpacity(0)  # شفافیت اولیه صفر
+
+        self.new_window.showMaximized()  # تمام صفحه باز شود
+
+        self.animation = QPropertyAnimation(self.new_window, b"windowOpacity")
+        self.animation.setDuration(500)  # زمان انیمیشن
+        self.animation.setStartValue(0)
+        self.animation.setEndValue(1)
+        self.animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.animation.start()
+
+        self.close()  # بستن صفحه لاگین
+
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -366,9 +400,144 @@ class Main_login(QMainWindow):
         self.anim.setEndValue(end_pos)
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.anim.start()
+    ##
+    def resource_path(self,relative_path):
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+        return os.path.join(base_path, relative_path)
+    # دریافت اطلاعات دیتابیس از سرور
+    def get_db_config(self):
+        try:
+            url = "https://aryaict.com//connect"  # URL فایل PHP
+            headers = {
+                'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
+                'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
+            }
+            response = requests.get(url, headers=headers, timeout=1)
+            response.raise_for_status()  # بررسی خطا در پاسخ
 
+            # بررسی اینکه پاسخ به صورت JSON است
+            if "application/json" not in response.headers.get('Content-Type', ''):
+                raise ValueError("پاسخ سرور JSON نیست!")
 
+            # دریافت داده‌ها به‌صورت JSON
+            data = response.json()
 
+            # بررسی وجود کلیدهای مورد نیاز
+            required_keys = ("host", "user", "password", "database")
+            if not all(k in data for k in required_keys):
+                raise ValueError("پاسخ JSON ناقص است")
+
+            return data  # بازگشت دیکشنری حاوی اطلاعات دیتابیس
+
+        except requests.Timeout:
+            print("⏳ اتصال به سرور زمان زیادی برد")
+        except requests.RequestException as e:
+            print(f"⚠️ خطای درخواست: {e}")
+            print(f"کد وضعیت: {response.status_code}")  # اضافه کردن کد وضعیت برای بررسی خطا
+            print(f"متن پاسخ: {response.text}")  # نمایش متن پاسخ برای بررسی بیشتر
+        except ValueError as e:
+            print(f"🚨 خطای JSON: {e}")
+
+        return None
+    ## 
+    def user_login(self):
+        username = self.username_input.line_edit.text()
+        password = self.password_input.line_edit.text()
+
+        if not username or not password:
+            MessageBox(text="تمامی فیلد ها را پر کنید", title="⚠هشدار", type="warning").show()
+            return False
+
+        if not self.db_data:
+            MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
+            return False
+
+        conn = None
+        cursor = None
+        conn_sq = None
+        cursor_sq = None
+
+        try:
+            try:
+                # دریافت زمان از NTP سرور
+                ntp_client = ntplib.NTPClient()
+                response = ntp_client.request('pool.ntp.org', version=3)
+                utc_time = datetime.utcfromtimestamp(response.tx_time)
+
+            except Exception as e:
+                # اگر نتوانست دریافت کند، از زمان سیستم استفاده کند
+                print(f"NTP Server error: {e}, using local system time instead.")
+                utc_time = datetime.utcnow()
+
+            # ادامه کار
+            kabul_tz = pytz.timezone('Asia/Kabul')
+            kabul_time = pytz.utc.localize(utc_time).astimezone(kabul_tz)
+            expire_date = kabul_time.strftime('%Y-%m-%d %H:%M:%S')
+
+            # اتصال به دیتابیس اصلی (MySQL)
+            conn = pymysql.connect(
+                host=self.db_data["host"],
+                user=self.db_data["user"],
+                password=self.db_data["password"],
+                database=self.db_data["database"]
+            )
+            cursor = conn.cursor()
+
+            # چک کردن اطلاعات کاربر
+            cursor.execute("""
+                SELECT id, username, password, expire_date 
+                FROM user_s 
+                WHERE username = %s 
+                AND password = %s 
+                AND expire_date > %s
+            """, (username, password, expire_date))
+
+            result = cursor.fetchone()
+
+            if result:
+                self.id = result[0]
+
+                # مسیر مستقیم دیتابیس لوکال
+                db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+
+                if not os.path.exists(db_path):
+                    MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+                    return False
+
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+
+                # ذخیره شناسه در دیتابیس لوکال
+                cursor_sq.execute("INSERT INTO users (id) VALUES(?)", (self.id,))
+                conn_sq.commit()
+
+                MessageBox(text="ورود با موفقیت انجام شد ✅", title="✅ موفقانه", type="info").show()
+                self.open_mainwindow_with_animation()
+                # ادامه عملیات ورود...
+            else:
+                MessageBox(text="نام کاربری یا رمز عبور اشتباه است یا حساب منقضی شده است", title="⚠ خطا", type="warning").show()
+
+        except pymysql.Error as e:
+            MessageBox(text=f"{e}: خطا در اتصال به دیتابیس", title="❌ خطا", type="error").show()
+        except ntplib.NTPException as e:
+            MessageBox(text=f"{e}: خطا در دریافت زمان از NTP", title="❌ خطا", type="error").show()
+        except Exception as e:
+            MessageBox(text=f"{e}: خطای غیرمنتظره", title="❌ خطا", type="error").show()
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+            if cursor_sq:
+                cursor_sq.close()
+            if conn_sq:
+                conn_sq.close()
+
+    
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -379,7 +548,7 @@ class Main_login(QMainWindow):
             return
 
         for filename in os.listdir(fonts_folder):
-            if filename.lower().endswith((".ttf", ".otf")):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
                 font_path = os.path.join(fonts_folder, filename)
                 font_id = QFontDatabase.addApplicationFont(font_path)
                 if font_id == -1:

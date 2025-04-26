@@ -4,6 +4,7 @@ from PyQt6.QtGui import QColor,QIcon,QPixmap,QPainter,QPainterPath,QFontDatabase
 import sys
 from PyQt6 import QtCore
 from home import WidgetManager  
+import sqlite3
 import os
 from profile_picture import ProfileImage
 

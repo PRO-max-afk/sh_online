@@ -1,16 +1,17 @@
+import ntplib
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox, QPushButton
-from PyQt6.QtGui import QFont,QFontDatabase
+from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
 import jdatetime
+from datetime import datetime, timezone
 import os
-
 
 class JalaliCalendar(QDialog):
     def __init__(self, main_window):
         super().__init__(main_window)
         self.main_window = main_window
         self.setWindowFlags(Qt.WindowType.Popup)
-        self.setWindowOpacity(0)  # شروع با شفافیت صفر برای انیمیشن
+        self.setWindowOpacity(0)
         self.setFixedSize(300, 230)
         self.setStyleSheet("""
             QDialog {
@@ -23,7 +24,8 @@ class JalaliCalendar(QDialog):
         self.font = QFont("B Nazanin", 12)
         self.setFont(self.font)
 
-        self.current_date = jdatetime.date.today()
+        # گرفتن تاریخ شمسی از سرور NTP
+        self.current_date = self.get_jalali_from_ntp()
         self.current_year = self.current_date.year
         self.current_month = self.current_date.month
 
@@ -93,6 +95,16 @@ class JalaliCalendar(QDialog):
         self.layout.addLayout(self.days_layout)
 
         self.update_calendar()
+
+    def get_jalali_from_ntp(self):
+        try:
+            client = ntplib.NTPClient()
+            response = client.request("pool.ntp.org", version=3)
+            utc_time = datetime.fromtimestamp(response.tx_time, tz=timezone.utc)
+            return jdatetime.datetime.fromgregorian(datetime=utc_time).date()
+        except Exception as e:
+            print("⚠ خطا در دریافت تاریخ از NTP:", e)
+            return jdatetime.date.today()
 
     def show_with_animation(self, pos):
         self.move(pos)
@@ -166,7 +178,6 @@ class JalaliCalendar(QDialog):
         self.main_window.set_selected_date(formatted)
         self.hide_with_animation()
 
-    ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         fonts_folder = os.path.join(project_root, "fonts")
@@ -181,9 +192,3 @@ class JalaliCalendar(QDialog):
                 font_id = QFontDatabase.addApplicationFont(font_path)
                 if font_id == -1:
                     print(f"⚠ خطا در بارگذاری فونت: {filename}")
-                else:
-                    families = QFontDatabase.applicationFontFamilies(font_id)
-                    if families:
-                        pass
-
-

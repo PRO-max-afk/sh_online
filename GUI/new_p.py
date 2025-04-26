@@ -5,6 +5,7 @@ from PyQt6.QtGui import QPixmap, QFont,QColor,QIcon,QFontDatabase
 import sys
 import jdatetime
 from profile_picture import ProfileImage
+from message_b import MessageBox
 from PyQt6.QtCore import Qt,QPropertyAnimation,QEasingCurve
 from PyQt6 import QtCore
 import os
@@ -444,6 +445,7 @@ class ProductForm(QDialog):
                 background-color: #3EB516;
             }
         ''')
+        self.submit_btn.clicked.connect(self.test)
         ##
         self.picture_btn.setGeometry(40,134,155,43)
         self.picture_icon= QIcon(self.get_asset_path("Camera.png"))
@@ -602,6 +604,9 @@ class ProductForm(QDialog):
     ##
     def insert_product(self):
         pass
+    ##
+    def test(self):
+        MessageBox(text="لطفاً تمامی فیلد های لازم را پر کنید", title="هشدار",type="warning").show()
        
 
 if __name__ == "__main__":
