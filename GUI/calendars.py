@@ -1,7 +1,9 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox, QPushButton
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont,QFontDatabase
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
 import jdatetime
+import os
+
 
 class JalaliCalendar(QDialog):
     def __init__(self, main_window):
@@ -9,7 +11,7 @@ class JalaliCalendar(QDialog):
         self.main_window = main_window
         self.setWindowFlags(Qt.WindowType.Popup)
         self.setWindowOpacity(0)  # شروع با شفافیت صفر برای انیمیشن
-        self.setFixedSize(310, 230)
+        self.setFixedSize(300, 230)
         self.setStyleSheet("""
             QDialog {
                 background-color: white;
@@ -33,6 +35,7 @@ class JalaliCalendar(QDialog):
 
         self.year_label = QLabel(str(self.current_year))
         self.year_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.year_label.setStyleSheet("background-color:transparent;color: black;")
         self.year_label.setFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
 
         self.month_combo = QComboBox()
@@ -162,3 +165,25 @@ class JalaliCalendar(QDialog):
         formatted = selected.strftime("%Y/%m/%d")
         self.main_window.set_selected_date(formatted)
         self.hide_with_animation()
+
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+
+

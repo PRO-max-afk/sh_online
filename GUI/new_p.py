@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QPushButton,QFrame,QGraphicsDropShadowEffect,QComboBox,QGridLayout,QFileDialog,
-    QLineEdit, QFileDialog, QHBoxLayout, QDialog,QWidget)
-from PyQt6.QtGui import QPixmap, QFont,QColor,QIcon
+    QLineEdit, QFileDialog, QHBoxLayout, QDialog,QWidget,QMessageBox)
+from PyQt6.QtGui import QPixmap, QFont,QColor,QIcon,QFontDatabase
 import sys
 import jdatetime
 from profile_picture import ProfileImage
@@ -9,7 +9,9 @@ from PyQt6.QtCore import Qt,QPropertyAnimation,QEasingCurve
 from PyQt6 import QtCore
 import os
 from calendars import JalaliCalendar
-
+import requests
+import pymysql
+import subprocess
 class ProductForm(QDialog):
     def __init__(self):
         super().__init__()
@@ -83,6 +85,7 @@ class ProductForm(QDialog):
         self.enties_UI()
         self.Button_UI()
         self.under_category()
+        self.db_connection= self.get_db_config()
 
     def center_window(self):
         """مرکز کردن پنجره روی صفحه"""
@@ -523,8 +526,25 @@ class ProductForm(QDialog):
         self.calendar_popup = JalaliCalendar(self)
         pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomRight())
         self.calendar_popup.show_with_animation(pos)
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
 
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
 
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
 
     ##
     def set_selected_date(self, date_str):
@@ -544,7 +564,45 @@ class ProductForm(QDialog):
         if file_path:
             self.img_preveiw.setPixmap(QPixmap(file_path))
             self.img_path= file_path
+    # دریافت اطلاعات دیتابیس از سرور
+    def get_db_config(self):
+        try:
+            url = "https://aryaict.com//connect"  # URL فایل PHP
+            headers = {
+                'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
+                'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
+            }
+            response = requests.get(url, headers=headers, timeout=1)
+            response.raise_for_status()  # بررسی خطا در پاسخ
 
+            # بررسی اینکه پاسخ به صورت JSON است
+            if "application/json" not in response.headers.get('Content-Type', ''):
+                raise ValueError("پاسخ سرور JSON نیست!")
+
+            # دریافت داده‌ها به‌صورت JSON
+            data = response.json()
+
+            # بررسی وجود کلیدهای مورد نیاز
+            required_keys = ("host", "user", "password", "database")
+            if not all(k in data for k in required_keys):
+                raise ValueError("پاسخ JSON ناقص است")
+
+            return data  # بازگشت دیکشنری حاوی اطلاعات دیتابیس
+
+        except requests.Timeout:
+            print("⏳ اتصال به سرور زمان زیادی برد")
+        except requests.RequestException as e:
+            print(f"⚠️ خطای درخواست: {e}")
+            print(f"کد وضعیت: {response.status_code}")  # اضافه کردن کد وضعیت برای بررسی خطا
+            print(f"متن پاسخ: {response.text}")  # نمایش متن پاسخ برای بررسی بیشتر
+        except ValueError as e:
+            print(f"🚨 خطای JSON: {e}")
+
+        return None
+    ##
+    def insert_product(self):
+        pass
+       
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
