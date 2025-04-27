@@ -99,12 +99,14 @@ class JalaliCalendar(QDialog):
     def get_jalali_from_ntp(self):
         try:
             client = ntplib.NTPClient()
-            response = client.request("pool.ntp.org", version=3)
+            response = client.request("pool.ntp.org", version=3, timeout=3)
             utc_time = datetime.fromtimestamp(response.tx_time, tz=timezone.utc)
             return jdatetime.datetime.fromgregorian(datetime=utc_time).date()
         except Exception as e:
             print("⚠ خطا در دریافت تاریخ از NTP:", e)
-            return jdatetime.date.today()
+            # گرفتن زمان سیستم کامپیوتر
+            local_time = datetime.now()
+            return jdatetime.datetime.fromgregorian(datetime=local_time).date()
 
     def show_with_animation(self, pos):
         self.move(pos)

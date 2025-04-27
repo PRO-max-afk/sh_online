@@ -395,7 +395,7 @@ class Main_login(QMainWindow):
         security_widget.move(start_pos)
 
         self.anim = QPropertyAnimation(security_widget, b"pos", self)
-        self.anim.setDuration(600)
+        self.anim.setDuration(800)
         self.anim.setStartValue(start_pos)
         self.anim.setEndValue(end_pos)
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)

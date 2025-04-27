@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QPushButton,QFrame,QGraphicsDropShadowEffect,QComboBox,QGridLayout,QFileDialog,
-    QLineEdit, QFileDialog, QHBoxLayout, QDialog,QWidget,QMessageBox)
+    QLineEdit, QFileDialog, QHBoxLayout, QDialog,QWidget)
 from PyQt6.QtGui import QPixmap, QFont,QColor,QIcon,QFontDatabase
 import sys
 import jdatetime
@@ -12,7 +12,8 @@ import os
 from calendars import JalaliCalendar
 import requests
 import pymysql
-import subprocess
+import sqlite3
+import ftplib
 class ProductForm(QDialog):
     def __init__(self):
         super().__init__()
@@ -59,7 +60,10 @@ class ProductForm(QDialog):
         ##
         self.category= QLabel("کتگوری عمده:",self)
         self.cate_ch= QComboBox(self)
-        
+        ##
+        self.unit_label = None
+        self.unit_lineedit = None
+        self.cate_ch.currentTextChanged.connect(self.public_category)
         ##
         self.buy_price= QLabel("قیمت خرید:",self)
         self.buy_line= QLineEdit(self)
@@ -75,6 +79,13 @@ class ProductForm(QDialog):
         ##
         self.img_preveiw= QLabel(self)
         ##
+        self.total_label= QLabel("مجموعه:",self)
+        self.total_line= QLabel("0.00",self)
+        ### event
+        self.buy_line.textEdited.connect(self.calculate_total)
+        self.number_line.textEdited.connect(self.calculate_total)
+
+        ##
         self.picture_btn= QPushButton(self)
         self.submit_btn= QPushButton(self)
         self.calendar_btn= QPushButton(self)
@@ -87,6 +98,9 @@ class ProductForm(QDialog):
         self.Button_UI()
         self.under_category()
         self.db_connection= self.get_db_config()
+        
+        
+
 
     def center_window(self):
         """مرکز کردن پنجره روی صفحه"""
@@ -95,7 +109,19 @@ class ProductForm(QDialog):
         self.move(
             int((screen.width() - size.width()) / 2),
             int((screen.height() - size.height()) / 2))
+    ##
+    def calculate_total(self):
+        buy_price = self.buy_line.text().strip()
+        quantity = self.number_line.text().strip()
 
+        if buy_price and quantity:
+            try:
+                total = float(buy_price) * float(quantity)
+                self.total_line.setText(f'{total:.2f}')
+            except ValueError:
+                self.total_line.setText("0.00")  # اگر کاربر متن اشتباهی مثل حروف وارد کند، خروجی خالی بماند
+        else:
+            self.total_line.setText("")  # اگر یکی از فیلدها خالی بود، خروجی خالی شود
     ##
     def lable_UI(self):
         self.title_lb.setGeometry(360,15,150,20)
@@ -201,6 +227,22 @@ class ProductForm(QDialog):
         border: 1px solid #1646B5;
         ''')
         ##
+        self.total_label.setGeometry(152,577,60,20)
+        self.total_label.setStyleSheet('''
+            font-family: B Nazanin;
+            font-size: 16px;
+            font-weight: bold;
+            color: black;
+        ''')
+        ##
+        self.total_line.setGeometry(90,573,70,30)
+        self.total_line.setStyleSheet('''
+            font-family: B Nazanin;
+            font-size: 15px;
+            font-weight: bold;
+            color: black;
+            text-align: center;
+        ''')
     ##
     def enties_UI(self):
         self.choise_c.setGeometry(653, 150, 250, 45)
@@ -445,7 +487,7 @@ class ProductForm(QDialog):
                 background-color: #3EB516;
             }
         ''')
-        self.submit_btn.clicked.connect(self.test)
+        self.submit_btn.clicked.connect(self.insert_product)
         ##
         self.picture_btn.setGeometry(40,134,155,43)
         self.picture_icon= QIcon(self.get_asset_path("Camera.png"))
@@ -538,7 +580,7 @@ class ProductForm(QDialog):
             return
 
         for filename in os.listdir(fonts_folder):
-            if filename.lower().endswith((".ttf", ".otf")):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
                 font_path = os.path.join(fonts_folder, filename)
                 font_id = QFontDatabase.addApplicationFont(font_path)
                 if font_id == -1:
@@ -547,6 +589,42 @@ class ProductForm(QDialog):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
+    ##
+    def public_category(self, text):
+        # اگر لاین ادیت یا لیبل قبلاً ساخته شده حذف شوند
+        if self.unit_label:
+            self.unit_label.deleteLater()
+            self.unit_label = None
+        if self.unit_lineedit:
+            self.unit_lineedit.deleteLater()
+            self.unit_lineedit = None
+
+        if text != "دانه" and text != "انتخاب":
+            # ساخت لیبل
+            self.unit_label = QLabel(f"هر {text}:", self)
+            self.unit_label.setGeometry(270, 290, 60, 30)
+            self.unit_label.setStyleSheet('''
+                font-family: B Nazanin;
+                font-size: 16px;
+                font-weight: bold;
+                color: black;
+            ''')
+            self.unit_label.show()
+
+            # ساخت لاین ادیت
+            self.unit_lineedit = QLineEdit(self)
+            self.unit_lineedit.setGeometry(260, 330, 90, 45)
+            self.unit_lineedit.setStyleSheet('''
+                background-color: white;
+                font-family: B Nazanin;
+                font-size: 15px;
+                font-weight: bold;
+                color: black;
+                border: 1px solid #c2c2c2;
+                border-radius: 7px;
+                padding: 7px;
+            ''')
+            self.unit_lineedit.show()
 
     ##
     def set_selected_date(self, date_str):
@@ -562,10 +640,20 @@ class ProductForm(QDialog):
             return None
     ##
     def select_image(self):
-        file_path, _= QFileDialog.getOpenFileName(self,"انتخاب تصویر محصول","", "images(*.png *.jpg *.jpeg)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "انتخاب تصویر محصول", "", "Images (*.png *.jpg *.jpeg)"
+        )
         if file_path:
+            # نمایش تصویر در پیش‌نمایش
             self.img_preveiw.setPixmap(QPixmap(file_path))
-            self.img_path= file_path
+            
+            # ذخیره مسیر فایل
+            self.image_path = file_path
+            
+            # خواندن داده‌های باینری تصویر
+            with open(file_path, 'rb') as file:
+                self.image_data = file.read()
+
     # دریافت اطلاعات دیتابیس از سرور
     def get_db_config(self):
         try:
@@ -602,12 +690,115 @@ class ProductForm(QDialog):
 
         return None
     ##
-    def insert_product(self):
-        pass
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+            self.insert_product()
     ##
-    def test(self):
-        MessageBox(text="لطفاً تمامی فیلد های لازم را پر کنید", title="هشدار",type="warning").show()
-       
+    def insert_product(self):
+        f_ch = self.choise_c.currentText()
+        s_ch = self.under_choise.currentText()
+        name = self.name_line.text()
+        barcode = self.bar_line.text()
+        exp_date = self.exp_line.text()
+        category = self.cate_ch.currentText()
+        buy_price = self.buy_line.text()
+        quantity = self.number_line.text()
+        sale_price = self.sale_line.text()
+        sale_big = self.sale_big_line.text()
+
+        if f_ch == "انتخاب" and s_ch == "انتخاب":
+            MessageBox(text="لطفاً اطلاعات را از باکس های انتخاب کنید", title="هشدار", type="warning").show()
+            return
+
+        if not name or not barcode or not exp_date or not category or not buy_price or not quantity or not sale_price or not sale_big:
+            MessageBox(text="لطفاً تمامی فیلد ها را پر کنید", title="هشدار", type="warning").show()
+            return
+
+        if not self.db_connection:
+            MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
+            return
+
+        conn_sq = None
+        cursor_sq = None
+        id_user = None
+        date = jdatetime.date.today().strftime("%Y/%m/%d")
+        local_image_data = self.image_data  # مسیر عکس محلی
+        total= float(buy_price) * float(quantity)
+        ##
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("select id from users;")
+            res_id = cursor_sq.fetchone()
+            id_user = res_id[0]
+        except Exception as e:
+            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            return
+        finally:
+            if conn_sq:
+                conn_sq.close()
+
+        # حالا ذخیره در دیتابیس آنلاین
+        try:
+            conn = pymysql.connect(
+                host=self.db_connection["host"],
+                user=self.db_connection["user"],
+                password=self.db_connection["password"],
+                database=self.db_connection["database"]
+            )
+            cursor = conn.cursor()
+
+            result = cursor.execute('''
+                insert into buy_invent(
+                    product_name, barcode, category, sub_category, buy_price,
+                    sale_price, buy_date, new_price, quantity, product_image,
+                    expiration_dates, big_category, user_id,total
+                ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (
+                name, barcode, f_ch, s_ch, buy_price, sale_price, date,
+                sale_big, quantity, local_image_data, exp_date, category, id_user,total
+            ))
+
+            if result:
+                MessageBox(text="شما موفقانه اطلاعات را ذخیره نمودید ✅", title="✅موفقانه", type="info").show()
+                conn.commit()
+                # پاکسازی فیلدها بعد از ذخیره موفق
+                self.name_line.clear()
+                self.bar_line.clear()
+                self.exp_line.clear()
+                self.buy_line.clear()
+                self.number_line.clear()
+                self.sale_line.clear()
+                self.sale_big_line.clear()
+                self.choise_c.setCurrentIndex(0)
+                self.under_choise.setCurrentIndex(0)
+                self.cate_ch.setCurrentIndex(0)
+                self.total_line.setText("0.00")
+                self.img_path = None  # آدرس عکس ریست شود
+                # ایمن سازی برای None بودن
+                if self.unit_lineedit:
+                    self.unit_lineedit.clear()
+                    self.unit_lineedit.hide()
+
+                if self.unit_label:
+                    self.unit_label.setText("")
+                    self.unit_label.hide()
+            else:
+                MessageBox(text="اطلاعات ذخیره نشد 😣😣", title="❌ خطا", type="error").show()
+
+        except pymysql.Error as e:
+            MessageBox(text=f"{e}: خطا در اتصال به دیتابیس", title="❌ خطا", type="error").show()
+
+        finally:
+            if conn:
+                conn.close()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
