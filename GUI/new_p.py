@@ -100,7 +100,7 @@ class ProductForm(QDialog):
         self.enties_UI()
         self.Button_UI()
         self.under_category()
-        self.db_connection= self.get_db_config()
+        
         
         
 
@@ -656,41 +656,37 @@ class ProductForm(QDialog):
             # خواندن داده‌های باینری تصویر
             with open(file_path, 'rb') as file:
                 self.image_data = file.read()
-                print(self.image_data)
 
     # دریافت اطلاعات دیتابیس از سرور
     def get_db_config(self):
-        try:
-            url = "https://aryaict.com/connect.php"  # URL فایل PHP
-            headers = {
-                'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
-                'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
-            }
-            response = requests.get(url, headers=headers, timeout=1)
-            response.raise_for_status()  # بررسی خطا در پاسخ
 
-            # بررسی اینکه پاسخ به صورت JSON است
+        url = "https://aryaict.com/connect.php"
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'MyApp/1.0',
+        }
+
+        try:
+            # ارسال درخواست با timeout کوتاه‌تر و تقسیم شده
+            response = requests.get(url, headers=headers, timeout=(10))  # (اتصال، دریافت)
+            response.raise_for_status()
+
             if "application/json" not in response.headers.get('Content-Type', ''):
                 raise ValueError("پاسخ سرور JSON نیست!")
 
-            # دریافت داده‌ها به‌صورت JSON
             data = response.json()
-
-            # بررسی وجود کلیدهای مورد نیاز
             required_keys = ("host", "user", "password", "database")
             if not all(k in data for k in required_keys):
                 raise ValueError("پاسخ JSON ناقص است")
 
-            return data  # بازگشت دیکشنری حاوی اطلاعات دیتابیس
+            return data
 
         except requests.Timeout:
-            print("⏳ اتصال به سرور زمان زیادی برد")
+            print("⏳ زمان اتصال یا پاسخ‌گویی سرور بیش از حد طول کشید.")
         except requests.RequestException as e:
-            print(f"⚠️ خطای درخواست: {e}")
-            print(f"کد وضعیت: {response.status_code}")  # اضافه کردن کد وضعیت برای بررسی خطا
-            print(f"متن پاسخ: {response.text}")  # نمایش متن پاسخ برای بررسی بیشتر
+            print(f"⚠️ خطای ارتباطی: {e}")
         except ValueError as e:
-            print(f"🚨 خطای JSON: {e}")
+            print(f"🚨 خطای پردازش پاسخ: {e}")
 
         return None
     ##
@@ -709,6 +705,8 @@ class ProductForm(QDialog):
         quantity = self.number_line.text()
         sale_price = self.sale_line.text()
         sale_big = self.sale_big_line.text()
+        big_s= self.unit_lineedit.text()
+        self.db_connection= self.get_db_config()
 
         if f_ch == "انتخاب" and s_ch == "انتخاب":
             MessageBox(text="لطفاً اطلاعات را از باکس های انتخاب کنید", title="هشدار", type="warning").show()
@@ -728,6 +726,8 @@ class ProductForm(QDialog):
         date = jdatetime.date.today().strftime("%Y/%m/%d")
         local_image_data = self.image_data
         total = float(buy_price) * float(quantity)
+        per_buy= float(buy_price) / float(big_s)
+        per_quantity= float(quantity) * float(big_s)
 
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
@@ -763,8 +763,8 @@ class ProductForm(QDialog):
                     expiration_dates, big_category, user_id, total
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
-                name, barcode, f_ch, s_ch, buy_price, sale_price, date,
-                sale_big, quantity, local_image_data, exp_date, category, id_user, total
+                name, barcode, f_ch, s_ch, per_buy, sale_price, date,
+                sale_big, per_quantity, local_image_data, exp_date, category, id_user, total
             ))
 
             if result:
@@ -807,7 +807,7 @@ class ProductForm(QDialog):
                 self.under_choise.setCurrentIndex(0)
                 self.cate_ch.setCurrentIndex(0)
                 self.total_line.setText("0.00")
-                self.img_preveiw.setText("")
+                self.img_preveiw= None
 
                 if self.unit_lineedit:
                     self.unit_lineedit.clear()

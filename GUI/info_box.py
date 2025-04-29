@@ -10,8 +10,8 @@ class ProductBox(QWidget):
         self.setStyleSheet("background-color: transparent;")
 
         self.frame = QFrame(self)
-        self.frame.setGeometry(10, 10, 250, 320)
-        self.frame.setStyleSheet("background-color: white; border-radius: 15px;")
+        self.frame.setGeometry(10, 10, 260, 310)
+        self.frame.setStyleSheet("background-color: white; border-radius: 20px;")
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(20)
@@ -58,25 +58,22 @@ class ProductBox(QWidget):
         self.label_UI()
 
     def label_UI(self):
-        ## تنظیم استایل لیبل‌ها
         labels = [
-            (self.name_lb, 184, 160, 67, 30),
-            (self.na_lb, 137, 160, 48, 30),
-            (self.barcode_lb, 45, 160, 75, 30),
-            (self.bar_lb, 0, 160, 45, 30),
-            (self.buy_price, 184, 210, 67, 30),
-            (self.bu_lb, 135, 210, 48, 30),
-            (self.sale_label, 48, 210, 75, 30),
-            (self.sa_lb, 0, 210, 44, 30),
-            (self.number_lb, 177, 260, 75, 30),
-            (self.nu_lb, 128, 260, 48, 30),
-            (self.expire_date, 59, 260, 70, 30),
-            (self.exp_lb, 0, 260, 58, 30),
+            (self.name_lb, 200, 160),
+            (self.na_lb, 123, 160),
+            (self.barcode_lb, 42, 160),
+            (self.bar_lb, 0, 160),
+            (self.buy_price, 184, 210),
+            (self.bu_lb, 135, 210),
+            (self.sale_label, 48, 210),
+            (self.sa_lb, 0, 210),
+            (self.number_lb, 177, 260),
+            (self.nu_lb, 128, 260),
+            (self.expire_date, 63, 260),
+            (self.exp_lb, 3, 260),
         ]
-        for label, x, y, w, h in labels:
-            label.setGeometry(x, y, 0, 0)
-            label.setFixedSize(w, h)
-            label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        for label, x, y in labels:
+            label.move(x, y)
             label.setStyleSheet('''
                 font-family: B Nazanin;
                 background-color: white;
@@ -84,20 +81,30 @@ class ProductBox(QWidget):
                 font-size: 14px;
                 color: black;
             ''')
+            label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
     def set_product_info(self, name, barcode, buy_price, sale_price, number, expire_date, image_path="default.png"):
-        """تنظیم اطلاعات محصول روی جعبه"""
         self.na_lb.setText(name)
+        self.na_lb.adjustSize()
+        
         self.bar_lb.setText(barcode)
+        self.bar_lb.adjustSize()
+        
         self.bu_lb.setText(str(buy_price))
+        self.bu_lb.adjustSize()
+        
         self.sa_lb.setText(str(sale_price))
+        self.sa_lb.adjustSize()
+        
         self.nu_lb.setText(str(number))
+        self.nu_lb.adjustSize()
+        
         self.exp_lb.setText(expire_date)
+        self.exp_lb.adjustSize()
 
-        # بارگذاری عکس
         if os.path.exists(image_path):
             pixmap = QPixmap(image_path).scaled(120, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         else:
             pixmap = QPixmap("default.png").scaled(120, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-
+        
         self.image_label.setPixmap(pixmap)

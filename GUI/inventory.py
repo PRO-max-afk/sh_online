@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QFileDialog,
-    QGraphicsDropShadowEffect, QSizePolicy)
+    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor,QIcon,QPixmap
 from PyQt6 import QtCore
@@ -11,6 +11,11 @@ import uuid
 import pymysql
 from info_box import ProductBox
 
+from PyQt6.QtWidgets import (
+    QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
+    QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout
+)
+from PyQt6.QtCore import Qt
 
 class Inventory(QFrame):
     def __init__(self):
@@ -26,7 +31,49 @@ class Inventory(QFrame):
     def init_ui(self):
         main_layout = QVBoxLayout(self)
 
-        # تاریخ و زمان
+        # ScrollArea setup
+        scroll_area = QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
+        """)
+
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+
+        # لایه بالا
+        top_layout = QHBoxLayout()
+        self.label = QLabel("لیست محصولات فروشگاه", self)
+        self.search_line = QLineEdit(self)
+        self.serach_btn = QPushButton("جستجو", self)
+        self.add_btn = QPushButton()
+        self.new_btn = QPushButton()
+    
+        self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.serach_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.add_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.new_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
         datetime_layout = QVBoxLayout()
         self.date_label = QLabel(self)
         self.time_label = QLabel(self)
@@ -34,44 +81,38 @@ class Inventory(QFrame):
         datetime_layout.addWidget(self.time_label)
         datetime_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        # لایه بالا
-        top_layout = QHBoxLayout()
-        self.label = QLabel("لیست محصولات فروشگاه", self)
-        self.search_line = QLineEdit(self)
-        self.serach_btn = QPushButton("جستجو", self)
-        self.add_btn= QPushButton()
-        self.new_btn= QPushButton()
-
-        self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-        self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.serach_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        self.add_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        self.new_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-
         top_layout.addLayout(datetime_layout)
         top_layout.addStretch(1)
         top_layout.addWidget(self.serach_btn)
-        top_layout.addWidget(self.search_line, stretch=3)
-        top_layout.addWidget(self.label, stretch=1)
-        
-        button_layout= QHBoxLayout()
-        button_layout.addWidget(self.add_btn)
-        button_layout.addWidget(self.new_btn)
-        button_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-        ##box
-        self.box_layout= QHBoxLayout()
-        #self.box_layout.addWidget(info_box)
-        self.box_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-        ##
-        self.db_data= self.get_db_config()
+        top_layout.addWidget(self.search_line, 3)
+        top_layout.addWidget(self.label, 1)
 
+        #scroll_layout.addLayout(top_layout)
+
+        # دکمه‌ها
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.new_btn)
+        button_layout.addWidget(self.add_btn)
+        button_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        #scroll_layout.addLayout(button_layout)
+        scroll_layout.addSpacing(20)  # فضای بیشتر بین دکمه‌ها و جعبه‌ها
+
+        # لایه جعبه‌ها (ProductBoxها)
+        self.box_layout = QGridLayout()
+        self.box_layout.setSpacing(15)
+        scroll_layout.addLayout(self.box_layout)
+
+        scroll_layout.addStretch()
         main_layout.addLayout(top_layout)
         main_layout.addLayout(button_layout)
-        main_layout.addLayout(self.box_layout)
-        main_layout.addStretch()
-    
+        scroll_area.setWidget(scroll_widget)
+        scroll_area.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        main_layout.addWidget(scroll_area)
+       
+
         self.setLayout(main_layout)
         self.setStyleSheet("background-color: #D9D9D9;")
+        ##
 
     def label_UI(self):
         self.label.setMinimumSize(200, 40)
@@ -223,41 +264,38 @@ class Inventory(QFrame):
         ''')
     # دریافت اطلاعات دیتابیس از سرور
     def get_db_config(self):
-        try:
-            url = "https://aryaict.com/connect.php"  # URL فایل PHP
-            headers = {
-                'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
-                'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
-            }
-            response = requests.get(url, headers=headers, timeout=1)
-            response.raise_for_status()  # بررسی خطا در پاسخ
+        url = "https://aryaict.com/connect.php"
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'MyApp/1.0',
+        }
 
-            # بررسی اینکه پاسخ به صورت JSON است
+        try:
+            # ارسال درخواست با timeout کوتاه‌تر و تقسیم شده
+            response = requests.get(url, headers=headers, timeout=(10))  # (اتصال، دریافت)
+            response.raise_for_status()
+
             if "application/json" not in response.headers.get('Content-Type', ''):
                 raise ValueError("پاسخ سرور JSON نیست!")
 
-            # دریافت داده‌ها به‌صورت JSON
             data = response.json()
-
-            # بررسی وجود کلیدهای مورد نیاز
             required_keys = ("host", "user", "password", "database")
             if not all(k in data for k in required_keys):
                 raise ValueError("پاسخ JSON ناقص است")
 
-            return data  # بازگشت دیکشنری حاوی اطلاعات دیتابیس
+            return data
 
         except requests.Timeout:
-            print("⏳ اتصال به سرور زمان زیادی برد")
+            print("⏳ زمان اتصال یا پاسخ‌گویی سرور بیش از حد طول کشید.")
         except requests.RequestException as e:
-            print(f"⚠️ خطای درخواست: {e}")
-            print(f"کد وضعیت: {response.status_code}")  # اضافه کردن کد وضعیت برای بررسی خطا
-            print(f"متن پاسخ: {response.text}")  # نمایش متن پاسخ برای بررسی بیشتر
+            print(f"⚠️ خطای ارتباطی: {e}")
         except ValueError as e:
-            print(f"🚨 خطای JSON: {e}")
+            print(f"🚨 خطای پردازش پاسخ: {e}")
 
         return None
     ## 
     def load_all_data(self):
+        self.db_data= self.get_db_config()
         if not self.db_data:
             MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
             return False
@@ -286,16 +324,13 @@ class Inventory(QFrame):
             temp_dir = os.path.join(os.getcwd(), 'temp_images')
             os.makedirs(temp_dir, exist_ok=True)
 
-            for product in products:
+            for index, product in enumerate(products):
                 name, barcode, buy_price, sale_price, quantity, exp_date, image_data = product
 
                 image_path = None
                 if image_data:
-                    # تولید یک نام تصادفی برای فایل عکس
                     filename = f"{uuid.uuid4().hex}.jpg"
                     image_path = os.path.join(temp_dir, filename)
-
-                    # ذخیره کردن فایل روی دیسک
                     with open(image_path, 'wb') as img_file:
                         img_file.write(image_data)
 
@@ -307,9 +342,12 @@ class Inventory(QFrame):
                     sale_price=sale_price,
                     number=quantity,
                     expire_date=exp_date,
-                    image_path=image_path  # مسیر عکس جدید که ساخته‌ایم
+                    image_path=image_path
                 )
-                self.box_layout.addWidget(product_box)
+
+                row, col = divmod(index, 4)
+                self.box_layout.addWidget(product_box, row, col)
+
 
         except Exception as e:
             MessageBox(text=f"خطا در بارگذاری محصولات: {e}", title="❌ خطا", type="error").show()

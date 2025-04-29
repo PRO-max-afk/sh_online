@@ -170,7 +170,7 @@ class Main_login(QMainWindow):
         self.InUI()
         self.db_data= self.get_db_config()
         self.load_all_fonts()
-        self.id= None
+        
     
     def InUI(self):
         ##label
@@ -416,7 +416,7 @@ class Main_login(QMainWindow):
                 'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
                 'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
             }
-            response = requests.get(url, headers=headers, timeout=1)
+            response = requests.get(url, headers=headers, timeout=5)
             response.raise_for_status()  # بررسی خطا در پاسخ
 
             # بررسی اینکه پاسخ به صورت JSON است
@@ -460,6 +460,7 @@ class Main_login(QMainWindow):
         cursor = None
         conn_sq = None
         cursor_sq = None
+        id_s= None
 
         try:
             try:
@@ -499,7 +500,7 @@ class Main_login(QMainWindow):
             result = cursor.fetchone()
 
             if result:
-                self.id = result[0]
+                id_s= result[0]
 
                 # مسیر مستقیم دیتابیس لوکال
                 db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
@@ -511,10 +512,20 @@ class Main_login(QMainWindow):
                 conn_sq = sqlite3.connect(db_path)
                 cursor_sq = conn_sq.cursor()
 
-                # ذخیره شناسه در دیتابیس لوکال
-                cursor_sq.execute("INSERT INTO users (id) VALUES(?)", (self.id,))
-                conn_sq.commit()
+                # ذخیره یا بروزرسانی شناسه در دیتابیس لوکال
+                cursor_sq.execute("SELECT COUNT(*) FROM users WHERE id = ?", (id_s,))
+                exists = cursor_sq.fetchone()[0]
 
+                if exists:
+                    # اگر کاربر با این ID وجود دارد، بروزرسانی شود (در صورت وجود فیلدهای دیگر مثل نام کاربری یا ... اینجا اضافه کنید)
+                    cursor_sq.execute("UPDATE users SET id = ? WHERE id = ?", (id_s, id_s))
+                    print(id_s)
+                else:
+                    # در غیر این صورت، درج شود
+                    cursor_sq.execute("INSERT INTO users (id) VALUES(?)", (id_s,))
+
+
+                conn_sq.commit()
                 MessageBox(text="ورود با موفقیت انجام شد ✅", title="✅ موفقانه", type="info").show()
                 self.open_mainwindow_with_animation()
                 # ادامه عملیات ورود...
