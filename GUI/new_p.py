@@ -5,6 +5,8 @@ from PyQt6.QtGui import QPixmap, QFont,QColor,QIcon,QFontDatabase
 import sys
 import jdatetime
 from profile_picture import ProfileImage
+from info_box import ProductBox
+from inventory import Inventory
 from message_b import MessageBox
 from PyQt6.QtCore import Qt,QPropertyAnimation,QEasingCurve
 from PyQt6 import QtCore
@@ -15,12 +17,13 @@ import pymysql
 import sqlite3
 import ftplib
 class ProductForm(QDialog):
-    def __init__(self):
+    def __init__(self,inventory_page):
         super().__init__()
         self.setWindowTitle("📦 ثبت محصول جدید")
         self.resize(929, 630)
         self.setFixedSize(929, 630)  # جلوگیری از تغییر اندازه
         self.setStyleSheet("background-color: #E8E6E6;")
+        self.inventory_page= inventory_page
         
 
         self.center_window()  # <-- وسط‌چین کردن
@@ -653,11 +656,12 @@ class ProductForm(QDialog):
             # خواندن داده‌های باینری تصویر
             with open(file_path, 'rb') as file:
                 self.image_data = file.read()
+                print(self.image_data)
 
     # دریافت اطلاعات دیتابیس از سرور
     def get_db_config(self):
         try:
-            url = "https://aryaict.com//connect"  # URL فایل PHP
+            url = "https://aryaict.com/connect.php"  # URL فایل PHP
             headers = {
                 'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
                 'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
@@ -722,11 +726,10 @@ class ProductForm(QDialog):
         cursor_sq = None
         id_user = None
         date = jdatetime.date.today().strftime("%Y/%m/%d")
-        local_image_data = self.image_data  # مسیر عکس محلی
-        total= float(buy_price) * float(quantity)
-        ##
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        local_image_data = self.image_data
+        total = float(buy_price) * float(quantity)
 
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -734,7 +737,7 @@ class ProductForm(QDialog):
         try:
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
-            cursor_sq.execute("select id from users;")
+            cursor_sq.execute("SELECT id FROM users;")
             res_id = cursor_sq.fetchone()
             id_user = res_id[0]
         except Exception as e:
@@ -744,7 +747,6 @@ class ProductForm(QDialog):
             if conn_sq:
                 conn_sq.close()
 
-        # حالا ذخیره در دیتابیس آنلاین
         try:
             conn = pymysql.connect(
                 host=self.db_connection["host"],
@@ -755,20 +757,45 @@ class ProductForm(QDialog):
             cursor = conn.cursor()
 
             result = cursor.execute('''
-                insert into buy_invent(
+                INSERT INTO inventories (
                     product_name, barcode, category, sub_category, buy_price,
-                    sale_price, buy_date, new_price, quantity, product_image,
-                    expiration_dates, big_category, user_id,total
-                ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    sell_price, buy_date, big_price, quantity, product_image,
+                    expiration_dates, big_category, user_id, total
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 name, barcode, f_ch, s_ch, buy_price, sale_price, date,
-                sale_big, quantity, local_image_data, exp_date, category, id_user,total
+                sale_big, quantity, local_image_data, exp_date, category, id_user, total
             ))
 
             if result:
-                MessageBox(text="شما موفقانه اطلاعات را ذخیره نمودید ✅", title="✅موفقانه", type="info").show()
                 conn.commit()
-                # پاکسازی فیلدها بعد از ذخیره موفق
+                MessageBox(text="شما موفقانه اطلاعات را ذخیره نمودید ✅", title="✅موفقانه", type="info").show()
+
+                # >>>> تغییر مهم: اطلاعات را دوباره از دیتابیس بخوان <<<<
+                cursor.execute('''
+                    SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
+                    FROM inventories
+                    WHERE barcode = %s
+                    ORDER BY invent_id DESC LIMIT 1
+                ''', (barcode,))
+                new_data = cursor.fetchone()
+
+                if new_data:
+                    product_name, product_barcode, buy_price, sale_price, quantity, exp_date, image_data = new_data
+
+                    product_box = ProductBox()
+                    product_box.set_product_info(
+                        name=product_name,
+                        barcode=product_barcode,
+                        buy_price=buy_price,
+                        sale_price=sale_price,
+                        number=quantity,
+                        expire_date=exp_date,
+                        image_path=self.image_path  # تصویر را همچنان محلی استفاده می‌کنیم
+                    )
+                    self.inventory_page.box_layout.addWidget(product_box)
+
+                # پاکسازی فیلدها
                 self.name_line.clear()
                 self.bar_line.clear()
                 self.exp_line.clear()
@@ -780,8 +807,8 @@ class ProductForm(QDialog):
                 self.under_choise.setCurrentIndex(0)
                 self.cate_ch.setCurrentIndex(0)
                 self.total_line.setText("0.00")
-                self.img_path = None  # آدرس عکس ریست شود
-                # ایمن سازی برای None بودن
+                self.img_preveiw.setText("")
+
                 if self.unit_lineedit:
                     self.unit_lineedit.clear()
                     self.unit_lineedit.hide()
@@ -789,6 +816,7 @@ class ProductForm(QDialog):
                 if self.unit_label:
                     self.unit_label.setText("")
                     self.unit_label.hide()
+
             else:
                 MessageBox(text="اطلاعات ذخیره نشد 😣😣", title="❌ خطا", type="error").show()
 
@@ -798,6 +826,7 @@ class ProductForm(QDialog):
         finally:
             if conn:
                 conn.close()
+
 
 
 if __name__ == "__main__":

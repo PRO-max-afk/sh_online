@@ -1,12 +1,15 @@
-from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
+from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QFileDialog,
     QGraphicsDropShadowEffect, QSizePolicy)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor,QIcon
+from PyQt6.QtGui import QColor,QIcon,QPixmap
 from PyQt6 import QtCore
 import jdatetime
 import os
-from info_box import  ProductBox
-from new_p import ProductForm
+import requests
+from message_b import MessageBox
+import uuid
+import pymysql
+from info_box import ProductBox
 
 
 class Inventory(QFrame):
@@ -18,6 +21,7 @@ class Inventory(QFrame):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
+        self.load_all_data()
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -37,7 +41,6 @@ class Inventory(QFrame):
         self.serach_btn = QPushButton("جستجو", self)
         self.add_btn= QPushButton()
         self.new_btn= QPushButton()
-        info_box= ProductBox(image_path=self.get_asset_path("photo_2_2025-03-26_15-05-01.png"))
 
         self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -56,13 +59,15 @@ class Inventory(QFrame):
         button_layout.addWidget(self.new_btn)
         button_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
         ##box
-        box_layout= QHBoxLayout()
-        box_layout.addWidget(info_box)
-        box_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.box_layout= QHBoxLayout()
+        #self.box_layout.addWidget(info_box)
+        self.box_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        ##
+        self.db_data= self.get_db_config()
 
         main_layout.addLayout(top_layout)
         main_layout.addLayout(button_layout)
-        main_layout.addLayout(box_layout)
+        main_layout.addLayout(self.box_layout)
         main_layout.addStretch()
     
         self.setLayout(main_layout)
@@ -216,7 +221,104 @@ class Inventory(QFrame):
             color: #333;
             margin-left:30px;
         ''')
-    ##images
+    # دریافت اطلاعات دیتابیس از سرور
+    def get_db_config(self):
+        try:
+            url = "https://aryaict.com/connect.php"  # URL فایل PHP
+            headers = {
+                'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
+                'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
+            }
+            response = requests.get(url, headers=headers, timeout=1)
+            response.raise_for_status()  # بررسی خطا در پاسخ
+
+            # بررسی اینکه پاسخ به صورت JSON است
+            if "application/json" not in response.headers.get('Content-Type', ''):
+                raise ValueError("پاسخ سرور JSON نیست!")
+
+            # دریافت داده‌ها به‌صورت JSON
+            data = response.json()
+
+            # بررسی وجود کلیدهای مورد نیاز
+            required_keys = ("host", "user", "password", "database")
+            if not all(k in data for k in required_keys):
+                raise ValueError("پاسخ JSON ناقص است")
+
+            return data  # بازگشت دیکشنری حاوی اطلاعات دیتابیس
+
+        except requests.Timeout:
+            print("⏳ اتصال به سرور زمان زیادی برد")
+        except requests.RequestException as e:
+            print(f"⚠️ خطای درخواست: {e}")
+            print(f"کد وضعیت: {response.status_code}")  # اضافه کردن کد وضعیت برای بررسی خطا
+            print(f"متن پاسخ: {response.text}")  # نمایش متن پاسخ برای بررسی بیشتر
+        except ValueError as e:
+            print(f"🚨 خطای JSON: {e}")
+
+        return None
+    ## 
+    def load_all_data(self):
+        if not self.db_data:
+            MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
+            return False
+
+        conn = None
+        cursor = None
+
+        try:
+            # اتصال به دیتابیس اصلی (MySQL)
+            conn = pymysql.connect(
+                host=self.db_data["host"],
+                user=self.db_data["user"],
+                password=self.db_data["password"],
+                database=self.db_data["database"]
+            )
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
+                FROM inventories
+                ORDER BY invent_id DESC
+            ''')
+            products = cursor.fetchall()
+
+            # ساخت پوشه temp_images اگر وجود ندارد
+            temp_dir = os.path.join(os.getcwd(), 'temp_images')
+            os.makedirs(temp_dir, exist_ok=True)
+
+            for product in products:
+                name, barcode, buy_price, sale_price, quantity, exp_date, image_data = product
+
+                image_path = None
+                if image_data:
+                    # تولید یک نام تصادفی برای فایل عکس
+                    filename = f"{uuid.uuid4().hex}.jpg"
+                    image_path = os.path.join(temp_dir, filename)
+
+                    # ذخیره کردن فایل روی دیسک
+                    with open(image_path, 'wb') as img_file:
+                        img_file.write(image_data)
+
+                product_box = ProductBox()
+                product_box.set_product_info(
+                    name=name,
+                    barcode=barcode,
+                    buy_price=buy_price,
+                    sale_price=sale_price,
+                    number=quantity,
+                    expire_date=exp_date,
+                    image_path=image_path  # مسیر عکس جدید که ساخته‌ایم
+                )
+                self.box_layout.addWidget(product_box)
+
+        except Exception as e:
+            MessageBox(text=f"خطا در بارگذاری محصولات: {e}", title="❌ خطا", type="error").show()
+
+        finally:
+            if conn:
+                conn.close()
+    
+    # #images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         image_path = os.path.join(project_root, "assets", filename)
@@ -227,6 +329,8 @@ class Inventory(QFrame):
             return None
     ##open box_frames
     def open_new_form(self):
-        self.pro_form= ProductForm()
-        self.pro_form.exec()
+        from new_p import ProductForm  # 🔥 اینجا ایمپورت می‌کنیم، نه بالا
+        form = ProductForm(inventory_page=self)
+        form.exec()
+
 

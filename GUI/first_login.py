@@ -411,7 +411,7 @@ class Main_login(QMainWindow):
     # دریافت اطلاعات دیتابیس از سرور
     def get_db_config(self):
         try:
-            url = "https://aryaict.com//connect"  # URL فایل PHP
+            url = "https://aryaict.com/connect.php"  # URL فایل PHP
             headers = {
                 'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
                 'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
@@ -489,11 +489,11 @@ class Main_login(QMainWindow):
 
             # چک کردن اطلاعات کاربر
             cursor.execute("""
-                SELECT id, username, password, expire_date 
+                SELECT id, username, password, expirition_dates 
                 FROM user_s 
                 WHERE username = %s 
                 AND password = %s 
-                AND expire_date > %s
+                AND expirition_dates > %s
             """, (username, password, expire_date))
 
             result = cursor.fetchone()

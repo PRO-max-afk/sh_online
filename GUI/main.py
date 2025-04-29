@@ -16,6 +16,7 @@ class mainwindow(QWidget):
         self.setGeometry(screen.x(), screen.y(), screen.width(), screen.height())
         self.setWindowTitle("برنامه فروشگاه")
         self.setStyleSheet("background-color:#D9D9D9;")
+        
 
         self.panel_width = 90
         panel_x = screen.width() - self.panel_width  # قرار دادن پنل در سمت راست
@@ -338,7 +339,7 @@ class mainwindow(QWidget):
             return
 
         for filename in os.listdir(fonts_folder):
-            if filename.lower().endswith((".ttf", ".otf")):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
                 font_path = os.path.join(fonts_folder, filename)
                 font_id = QFontDatabase.addApplicationFont(font_path)
                 if font_id == -1:
