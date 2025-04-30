@@ -512,17 +512,9 @@ class Main_login(QMainWindow):
                 conn_sq = sqlite3.connect(db_path)
                 cursor_sq = conn_sq.cursor()
 
-                # ذخیره یا بروزرسانی شناسه در دیتابیس لوکال
-                cursor_sq.execute("SELECT COUNT(*) FROM users WHERE id = ?", (id_s,))
-                exists = cursor_sq.fetchone()[0]
-
-                if exists:
-                    # اگر کاربر با این ID وجود دارد، بروزرسانی شود (در صورت وجود فیلدهای دیگر مثل نام کاربری یا ... اینجا اضافه کنید)
-                    cursor_sq.execute("UPDATE users SET id = ? WHERE id = ?", (id_s, id_s))
-                    print(id_s)
-                else:
-                    # در غیر این صورت، درج شود
-                    cursor_sq.execute("INSERT INTO users (id) VALUES(?)", (id_s,))
+                # اطمینان از وجود فقط یک ردیف در جدول users
+                cursor_sq.execute("DELETE FROM users")
+                cursor_sq.execute("INSERT INTO users (id) VALUES(?)", (id_s,))
 
 
                 conn_sq.commit()

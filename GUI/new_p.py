@@ -359,6 +359,7 @@ class ProductForm(QDialog):
         ''')
         ##
         self.exp_line.setGeometry(653,330,250,45)
+        self.exp_line.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.exp_line.setStyleSheet('''
             background-color: white;
             font-family: B Nazanin,"Mirza";
@@ -517,7 +518,7 @@ class ProductForm(QDialog):
             }
         ''')
         ##
-        self.calendar_btn.setGeometry(870,337,30,30)
+        self.calendar_btn.setGeometry(660,337,30,30)
         self.cale_icon= QIcon(self.get_asset_path("calendar_8265298.png"))
         self.calendar_btn.setIcon(self.cale_icon)
         self.calendar_btn.setIconSize(QtCore.QSize(30,30))

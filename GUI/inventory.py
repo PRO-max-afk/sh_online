@@ -1,12 +1,13 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QFileDialog,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
 from PyQt6.QtGui import QColor,QIcon,QPixmap
 from PyQt6 import QtCore
 import jdatetime
 import os
 import requests
 from message_b import MessageBox
+from circle import CircularSpinner
 import uuid
 import pymysql
 from info_box import ProductBox
@@ -16,17 +17,105 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout
 )
 from PyQt6.QtCore import Qt
+class DataLoaderThread(QThread):
+    data_loaded = pyqtSignal(list)
+    error_occurred = pyqtSignal(str)
+    ##
+    def get_db_config(self):
+        url = "https://aryaict.com/connect.php"
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'MyApp/1.0',
+        }
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            if "application/json" not in response.headers.get('Content-Type', ''):
+                raise ValueError("پاسخ سرور JSON نیست!")
 
+            data = response.json()
+            required_keys = ("host", "user", "password", "database")
+            if not all(k in data for k in required_keys):
+                raise ValueError("پاسخ JSON ناقص است")
+
+            return data
+        except Exception as e:
+            print("خطا در دریافت config:", e)
+            return None
+        ## 
+    ##
+    def load_all_data(self):
+        self.db_data = self.get_db_config()
+        if not self.db_data:
+            self.error_occurred.emit("لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود")
+            return
+
+        try:
+            conn = pymysql.connect(
+                host=self.db_data["host"],
+                user=self.db_data["user"],
+                password=self.db_data["password"],
+                database=self.db_data["database"]
+            )
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
+                FROM inventories
+                ORDER BY invent_id DESC
+            ''')
+            products = cursor.fetchall()
+
+            temp_dir = os.path.join(os.getcwd(), 'temp_images')
+            os.makedirs(temp_dir, exist_ok=True)
+
+            product_list = []
+            for product in products:
+                name, barcode, buy_price, sale_price, quantity, exp_date, image_data = product
+
+                image_path = None
+                if image_data:
+                    filename = f"{uuid.uuid4().hex}.jpg"
+                    image_path = os.path.join(temp_dir, filename)
+                    with open(image_path, 'wb') as img_file:
+                        img_file.write(image_data)
+
+                product_info = {
+                    "name": name,
+                    "barcode": barcode,
+                    "buy_price": buy_price,
+                    "sale_price": sale_price,
+                    "quantity": quantity,
+                    "expire_date": exp_date,
+                    "image_path": image_path
+                }
+                product_list.append(product_info)
+
+            self.data_loaded.emit(product_list)
+
+        except Exception as e:
+            self.error_occurred.emit(f"خطا در بارگذاری محصولات: {e}")
+
+        finally:
+            if conn:
+                conn.close()
+
+    def run(self):
+        self.load_all_data()
+    
 class Inventory(QFrame):
     def __init__(self):
         super().__init__()
+        self.spinner = None
+        self.should_show_spinner = True  # ✅ شرط اولیه True
         self.init_ui()
         self.label_UI()
         self.field_UI()
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
-        self.load_all_data()
+        self.show_spinner_and_load_data()
+
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -262,100 +351,56 @@ class Inventory(QFrame):
             color: #333;
             margin-left:30px;
         ''')
-    # دریافت اطلاعات دیتابیس از سرور
-    def get_db_config(self):
-        url = "https://aryaict.com/connect.php"
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'MyApp/1.0',
-        }
+    ##spinner 
+    def show_spinner_and_load_data(self):
+        spinner_wrapper = QWidget()
+        spinner_layout = QVBoxLayout(spinner_wrapper)
+        spinner_layout.setContentsMargins(0, 100, 0, 100)
+        spinner_layout.addStretch()
 
-        try:
-            # ارسال درخواست با timeout کوتاه‌تر و تقسیم شده
-            response = requests.get(url, headers=headers, timeout=(10))  # (اتصال، دریافت)
-            response.raise_for_status()
+        self.spinner = CircularSpinner(self)
+        spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        spinner_layout.addStretch()
 
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست!")
+        self.box_layout.addWidget(spinner_wrapper, 0, 0, 1, 2)
 
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است")
+        QTimer.singleShot(100, self.run_data_loader)
+    ##
+    def run_data_loader(self):
+        self.thread = DataLoaderThread()
+        self.thread.data_loaded.connect(self.on_data_loaded)
+        self.thread.error_occurred.connect(self.on_data_error)
+        self.thread.start()
 
-            return data
+    def on_data_loaded(self, product_list):
+        if self.spinner:
+            self.spinner.setParent(None)
+            self.spinner.deleteLater()
+            self.spinner = None
 
-        except requests.Timeout:
-            print("⏳ زمان اتصال یا پاسخ‌گویی سرور بیش از حد طول کشید.")
-        except requests.RequestException as e:
-            print(f"⚠️ خطای ارتباطی: {e}")
-        except ValueError as e:
-            print(f"🚨 خطای پردازش پاسخ: {e}")
-
-        return None
-    ## 
-    def load_all_data(self):
-        self.db_data= self.get_db_config()
-        if not self.db_data:
-            MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
-            return False
-
-        conn = None
-        cursor = None
-
-        try:
-            # اتصال به دیتابیس اصلی (MySQL)
-            conn = pymysql.connect(
-                host=self.db_data["host"],
-                user=self.db_data["user"],
-                password=self.db_data["password"],
-                database=self.db_data["database"]
+        for index, data in enumerate(product_list):
+            product_box = ProductBox()
+            product_box.set_product_info(
+                name=data["name"],
+                barcode=data["barcode"],
+                buy_price=data["buy_price"],
+                sale_price=data["sale_price"],
+                number=data["quantity"],
+                expire_date=data["expire_date"],
+                image_path=data["image_path"]
             )
-            cursor = conn.cursor()
+            row, col = divmod(index, 4)
+            self.box_layout.addWidget(product_box, row, col)
 
-            cursor.execute('''
-                SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
-                FROM inventories
-                ORDER BY invent_id DESC
-            ''')
-            products = cursor.fetchall()
+    ##
+    def on_data_error(self, error_message):
+        if self.spinner:
+            self.spinner.setParent(None)
+            self.spinner.deleteLater()
+            self.spinner = None
 
-            # ساخت پوشه temp_images اگر وجود ندارد
-            temp_dir = os.path.join(os.getcwd(), 'temp_images')
-            os.makedirs(temp_dir, exist_ok=True)
+        MessageBox(text=error_message, title="❌ خطا", type="error").show()
 
-            for index, product in enumerate(products):
-                name, barcode, buy_price, sale_price, quantity, exp_date, image_data = product
-
-                image_path = None
-                if image_data:
-                    filename = f"{uuid.uuid4().hex}.jpg"
-                    image_path = os.path.join(temp_dir, filename)
-                    with open(image_path, 'wb') as img_file:
-                        img_file.write(image_data)
-
-                product_box = ProductBox()
-                product_box.set_product_info(
-                    name=name,
-                    barcode=barcode,
-                    buy_price=buy_price,
-                    sale_price=sale_price,
-                    number=quantity,
-                    expire_date=exp_date,
-                    image_path=image_path
-                )
-
-                row, col = divmod(index, 4)
-                self.box_layout.addWidget(product_box, row, col)
-
-
-        except Exception as e:
-            MessageBox(text=f"خطا در بارگذاری محصولات: {e}", title="❌ خطا", type="error").show()
-
-        finally:
-            if conn:
-                conn.close()
-    
     # #images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
