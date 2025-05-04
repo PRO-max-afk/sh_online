@@ -1,10 +1,9 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QGraphicsBlurEffect, QGraphicsDropShadowEffect,QLabel,QFileDialog
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout,QGraphicsDropShadowEffect
 from PyQt6.QtCore import QPropertyAnimation, QRect, Qt
-from PyQt6.QtGui import QColor,QIcon,QPixmap,QPainter,QPainterPath,QFontDatabase
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase
 import sys
 from PyQt6 import QtCore
 from home import WidgetManager  
-import sqlite3
 import os
 from profile_picture import ProfileImage
 
@@ -17,7 +16,6 @@ class mainwindow(QWidget):
         self.setWindowTitle("برنامه فروشگاه")
         self.setStyleSheet("background-color:#D9D9D9;")
         
-
         self.panel_width = 90
         panel_x = screen.width() - self.panel_width  # قرار دادن پنل در سمت راست
         

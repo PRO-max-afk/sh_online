@@ -15,7 +15,9 @@ from calendars import JalaliCalendar
 import requests
 import pymysql
 import sqlite3
-import ftplib
+from  ftplib import FTP
+import ntpath
+from PIL import Image
 class ProductForm(QDialog):
     def __init__(self,inventory_page):
         super().__init__()
@@ -100,11 +102,8 @@ class ProductForm(QDialog):
         self.enties_UI()
         self.Button_UI()
         self.under_category()
-        
-        
-        
-
-
+    
+    ###
     def center_window(self):
         """مرکز کردن پنجره روی صفحه"""
         screen = self.screen().availableGeometry()
@@ -645,20 +644,36 @@ class ProductForm(QDialog):
     ##
     def select_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "انتخاب تصویر محصول", "", "Images (*.png *.jpg *.jpeg)"
+            self, "انتخاب تصویر محصول", "", "Images (*.png *.jpg *.jpeg *.webp)"
         )
         if file_path:
-            # نمایش تصویر در پیش‌نمایش
-            self.img_preveiw.setPixmap(QPixmap(file_path))
-            
-            # ذخیره مسیر فایل
-            self.image_path = file_path
-            
-            # خواندن داده‌های باینری تصویر
-            with open(file_path, 'rb') as file:
-                self.image_data = file.read()
+            # مسیر جدید برای ذخیره تصویر تبدیل‌شده
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+            webp_path = os.path.join("converted_images", f"{base_name}.webp")
 
-    # دریافت اطلاعات دیتابیس از سرور
+            os.makedirs("converted_images", exist_ok=True)
+
+            # باز کردن تصویر
+            image = Image.open(file_path)
+
+            # اگر تصویر کانال آلفا دارد (شفافیت)، حفظ کن
+            if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
+                image = image.convert("RGBA")
+            else:
+                # تصویر بدون شفافیت است، تبدیل به RGBA و ساخت پس‌زمینه شفاف
+                new_image = Image.new("RGBA", image.size, (255, 255, 255, 0))  # پس‌زمینه شفاف
+                image = image.convert("RGBA")
+                new_image.paste(image, (0, 0))
+                image = new_image
+
+            # ذخیره به صورت webp با شفافیت
+            image.save(webp_path, "WEBP", lossless=True)
+
+            # نمایش پیش‌نمایش و ذخیره مسیر
+            self.img_preveiw.setPixmap(QPixmap(webp_path))
+            self.image_path = webp_path
+
+        # دریافت اطلاعات دیتابیس از سرور
     def get_db_config(self):
 
         url = "https://aryaict.com/connect.php"
@@ -669,7 +684,7 @@ class ProductForm(QDialog):
 
         try:
             # ارسال درخواست با timeout کوتاه‌تر و تقسیم شده
-            response = requests.get(url, headers=headers, timeout=(10))  # (اتصال، دریافت)
+            response = requests.get(url, headers=headers, timeout=(20))  # (اتصال، دریافت)
             response.raise_for_status()
 
             if "application/json" not in response.headers.get('Content-Type', ''):
@@ -706,30 +721,22 @@ class ProductForm(QDialog):
         quantity = self.number_line.text()
         sale_price = self.sale_line.text()
         sale_big = self.sale_big_line.text()
-        big_s= self.unit_lineedit.text()
-        self.db_connection= self.get_db_config()
+        big_s = self.unit_lineedit.text() if self.unit_lineedit else 0
+        self.db_connection = self.get_db_config()
 
         if f_ch == "انتخاب" and s_ch == "انتخاب":
-            MessageBox(text="لطفاً اطلاعات را از باکس های انتخاب کنید", title="هشدار", type="warning").show()
+            MessageBox(text="لطفاً اطلاعات را از باکس‌های انتخابی وارد کنید", title="هشدار", type="warning").show()
             return
 
-        if not name or not barcode or not exp_date or not category or not buy_price or not quantity or not sale_price or not sale_big:
-            MessageBox(text="لطفاً تمامی فیلد ها را پر کنید", title="هشدار", type="warning").show()
+        if not all([name, barcode, exp_date, category, buy_price, quantity, sale_price, sale_big]):
+            MessageBox(text="لطفاً تمامی فیلدها را پر کنید", title="هشدار", type="warning").show()
             return
 
         if not self.db_connection:
-            MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
+            MessageBox(text="لطفاً اینترنت خود را بررسی کنید ❌ اتصال به سرور ناموفق بود", title="❌ خطا", type="error").show()
             return
 
-        conn_sq = None
-        cursor_sq = None
-        id_user = None
-        date = jdatetime.date.today().strftime("%Y/%m/%d")
-        local_image_data = self.image_data
-        total = float(buy_price) * float(quantity)
-        per_buy= float(buy_price) / float(big_s)
-        per_quantity= float(quantity) * float(big_s)
-
+        # خواندن شناسه کاربر از دیتابیس محلی
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
@@ -748,6 +755,47 @@ class ProductForm(QDialog):
             if conn_sq:
                 conn_sq.close()
 
+        # محاسبات
+        date = jdatetime.date.today().strftime("%Y/%m/%d")
+        total = float(buy_price) * float(quantity)
+        per_buy = float(buy_price) / float(big_s)
+        per_quantity = float(quantity) * float(big_s)
+
+        # ==== آپلود تصویر به FTP ====
+        if hasattr(self, "image_path") and self.image_path:
+            try:
+                image_name = ntpath.basename(self.image_path)
+                ftp_image_url = f"uploads/app_images/{image_name}"
+
+                ftp_host = 'ihr.blg.mybluehost.me'
+                ftp_user = 'shop@ihr.blg.mybluehost.me'
+                ftp_pass = 't@fQvz-7e9'
+                #ftp_path = 'storage/app/public/uploads/app_images'  # مسیر نسبی از Home
+
+                ftp = FTP()
+                ftp.connect(ftp_host, 21)
+                ftp.login(ftp_user, ftp_pass)
+
+                # فقط تلاش برای ورود به مسیر، بدون ساخت آن
+                #ftp.cwd(ftp_path)
+
+                # آپلود فایل
+                with open(self.image_path, 'rb') as file:
+                    ftp.storbinary(f'STOR {image_name}', file)
+
+                ftp.quit()
+                print("✅ تصویر با موفقیت آپلود شد:", ftp_image_url)
+
+            except Exception as e:
+                import traceback
+                error_details = traceback.format_exc()
+                print("❌ خطای کامل:", error_details)
+                MessageBox(text=f"خطا در آپلود تصویر: {e}", title="❌ خطا", type="error").show()
+        else:
+            ftp_image_url = ""
+            MessageBox(text="تصویری انتخاب نشده است!", title="❌ هشدار", type="warning").show()
+
+        # ==== ذخیره اطلاعات در دیتابیس آنلاین ====
         try:
             conn = pymysql.connect(
                 host=self.db_connection["host"],
@@ -765,14 +813,14 @@ class ProductForm(QDialog):
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 name, barcode, f_ch, s_ch, per_buy, sale_price, date,
-                sale_big, per_quantity, local_image_data, exp_date, category, id_user, total
+                sale_big, per_quantity, ftp_image_url, exp_date, category, id_user, total
             ))
 
             if result:
                 conn.commit()
-                MessageBox(text="شما موفقانه اطلاعات را ذخیره نمودید ✅", title="✅موفقانه", type="info").show()
+                MessageBox(text="شما موفقانه اطلاعات را ذخیره نمودید ✅", title="✅ موفقانه", type="info").show()
 
-                # >>>> تغییر مهم: اطلاعات را دوباره از دیتابیس بخوان <<<<
+                # افزودن محصول به رابط کاربری
                 cursor.execute('''
                     SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
                     FROM inventories
@@ -782,7 +830,7 @@ class ProductForm(QDialog):
                 new_data = cursor.fetchone()
 
                 if new_data:
-                    product_name, product_barcode, buy_price, sale_price, quantity, exp_date, image_data = new_data
+                    product_name, product_barcode, buy_price, sale_price, quantity, exp_date, image_url = new_data
 
                     product_box = ProductBox()
                     product_box.set_product_info(
@@ -792,11 +840,15 @@ class ProductForm(QDialog):
                         sale_price=sale_price,
                         number=quantity,
                         expire_date=exp_date,
-                        image_path=self.image_path  # تصویر را همچنان محلی استفاده می‌کنیم
+                        image_path=self.image_path  # تصویر لوکال برای پیش‌نمایش
                     )
-                    self.inventory_page.box_layout.addWidget(product_box)
+                    # محاسبه سطر و ستون با استفاده از divmod
+                    row, col = divmod(self.inventory_page.box_layout.count(), 4)
 
-                # پاکسازی فیلدها
+                    # افزودن product_box به box_layout
+                    self.inventory_page.box_layout.addWidget(product_box, row, col)
+
+                # پاک‌سازی فرم
                 self.name_line.clear()
                 self.bar_line.clear()
                 self.exp_line.clear()
@@ -808,7 +860,7 @@ class ProductForm(QDialog):
                 self.under_choise.setCurrentIndex(0)
                 self.cate_ch.setCurrentIndex(0)
                 self.total_line.setText("0.00")
-                self.img_preveiw= None
+                self.img_preveiw.clear()
 
                 if self.unit_lineedit:
                     self.unit_lineedit.clear()
@@ -819,7 +871,7 @@ class ProductForm(QDialog):
                     self.unit_label.hide()
 
             else:
-                MessageBox(text="اطلاعات ذخیره نشد 😣😣", title="❌ خطا", type="error").show()
+                MessageBox(text="اطلاعات ذخیره نشد 😣", title="❌ خطا", type="error").show()
 
         except pymysql.Error as e:
             MessageBox(text=f"{e}: خطا در اتصال به دیتابیس", title="❌ خطا", type="error").show()
@@ -827,6 +879,8 @@ class ProductForm(QDialog):
         finally:
             if conn:
                 conn.close()
+
+
 
 
 

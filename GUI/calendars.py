@@ -1,5 +1,5 @@
 import ntplib
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox, QPushButton
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox, QPushButton,QSpinBox
 from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
 import jdatetime
@@ -35,10 +35,21 @@ class JalaliCalendar(QDialog):
 
         self.header_layout = QHBoxLayout()
 
-        self.year_label = QLabel(str(self.current_year))
-        self.year_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.year_label.setStyleSheet("background-color:transparent;color: black;")
-        self.year_label.setFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
+        # بعد:
+        self.year_spinbox = QSpinBox()
+        self.year_spinbox.setRange(1300, 1500)  # بازه‌ی قابل تنظیم برای سال
+        self.year_spinbox.setValue(self.current_year)
+        self.year_spinbox.setFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
+        self.year_spinbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.year_spinbox.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.year_spinbox.setStyleSheet("""
+            QSpinBox {
+                background-color: transparent;
+                border: none;
+                color: black;
+            }
+        """)
+        self.year_spinbox.valueChanged.connect(self.on_year_changed)
 
         self.month_combo = QComboBox()
         self.month_names = [
@@ -50,43 +61,63 @@ class JalaliCalendar(QDialog):
         self.month_combo.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.month_combo.setStyleSheet('''
             QComboBox {
-                background-color: white;
-                font-family: "B Nazanin";
-                font-size: 12px;
-                font-weight: bold;
-                color: #000;
-                border: 1px solid #bfbfbf;
-                border-radius: 8px;
-                text-align: right;
-                padding: 6px 10px 6px 30px;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: top left;
-                width: 30px;
-                border: none;
-            }
-            QComboBox QAbstractItemView {
-                background-color: white;
-                color: black;
-                text-align: left;
-                font-family: "B Nazanin";
-                font-size: 12px;
-                border: 1px solid #bfbfbf;
-                border-radius: 8px;
-                selection-background-color: #f0f0f0;
-            }
-            QComboBox::down-arrow {
-                image: url(assets/Down Button.png);
-                width: 20px;
-                height: 20px;
-            }
+            background-color: white;
+            font-family: "B Nazanin";
+            font-size: 12px;
+            font-weight: bold;
+            color: #000;
+            border: 1px solid #bfbfbf;
+            border-radius: 8px;
+            text-align: right;
+            padding: 6px 10px 6px 30px;
+        }
+        QComboBox::drop-down {
+            subcontrol-origin: padding;
+            subcontrol-position: top left;
+            width: 30px;
+            border: none;
+        }
+        QComboBox::down-arrow {
+            image: url(assets/Down Button.png);
+            width: 20px;
+            height: 20px;
+        }
+        QComboBox QAbstractItemView {
+            background-color: white;
+            color: black;
+            font-family: "B Nazanin";
+            font-size: 12px;
+            border: 1px solid #bfbfbf;
+            border-radius: 8px;
+            selection-background-color: #e6f0ff;
+            padding: 5px;
+            outline: 0;
+        }
+        QScrollBar:vertical {
+            border: none;
+            background: #f0f0f0;
+            width: 8px;
+            margin: 2px 0 2px 0;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical {
+            background: #a8a8a8;
+            min-height: 20px;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical:hover {
+            background: #7a7a7a;
+        }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            height: 0px;
+        }
         ''')
         self.month_combo.currentIndexChanged.connect(self.on_month_changed)
 
         self.header_layout.addWidget(self.month_combo)
         self.header_layout.addStretch()
-        self.header_layout.addWidget(self.year_label)
+        #self.header_layout.addWidget(self.year_label)
+        self.header_layout.addWidget(self.year_spinbox)
         self.layout.addLayout(self.header_layout)
 
         self.days_layout = QGridLayout()
@@ -95,6 +126,7 @@ class JalaliCalendar(QDialog):
         self.layout.addLayout(self.days_layout)
 
         self.update_calendar()
+        self.load_all_fonts()
 
     def get_jalali_from_ntp(self):
         try:
@@ -133,7 +165,7 @@ class JalaliCalendar(QDialog):
         self.update_calendar()
 
     def update_calendar(self):
-        self.year_label.setText(str(self.current_year))
+        self.year_spinbox.setValue(self.current_year)  # جایگزین year_label
 
         for i in reversed(range(self.days_layout.count())):
             widget = self.days_layout.itemAt(i).widget()
@@ -174,11 +206,16 @@ class JalaliCalendar(QDialog):
             if (i + 1) % 7 == 0:
                 row += 1
 
+
     def select_day(self, day):
         selected = jdatetime.date(self.current_year, self.current_month, day)
         formatted = selected.strftime("%Y/%m/%d")
         self.main_window.set_selected_date(formatted)
         self.hide_with_animation()
+    
+    def on_year_changed(self, year):
+        self.current_year = year
+        self.update_calendar()
 
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
