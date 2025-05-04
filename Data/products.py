@@ -11,6 +11,7 @@ cursor.execute('''
             sale_price REAL,
             quantity INTEGER,
             expire_date TEXT,
-            image_path TEXT
+            image_path TEXT,
+            user_id INTEGER
         );
     ''')

@@ -2,7 +2,7 @@ import sys
 import ctypes
 from ctypes import c_char_p, c_int, c_void_p, byref
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QMessageBox
-
+from mes.message_ui import CustomMessageBox
 
 class FingerprintApp(QWidget):
     def __init__(self):

@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout
 )
 from PyQt6.QtCore import Qt
+
 class DataLoaderThread(QThread):
     data_loaded = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
@@ -95,7 +96,8 @@ class DataLoaderThread(QThread):
                     "sale_price": float(sale_price) if isinstance(sale_price, Decimal) else sale_price,
                     "quantity": quantity,
                     "expire_date": exp_date,
-                    "image_path": image_path
+                    "image_path": image_path,
+                    "user_id": id_user
                 }
                 product_list.append(product_info)
 
@@ -119,15 +121,16 @@ class DataLoaderThread(QThread):
 
         for product in product_list:
             cursor.execute('''
-                INSERT INTO products (barcode, name, buy_price, sale_price, quantity, expire_date, image_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO products (barcode, name, buy_price, sale_price, quantity, expire_date, image_path,user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?,?)
                 ON CONFLICT(barcode) DO UPDATE SET
                     name=excluded.name,
                     buy_price=excluded.buy_price,
                     sale_price=excluded.sale_price,
                     quantity=excluded.quantity,
                     expire_date=excluded.expire_date,
-                    image_path=excluded.image_path
+                    image_path=excluded.image_path,
+                    user_id= excluded.user_id
             ''', (
                 product["barcode"],
                 product["name"],
@@ -135,7 +138,8 @@ class DataLoaderThread(QThread):
                 product["sale_price"],
                 product["quantity"],
                 product["expire_date"],
-                product["image_path"]
+                product["image_path"],
+                product["user_id"]
             ))
 
         conn.commit()
@@ -154,38 +158,24 @@ class SearchThread(QThread):
         super().__init__()
         self.search_text = search_text
 
-    def get_db_config(self):
-        url = "https://aryaict.com/connect.php"
-        headers = {'Accept': 'application/json', 'User-Agent': 'MyApp/1.0'}
-        try:
-            response = requests.get(url, headers=headers, timeout=5)
-            response.raise_for_status()
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست!")
-            data = response.json()
-            if not all(k in data for k in ("host", "user", "password", "database")):
-                raise ValueError("پاسخ JSON ناقص است")
-            return data
-        except Exception as e:
-            print("خطا در دریافت config:", e)
-            return None
-
+    ##
     def run(self):
-        db_data = self.get_db_config()
-        if not db_data:
-            self.error_occurred.emit("❌ اتصال به سرور ناموفق بود")
-            return
         try:
-            conn = pymysql.connect(
-                host=db_data["host"], user=db_data["user"],
-                password=db_data["password"], database=db_data["database"]
-            )
+            conn = sqlite3.connect('Data\\sh_online.db')
             cursor = conn.cursor()
+            ##
+            cursor.execute("select id from users LIMIT 1")
+            c_row= cursor.fetchone()
+            id_user= c_row[0]
+            if not id_user:
+                    self.error_occurred.emit("شناسه کاربر در دیتابیس لوکال یافت نشد❌")
+                    return
+            # جستجو بر اساس متن وارد شده در نام محصول
             cursor.execute('''
-                SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
-                FROM inventories
-                WHERE product_name LIKE %s
-            ''', ('%' + self.search_text + '%',))
+                SELECT name, barcode, buy_price, sale_price, quantity, expire_date, image_path
+                FROM products
+                WHERE user_id = ? and name LIKE ?
+            ''', (id_user,'%' + self.search_text + '%',))
             products = cursor.fetchall()
 
             temp_dir = os.path.join(os.getcwd(), 'temp_images')
@@ -194,6 +184,21 @@ class SearchThread(QThread):
             product_list = []
             for product in products:
                 name, barcode, buy_price, sale_price, quantity, exp_date, image_path = product
+
+                # بررسی وجود عکس
+                if image_path:
+                    full_image_path = os.path.join(temp_dir, os.path.basename(image_path))
+                    if not os.path.exists(full_image_path):
+                        try:
+                            # کپی یا ذخیره‌سازی عکس در صورت عدم وجود (اینجا فقط نمونه آورده شده)
+                            with open(image_path, 'rb') as src_file:
+                                with open(full_image_path, 'wb') as dst_file:
+                                    dst_file.write(src_file.read())
+                        except Exception as img_err:
+                            print(f"❌ خطا در کپی تصویر: {img_err}")
+
+                    image_path = full_image_path  # به‌روزرسانی مسیر عکس
+
                 product_info = {
                     "name": name,
                     "barcode": barcode,
@@ -206,11 +211,14 @@ class SearchThread(QThread):
                 product_list.append(product_info)
 
             self.data_loaded.emit(product_list)
+
         except Exception as e:
             self.error_occurred.emit(str(e))
+
         finally:
             if conn:
                 conn.close()
+  
 class Inventory(QFrame):
     def __init__(self):
         super().__init__()
@@ -533,6 +541,7 @@ class Inventory(QFrame):
             row, col = divmod(index, 4)
             # اضافه کردن به grid layout
             self.box_layout.addWidget(product_box, row, col)
+    
     ##search actions
     def show_spinner_and_load_datas(self):
         text = self.search_line.text().strip()
@@ -578,7 +587,8 @@ class Inventory(QFrame):
         for index, data in enumerate(product_list):
             image_path = None
             if data["image_path"]:
-                image_path = self.download_image_from_url(data["image_path"])
+                image_path = data["image_path"]  # فقط استفاده از مسیر ذخیره‌شده در temp_images
+
             product_box = ProductBox()
             product_box.set_product_info(
                 name=data["name"],
@@ -592,6 +602,7 @@ class Inventory(QFrame):
             row, col = divmod(index, 4)
             self.box_layout.addWidget(product_box, row, col)
 
+
     def show_error(self, msg):
         if self.spinner_wrapper:
             self.spinner_wrapper.setParent(None)
@@ -599,6 +610,93 @@ class Inventory(QFrame):
             self.spinner_wrapper = None
 
         MessageBox(text=msg, title="❌ خطا", type="error").show()
+    
+    ##
+    def data_full_loaded(self):
+        try:
+            conn = sqlite3.connect('Data\\sh_online.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users LIMIT 1")
+            c_row = cursor.fetchone()
+            id_user = c_row[0]
+            if not id_user:
+                self.error_occurred.emit("شناسه کاربر در دیتابیس لوکال یافت نشد❌")
+                return
+
+            cursor.execute('''
+                SELECT name, barcode, buy_price, sale_price, quantity, expire_date, image_path
+                FROM products
+                WHERE user_id = ?
+            ''', (id_user,))
+            products = cursor.fetchall()
+            
+            temp_dir = os.path.join(os.getcwd(), 'temp_images')
+            os.makedirs(temp_dir, exist_ok=True)
+
+            product_list = []
+            for product in products:
+                name, barcode, buy_price, sale_price, quantity, exp_date, image_path = product
+
+                # بررسی وجود عکس
+                if image_path:
+                    full_image_path = os.path.join(temp_dir, os.path.basename(image_path))
+                    if not os.path.exists(full_image_path):
+                        try:
+                            with open(image_path, 'rb') as src_file:
+                                with open(full_image_path, 'wb') as dst_file:
+                                    dst_file.write(src_file.read())
+                        except Exception as img_err:
+                            print(f"❌ خطا در کپی تصویر: {img_err}")
+                    image_path = full_image_path
+
+                product_info = {
+                    "name": name,
+                    "barcode": barcode,
+                    "buy_price": buy_price,
+                    "sale_price": sale_price,
+                    "quantity": quantity,
+                    "expire_date": exp_date,
+                    "image_path": image_path
+                }
+                product_list.append(product_info)
+
+            # 👈 اینجا نمایش در UI:
+            self.Full_data_load(product_list)
+
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+        except sqlite3.Error as e:
+            MessageBox(f"{e}: خطا در بارگذاری اطلاعات", title="خطا", type="error")
+        finally:
+            if conn:
+                conn.close()
+
+    ##
+    def Full_data_load(self,product_list): 
+        # حذف اسپینر
+        if self.spinner_wrapper:
+            self.spinner_wrapper.setParent(None)
+            self.spinner_wrapper.deleteLater()
+            self.spinner_wrapper = None
+        
+        for index, data in enumerate(product_list):
+                    image_path = None
+                    if data["image_path"]:
+                        image_path = data["image_path"]  # فقط استفاده از مسیر ذخیره‌شده در temp_images
+
+                    product_box = ProductBox()
+                    product_box.set_product_info(
+                        name=data["name"],
+                        barcode=data["barcode"],
+                        buy_price=data["buy_price"],
+                        sale_price=data["sale_price"],
+                        number=data["quantity"],
+                        expire_date=data["expire_date"],
+                        image_path=image_path
+                    )
+                    row, col = divmod(index, 4)
+                    self.box_layout.addWidget(product_box, row, col)
+
 
     def clear_products(self):
         while self.box_layout.count():
@@ -626,10 +724,9 @@ class Inventory(QFrame):
 
         self.box_layout.addWidget(self.spinner_wrapper, 0, 0, 1, 2)
 
-        self.full_load_thread = DataLoaderThread()
-        self.full_load_thread.data_loaded.connect(self.show_products)
-        self.full_load_thread.error_occurred.connect(self.show_error)
-        self.full_load_thread.start()
+        # مستقیماً اجرا کن، چون ترد نیست
+        self.data_full_loaded()
+
 
     ##
     def on_data_error(self, error_message):
