@@ -11,8 +11,7 @@ import sqlite3
 import pymysql
 import ntplib
 import pytz
-from datetime import datetime, timezone
-import subprocess
+from datetime import datetime
 from main import mainwindow
 
 class Main_login(QMainWindow):

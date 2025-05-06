@@ -131,7 +131,7 @@ class JalaliCalendar(QDialog):
     def get_jalali_from_ntp(self):
         try:
             client = ntplib.NTPClient()
-            response = client.request("pool.ntp.org", version=3, timeout=3)
+            response = client.request("pool.ntp.org", version=3, timeout=7)
             utc_time = datetime.fromtimestamp(response.tx_time, tz=timezone.utc)
             return jdatetime.datetime.fromgregorian(datetime=utc_time).date()
         except Exception as e:

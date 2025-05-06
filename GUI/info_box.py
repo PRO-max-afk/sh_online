@@ -20,17 +20,6 @@ class ProductBox(QWidget):
         shadow.setColor(QColor(0, 0, 0, 80))
         self.frame.setGraphicsEffect(shadow)
 
-        # عنوان فروشگاه
-        self.store_label = QLabel("فروشگاه تک", self.frame)
-        self.store_label.setStyleSheet('''
-            color: black;
-            font-family: B Nazanin;
-            font-weight: bold;
-            font-size: 16px;
-        ''')
-        self.store_label.setGeometry(15, 20, 220, 20)
-        self.store_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
         # تصویر محصول (خالی تا بعداً ست شود)
         self.image_label = QLabel(self.frame)
         self.image_label.setGeometry(60, 40, 120, 90)
@@ -59,29 +48,29 @@ class ProductBox(QWidget):
 
     def label_UI(self):
         labels = [
-            (self.name_lb, 200, 160),
-            (self.na_lb, 123, 160),
-            (self.barcode_lb, 42, 160),
-            (self.bar_lb, 0, 160),
-            (self.buy_price, 184, 210),
-            (self.bu_lb, 135, 210),
-            (self.sale_label, 48, 210),
-            (self.sa_lb, 0, 210),
-            (self.number_lb, 177, 260),
-            (self.nu_lb, 128, 260),
+            (self.name_lb, 198, 160),
+            (self.na_lb, 145, 160),
+            (self.barcode_lb, 54, 160),
+            (self.bar_lb, 15, 160),
+            (self.buy_price, 190, 210),
+            (self.bu_lb, 151, 210),
+            (self.sale_label, 59, 210),
+            (self.sa_lb, 15, 210),
+            (self.number_lb, 185, 260),
+            (self.nu_lb, 151, 260),
             (self.expire_date, 63, 260),
-            (self.exp_lb, 3, 260),
+            (self.exp_lb, 5, 260),
         ]
         for label, x, y in labels:
             label.move(x, y)
             label.setStyleSheet('''
                 font-family: B Nazanin;
-                background-color: white;
+                background-color: transparent;
                 font-weight: bold;
                 font-size: 14px;
                 color: black;
             ''')
-            label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
     def set_product_info(self, name, barcode, buy_price, sale_price, number, expire_date, image_path="default.png"):
         self.na_lb.setText(name)

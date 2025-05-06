@@ -30,7 +30,7 @@ class DataLoaderThread(QThread):
             'User-Agent': 'MyApp/1.0',
         }
         try:
-            response = requests.get(url, headers=headers, timeout=5)
+            response = requests.get(url, headers=headers, timeout=60)
             response.raise_for_status()
             if "application/json" not in response.headers.get('Content-Type', ''):
                 raise ValueError("پاسخ سرور JSON نیست!")
@@ -78,7 +78,7 @@ class DataLoaderThread(QThread):
 
             # بارگذاری محصولات فقط برای user_id خاص
             cursor.execute('''
-                SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
+                SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image,store_name, new_price, discount_percent, big_price, total
                 FROM inventories
                 WHERE user_id = %s
                 ORDER BY invent_id DESC
@@ -87,17 +87,22 @@ class DataLoaderThread(QThread):
 
             product_list = []
             for product in products:
-                name, barcode, buy_price, sale_price, quantity, exp_date, image_path = product
+                name, barcode, buy_price, sale_price,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price, total= product
 
                 product_info = {
                     "name": name,
                     "barcode": barcode,
                     "buy_price": float(buy_price) if isinstance(buy_price, Decimal) else buy_price,
                     "sale_price": float(sale_price) if isinstance(sale_price, Decimal) else sale_price,
-                    "quantity": quantity,
+                    "quantity": float(quantity) if isinstance(quantity, Decimal) else quantity,
                     "expire_date": exp_date,
                     "image_path": image_path,
-                    "user_id": id_user
+                    "user_id": id_user,
+                      "store_name": store_name,
+                    "new_price": float(new_price) if isinstance(new_price, Decimal) else new_price,
+                    "discount_percent": float(discount_percent) if isinstance(discount_percent, Decimal) else discount_percent,
+                    "big_price": float(big_price) if isinstance(big_price, Decimal) else big_price,
+                    "total": float(total) if isinstance(total, Decimal) else total
                 }
                 product_list.append(product_info)
 
@@ -114,36 +119,50 @@ class DataLoaderThread(QThread):
                 conn.close()
             if conn_sq:
                 conn_sq.close()
+
     ##
     def store_in_local_db(self, product_list):
         conn = sqlite3.connect("Data\\sh_online.db")
         cursor = conn.cursor()
 
         for product in product_list:
-            cursor.execute('''
-                INSERT INTO products (barcode, name, buy_price, sale_price, quantity, expire_date, image_path,user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?,?)
-                ON CONFLICT(barcode) DO UPDATE SET
-                    name=excluded.name,
-                    buy_price=excluded.buy_price,
-                    sale_price=excluded.sale_price,
-                    quantity=excluded.quantity,
-                    expire_date=excluded.expire_date,
-                    image_path=excluded.image_path,
-                    user_id= excluded.user_id
-            ''', (
-                product["barcode"],
-                product["name"],
-                product["buy_price"],
-                product["sale_price"],
-                product["quantity"],
-                product["expire_date"],
-                product["image_path"],
-                product["user_id"]
-            ))
+            # بررسی اینکه تمام کلیدها در دیکشنری موجود باشند
+            if all(key in product for key in ["barcode", "name", "buy_price", "sale_price", "store_name", "new_price", "discount_percent", "big_price", "total", "quantity", "expire_date", "image_path", "user_id"]):
+                cursor.execute('''
+                    INSERT INTO products (barcode, name, buy_price, sale_price, store_name, new_price, discount_percent, big_price, total, quantity, expire_date, image_path, user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(barcode) DO UPDATE SET
+                        name=excluded.name,
+                        buy_price=excluded.buy_price,
+                        sale_price=excluded.sale_price,
+                        store_name=excluded.store_name,
+                        new_price=excluded.new_price,
+                        discount_percent=excluded.discount_percent,
+                        big_price=excluded.big_price,
+                        total=excluded.total,
+                        quantity=excluded.quantity,
+                        expire_date=excluded.expire_date,
+                        image_path=excluded.image_path,
+                        user_id=excluded.user_id
+                ''', (
+                    product["barcode"],
+                    product["name"],
+                    product["buy_price"],
+                    product["sale_price"],
+                    product["store_name"],
+                    product["new_price"],
+                    product["discount_percent"],
+                    product["big_price"],
+                    product["total"],
+                    product["quantity"],
+                    product["expire_date"],
+                    product["image_path"],
+                    product["user_id"]
+                ))
 
         conn.commit()
         conn.close()
+
 
 
 
@@ -223,13 +242,14 @@ class Inventory(QFrame):
     def __init__(self):
         super().__init__()
         self.spinner = None
+        self.search_initialized = False  # 👈 اینجا بیار بالا
         self.init_ui()
         self.label_UI()
         self.field_UI()
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
-        self.show_spinner_and_load_data()
+        self.show_first_spinner()
 
 
     def init_ui(self):
@@ -331,7 +351,7 @@ class Inventory(QFrame):
         self.search_line.setMaximumHeight(70)
         self.search_line.setMaximumWidth(700)
         self.search_line.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.search_line.textChanged.connect(self.show_spinner_and_load_datas)
+        self.search_line.textChanged.connect(self.show_spinner_and_load_dataes)
         self.search_line.setPlaceholderText("جستجو محصولات...")
         self.search_line.setStyleSheet('''
             font-size: 17px;
@@ -354,7 +374,7 @@ class Inventory(QFrame):
     def button_UI(self):
         self.serach_btn.setMinimumSize(100, 30)
         self.serach_btn.setMaximumSize(140, 40)
-        self.serach_btn.clicked.connect(self.show_spinner_and_load_datas)
+        self.serach_btn.clicked.connect(self.show_spinner_and_load_dataes)
         self.serach_btn.setStyleSheet('''
             QPushButton {
                 background-color: #2251DB;
@@ -404,6 +424,7 @@ class Inventory(QFrame):
         self.new_btn.setMaximumSize(120,35)
         self.new_btn.setText(" افزودن محصول")
         self.new_icon= QIcon(self.get_asset_path("MacOS Maximize.png"))
+        self.new_btn.clicked.connect(self.open_add_form)
         self.new_btn.setIcon(self.new_icon)
         self.new_btn.setIconSize(QtCore.QSize(25,25))
         self.new_btn.setStyleSheet('''
@@ -466,6 +487,9 @@ class Inventory(QFrame):
             margin-left:30px;
         ''')
     ##spinner 
+    def show_first_spinner(self):
+        self.show_spinner_and_load_data()
+    ##
     def show_spinner_and_load_data(self):
         spinner_wrapper = QWidget()
         spinner_layout = QVBoxLayout(spinner_wrapper)
@@ -543,13 +567,23 @@ class Inventory(QFrame):
             self.box_layout.addWidget(product_box, row, col)
     
     ##search actions
-    def show_spinner_and_load_datas(self):
+    def show_spinner_and_load_dataes(self):
         text = self.search_line.text().strip()
-        
+
+        # اگر متن خالی است و سرچ هنوز آغاز نشده، جلوی اجرا را بگیر
         if not text:
-            # فقط وقتی متن داریم اسپینر نمایش داده شود
-            self.load_all_products()
+            if not hasattr(self, 'search_initialized'):
+                self.search_initialized = False
+
+            if not self.search_initialized:
+                return  # 👈 جلوی اجرای اولیه هنگام باز شدن برنامه را می‌گیرد
+
+            self.clear_products()
+            self.load_all_products(show_spinner=False)
             return
+
+        # اکنون سرچ فعال می‌شود چون کاربر چیزی تایپ کرده
+        self.search_initialized = True
 
         self.clear_products()
 
@@ -564,7 +598,9 @@ class Inventory(QFrame):
 
         self.box_layout.addWidget(self.spinner_wrapper, 0, 0, 1, 2)
 
-        QTimer.singleShot(100, self.live_search)  # حالا سرچ را انجام بده
+        QTimer.singleShot(100, self.live_search)
+
+
 
     def live_search(self):
         text = self.search_line.text().strip()
@@ -710,23 +746,22 @@ class Inventory(QFrame):
                         print("حذف فایل ناموفق:", e)
                 widget.deleteLater()
 
-    def load_all_products(self):
+    def load_all_products(self, show_spinner=True):
         self.clear_products()
 
-        self.spinner_wrapper = QWidget()
-        spinner_layout = QVBoxLayout(self.spinner_wrapper)
-        spinner_layout.setContentsMargins(0, 100, 0, 100)
-        spinner_layout.addStretch()
+        if show_spinner:
+            self.spinner_wrapper = QWidget()
+            spinner_layout = QVBoxLayout(self.spinner_wrapper)
+            spinner_layout.setContentsMargins(0, 100, 0, 100)
+            spinner_layout.addStretch()
 
-        self.spinner = CircularSpinner(self)
-        spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
-        spinner_layout.addStretch()
+            self.spinner = CircularSpinner(self)
+            spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+            spinner_layout.addStretch()
 
-        self.box_layout.addWidget(self.spinner_wrapper, 0, 0, 1, 2)
+            self.box_layout.addWidget(self.spinner_wrapper, 0, 0, 1, 2)
 
-        # مستقیماً اجرا کن، چون ترد نیست
         self.data_full_loaded()
-
 
     ##
     def on_data_error(self, error_message):
@@ -749,4 +784,9 @@ class Inventory(QFrame):
     def open_new_form(self):
         from new_p import ProductForm  # 🔥 اینجا ایمپورت می‌کنیم، نه بالا
         form = ProductForm(inventory_page=self)
+        form.exec()
+    ###
+    def open_add_form(self):
+        from add_p import AddProduct
+        form= AddProduct(inventory_page=self)
         form.exec()
