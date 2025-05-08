@@ -11,7 +11,8 @@ from message_b import MessageBox
 from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 import os
-from ftplib import error_perm
+import cv2
+import numpy as np
 from calendars import JalaliCalendar
 import requests
 import pymysql
@@ -644,38 +645,51 @@ class ProductForm(QDialog):
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
     ##
+    def remove_background(self,image: Image.Image) -> Image.Image:
+        # تبدیل تصویر PIL به آرایه numpy برای پردازش OpenCV
+        image_np = np.array(image.convert("RGB"))
+        gray = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
+
+        # ماسک پس‌زمینه با استفاده از Threshold و کانتور
+        _, thresh = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)
+        mask = cv2.bitwise_not(thresh)
+
+        # استفاده از ماسک برای حذف پس‌زمینه
+        b, g, r = cv2.split(image_np)
+        rgba = [b, g, r, mask]
+        image_with_alpha = cv2.merge(rgba)
+
+        # تبدیل آرایه مجدد به تصویر PIL
+        return Image.fromarray(image_with_alpha, "RGBA")
+
     def select_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "انتخاب تصویر محصول", "", "Images (*.png *.jpg *.jpeg *.webp)"
         )
         if file_path:
-            # مسیر جدید برای ذخیره تصویر تبدیل‌شده
             base_name = os.path.splitext(os.path.basename(file_path))[0]
             webp_path = os.path.join("converted_images", f"{base_name}.webp")
 
             os.makedirs("converted_images", exist_ok=True)
 
-            # باز کردن تصویر
+            # باز کردن تصویر با PIL
             image = Image.open(file_path)
 
-            # اگر تصویر کانال آلفا دارد (شفافیت)، حفظ کن
-            if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
-                image = image.convert("RGBA")
-            else:
-                # تصویر بدون شفافیت است، تبدیل به RGBA و ساخت پس‌زمینه شفاف
-                new_image = Image.new("RGBA", image.size, (255, 255, 255, 0))  # پس‌زمینه شفاف
-                image = image.convert("RGBA")
-                new_image.paste(image, (0, 0))
-                image = new_image
+            # حذف پس‌زمینه به‌صورت واقعی
+            image = self.remove_background(image)
 
-            # ذخیره به صورت webp با شفافیت
-            image.save(webp_path, "WEBP", lossless=True)
+            # کاهش اندازه تصویر به حداکثر عرض/ارتفاع مثلاً 800px (بدون افت کیفیت زیاد)
+            image.thumbnail((800, 800), Image.Resampling.LANCZOS)
 
-            # نمایش پیش‌نمایش و ذخیره مسیر
+            # ذخیره به صورت WebP با کیفیت بالا و حجم کمتر
+            image.save(webp_path, "WEBP", quality=85, method=6)  # روش 6 برای فشرده‌سازی بهتر
+
+            # نمایش تصویر و ذخیره مسیر
             self.img_preveiw.setPixmap(QPixmap(webp_path))
             self.image_path = webp_path
 
         # دریافت اطلاعات دیتابیس از سرور
+   ##
     def get_db_config(self):
 
         url = "https://aryaict.com/connect.php"
@@ -882,7 +896,7 @@ class ProductForm(QDialog):
         self.total_line.setText("0.00")
         self.img_preveiw.clear()
    
-
+    ##
     def sync_to_server(self):
         db_connect = self.get_db_config()
         if not db_connect:
