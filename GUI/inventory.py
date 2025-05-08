@@ -12,7 +12,7 @@ from circle import CircularSpinner
 import pymysql
 from info_box import ProductBox
 from decimal import Decimal
-
+import threading
 from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout
@@ -78,7 +78,9 @@ class DataLoaderThread(QThread):
 
             # بارگذاری محصولات فقط برای user_id خاص
             cursor.execute('''
-                SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image,store_name, new_price, discount_percent, big_price, total
+                SELECT product_name, barcode,category,sub_category,buy_date,buy_price, sell_price,
+                           big_category,quantity, expiration_dates, product_image,store_name, 
+                           new_price, discount_percent, big_price, total
                 FROM inventories
                 WHERE user_id = %s
                 ORDER BY invent_id DESC
@@ -87,18 +89,22 @@ class DataLoaderThread(QThread):
 
             product_list = []
             for product in products:
-                name, barcode, buy_price, sale_price,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price, total= product
+                name, barcode,category, sub_category,buy_date,buy_price, sale_price,big_category,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price, total= product
 
                 product_info = {
                     "name": name,
                     "barcode": barcode,
+                    "category":category,
+                    "sub_category": sub_category,
+                    "buy_date": buy_date,
                     "buy_price": float(buy_price) if isinstance(buy_price, Decimal) else buy_price,
                     "sale_price": float(sale_price) if isinstance(sale_price, Decimal) else sale_price,
+                    "big_category": big_category,
                     "quantity": float(quantity) if isinstance(quantity, Decimal) else quantity,
                     "expire_date": exp_date,
                     "image_path": image_path,
                     "user_id": id_user,
-                      "store_name": store_name,
+                    "store_name": store_name,
                     "new_price": float(new_price) if isinstance(new_price, Decimal) else new_price,
                     "discount_percent": float(discount_percent) if isinstance(discount_percent, Decimal) else discount_percent,
                     "big_price": float(big_price) if isinstance(big_price, Decimal) else big_price,
@@ -126,39 +132,65 @@ class DataLoaderThread(QThread):
         cursor = conn.cursor()
 
         for product in product_list:
-            # بررسی اینکه تمام کلیدها در دیکشنری موجود باشند
-            if all(key in product for key in ["barcode", "name", "buy_price", "sale_price", "store_name", "new_price", "discount_percent", "big_price", "total", "quantity", "expire_date", "image_path", "user_id"]):
-                cursor.execute('''
-                    INSERT INTO products (barcode, name, buy_price, sale_price, store_name, new_price, discount_percent, big_price, total, quantity, expire_date, image_path, user_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(barcode) DO UPDATE SET
-                        name=excluded.name,
-                        buy_price=excluded.buy_price,
-                        sale_price=excluded.sale_price,
-                        store_name=excluded.store_name,
-                        new_price=excluded.new_price,
-                        discount_percent=excluded.discount_percent,
-                        big_price=excluded.big_price,
-                        total=excluded.total,
-                        quantity=excluded.quantity,
-                        expire_date=excluded.expire_date,
-                        image_path=excluded.image_path,
-                        user_id=excluded.user_id
-                ''', (
-                    product["barcode"],
-                    product["name"],
-                    product["buy_price"],
-                    product["sale_price"],
-                    product["store_name"],
-                    product["new_price"],
-                    product["discount_percent"],
-                    product["big_price"],
-                    product["total"],
-                    product["quantity"],
-                    product["expire_date"],
-                    product["image_path"],
-                    product["user_id"]
-                ))
+            if all(key in product for key in ["barcode", "name", "category","sub_category","buy_date","buy_price", "sale_price","big_category","store_name", "new_price", "discount_percent", "big_price", "total", "quantity", "expire_date", "image_path", "user_id"]):
+                
+                # بررسی وجود محصول با barcode
+                cursor.execute("SELECT COUNT(*) FROM products WHERE barcode = ?", (product["barcode"],))
+                exists = cursor.fetchone()[0]
+
+                if exists:
+                    # اگر وجود داشت: آپدیت کن
+                    cursor.execute('''
+                        UPDATE products SET
+                            barcode=?,name = ?, category=?,sub_category=?,buy_date=?,buy_price = ?, sale_price = ?, store_name = ?, new_price = ?, 
+                            discount_percent = ?, big_price = ?, total = ?, quantity = ?, expire_date = ?, 
+                            image_path = ?, user_id = ?
+                        WHERE barcode = ?
+                    ''', (
+                        product["barcode"],
+                        product["name"],
+                        product["category"],
+                        product["sub_category"],
+                        product["buy_date"],
+                        product["buy_price"],
+                        product["sale_price"],
+                        product["big_category"],
+                        product["store_name"],
+                        product["new_price"],
+                        product["discount_percent"],
+                        product["big_price"],
+                        product["total"],
+                        product["quantity"],
+                        product["expire_date"],
+                        product["image_path"],
+                        product["user_id"]
+                    ))
+                else:
+                    # اگر وجود نداشت: درج کن
+                    cursor.execute('''
+                        INSERT INTO products (barcode, name, category,sub_category,buy_date,
+                                   buy_price, sale_price,big_category,store_name, new_price, discount_percent, big_price,
+                                    total, quantity, expire_date, image_path, user_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)
+                    ''', (
+                        product["barcode"],
+                        product["name"],
+                        product["category"],
+                        product["sub_category"],
+                        product["buy_date"],
+                        product["buy_price"],
+                        product["sale_price"],
+                        product["big_category"],
+                        product["store_name"],
+                        product["new_price"],
+                        product["discount_percent"],
+                        product["big_price"],
+                        product["total"],
+                        product["quantity"],
+                        product["expire_date"],
+                        product["image_path"],
+                        product["user_id"]
+                    ))
 
         conn.commit()
         conn.close()
@@ -249,7 +281,9 @@ class Inventory(QFrame):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
+        self.start_sync_thread()
         self.show_first_spinner()
+        
 
 
     def init_ui(self):
@@ -512,13 +546,17 @@ class Inventory(QFrame):
 
     ##
     def download_image_from_url(self, image_path):
+
         try:
-            # اگر image_path مسیر کامل نیست، آن را کامل کن
+            if not image_path:
+                raise ValueError("image_path is empty or None")
+
             if not image_path.startswith("http"):
                 base_url = "https://ihr.blg.mybluehost.me/storage/"
-                image_path = base_url + image_path.lstrip("/")  # حذف / اضافه‌ای احتمالی
+                image_path = base_url + image_path.lstrip("/")
 
-            # ایجاد پوشه temp_images در صورت نیاز
+            print(f"📥 در حال تلاش برای دریافت تصویر از: {image_path}")
+
             local_dir = os.path.join(os.getcwd(), "temp_images")
             os.makedirs(local_dir, exist_ok=True)
 
@@ -536,13 +574,19 @@ class Inventory(QFrame):
             with open(local_path, 'wb') as f:
                 f.write(response.content)
 
-            #print("✅ تصویر با موفقیت از URL دانلود شد:", local_path)
+            print("✅ تصویر با موفقیت دانلود شد:", local_path)
             return local_path
 
         except Exception as e:
             print("❌ خطا در دریافت تصویر از URL:", e)
             default_image_path = os.path.join(os.getcwd(), "default.png")
-            return default_image_path if os.path.exists(default_image_path) else None
+            if os.path.exists(default_image_path):
+                print("🔁 بازگشت به تصویر پیش‌فرض:", default_image_path)
+                return default_image_path
+            else:
+                print("⚠️ تصویر پیش‌فرض پیدا نشد.")
+                return None
+
     ##
     def on_data_loaded(self, product_list):
         for index, data in enumerate(product_list):
@@ -599,8 +643,6 @@ class Inventory(QFrame):
         self.box_layout.addWidget(self.spinner_wrapper, 0, 0, 1, 2)
 
         QTimer.singleShot(100, self.live_search)
-
-
 
     def live_search(self):
         text = self.search_line.text().strip()
@@ -786,6 +828,13 @@ class Inventory(QFrame):
         form = ProductForm(inventory_page=self)
         form.exec()
     ###
+    def start_sync_thread(self):
+        from new_p import ProductForm
+        products= ProductForm(inventory_page=self)
+        sync_thread = threading.Thread(target=products.sync_to_server)
+        sync_thread.setDaemon(True)  # اگر پنجره بسته شد، ترد هم بسته شود
+        sync_thread.start()
+    ##
     def open_add_form(self):
         from add_p import AddProduct
         form= AddProduct(inventory_page=self)

@@ -51,6 +51,7 @@ class AddProduct(QDialog):
         ##
         self.quantity_lb= QLabel("موجودی فعلی:", self)
         self.quantity_line= QLineEdit(self)
+        self.quantity_line.setReadOnly(True)
 
         self.number_lb= QLabel("تعداد جدید محصول:", self)
         self.number_line= QLineEdit(self)
@@ -616,7 +617,21 @@ class AddProduct(QDialog):
         self.product_popup.hide()
 
 
-
+    ##
+    def calculate_total(self):
+        barcode= self.bar_line.text()
+        old_number= self.quantity_line.text()
+        new_number= self.number_line.text()
+        db_connect= self.get_db_config()
+        if not db_connect:
+            MessageBox("مشکلی در اتصال به سرور رخ داده است",title="خطا",type="error")
+        try:
+            conn= pymysql.connect(
+                
+            )
+        except pymysql.Error as e:
+            MessageBox(f"{e}: خطا در دیتابیس",title="خطا",type="error")
+        
     def update_product(self):
         pass
 

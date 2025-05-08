@@ -8,9 +8,10 @@ from profile_picture import ProfileImage
 from info_box import ProductBox
 from inventory import Inventory
 from message_b import MessageBox
-from PyQt6.QtCore import Qt,QPropertyAnimation,QEasingCurve
+from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 import os
+from ftplib import error_perm
 from calendars import JalaliCalendar
 import requests
 import pymysql
@@ -102,6 +103,7 @@ class ProductForm(QDialog):
         self.enties_UI()
         self.Button_UI()
         self.under_category()
+        #self.start_sync_thread()
     
     ###
     def center_window(self):
@@ -711,6 +713,7 @@ class ProductForm(QDialog):
             self.insert_product()
     ##
     def insert_product(self):
+        import shutil
         f_ch = self.choise_c.currentText()
         s_ch = self.under_choise.currentText()
         name = self.name_line.text()
@@ -721,8 +724,9 @@ class ProductForm(QDialog):
         quantity = self.number_line.text()
         sale_price = self.sale_line.text()
         sale_big = self.sale_big_line.text()
-        big_s = self.unit_lineedit.text() if self.unit_lineedit else 0
-        self.db_connection = self.get_db_config()
+        big_s = float(self.unit_lineedit.text()) if self.unit_lineedit.text() else 1
+
+        db_connection = self.get_db_config()
 
         if f_ch == "انتخاب" and s_ch == "انتخاب":
             MessageBox(text="لطفاً اطلاعات را از باکس‌های انتخابی وارد کنید", title="هشدار", type="warning").show()
@@ -732,11 +736,6 @@ class ProductForm(QDialog):
             MessageBox(text="لطفاً تمامی فیلدها را پر کنید", title="هشدار", type="warning").show()
             return
 
-        if not self.db_connection:
-            MessageBox(text="لطفاً اینترنت خود را بررسی کنید ❌ اتصال به سرور ناموفق بود", title="❌ خطا", type="error").show()
-            return
-
-        # خواندن شناسه کاربر از دیتابیس محلی
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
@@ -751,17 +750,19 @@ class ProductForm(QDialog):
         except Exception as e:
             MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
             return
-        finally:
-            if conn_sq:
-                conn_sq.close()
 
-        # محاسبات
         date = jdatetime.date.today().strftime("%Y/%m/%d")
         total = float(buy_price) * float(quantity)
-        per_buy = float(buy_price) / float(big_s)
-        per_quantity = float(quantity) * float(big_s)
+        per_buy = float(buy_price) / big_s
+        per_quantity = float(quantity) * big_s
 
-        # ==== آپلود تصویر به FTP ====
+        local_temp_dir = os.path.join(os.getcwd(), "temp_images")
+        os.makedirs(local_temp_dir, exist_ok=True)
+
+        ftp_image_url = ""
+        uploaded_to_ftp = False
+        local_image_path = ""
+
         if hasattr(self, "image_path") and self.image_path:
             try:
                 image_name = ntpath.basename(self.image_path)
@@ -770,115 +771,208 @@ class ProductForm(QDialog):
                 ftp_host = 'ihr.blg.mybluehost.me'
                 ftp_user = 'shop@ihr.blg.mybluehost.me'
                 ftp_pass = 't@fQvz-7e9'
-                #ftp_path = 'storage/app/public/uploads/app_images'  # مسیر نسبی از Home
 
                 ftp = FTP()
                 ftp.connect(ftp_host, 21)
                 ftp.login(ftp_user, ftp_pass)
 
-                # فقط تلاش برای ورود به مسیر، بدون ساخت آن
-                #ftp.cwd(ftp_path)
-
-                # آپلود فایل
                 with open(self.image_path, 'rb') as file:
                     ftp.storbinary(f'STOR {image_name}', file)
 
                 ftp.quit()
+                uploaded_to_ftp = True
                 print("✅ تصویر با موفقیت آپلود شد:", ftp_image_url)
 
             except Exception as e:
-                import traceback
-                error_details = traceback.format_exc()
-                print("❌ خطای کامل:", error_details)
-                MessageBox(text=f"خطا در آپلود تصویر: {e}", title="❌ خطا", type="error").show()
+                print("❌ خطا در آپلود تصویر:", e)
+                uploaded_to_ftp = False
+                # ذخیره موقت در temp_images در صورت خطا
+                try:
+                    filename = ntpath.basename(self.image_path)
+                    local_image_path = os.path.join(local_temp_dir, filename)
+                    shutil.copy(self.image_path, local_image_path)
+                    print("📁 تصویر در مسیر temp_images ذخیره شد:", local_image_path)
+                except Exception as copy_err:
+                    print("❌ خطا در کپی تصویر:", copy_err)
         else:
-            ftp_image_url = ""
             MessageBox(text="تصویری انتخاب نشده است!", title="❌ هشدار", type="warning").show()
 
-        # ==== ذخیره اطلاعات در دیتابیس آنلاین ====
+        inserted_online = False
+        synced = 0
+        if db_connection and uploaded_to_ftp:
+            try:
+                conn = pymysql.connect(
+                    host=db_connection["host"],
+                    user=db_connection["user"],
+                    password=db_connection["password"],
+                    database=db_connection["database"]
+                )
+                cursor = conn.cursor()
+
+                cursor.execute('''
+                    INSERT INTO inventories (barcode, product_name, category,sub_category,buy_date,buy_price, sell_price, big_price, big_category,quantity, expiration_dates, 
+                                            product_image, total, user_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s,%s,%s)
+                ''', (
+                    barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, 
+                    category, per_quantity, exp_date, ftp_image_url, total, id_user
+                ))
+                conn.commit()
+                inserted_online = True
+                synced = 1
+                MessageBox("✅ محصول در سرور ذخیره شد", title="موفقانه", type="info").show()
+            except Exception as e:
+                print("❌ خطا در اتصال به سرور:", e)
+            finally:
+                if conn:
+                    conn.close()
+
+        # ذخیره در دیتابیس آفلاین اگر سرور در دسترس نبود یا آپلود تصویر ناموفق بود
+        if not inserted_online:
+            try:
+                # تعیین مسیر تصویر (اگر آپلود نشد، از مسیر temp_images استفاده شود)
+                if not uploaded_to_ftp and os.path.exists(local_image_path):
+                    image_path_to_store = local_image_path
+                else:
+                    image_path_to_store = self.image_path if self.image_path else ""
+
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute('''
+                    INSERT INTO products (barcode, name,category,sub_category,buy_date,buy_price,sale_price, big_price,big_category,quantity, expire_date,
+                                        image_path, total, user_id, is_synced)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, category, 
+                    per_quantity, exp_date, image_path_to_store, total, id_user, synced
+                ))
+                conn_sq.commit()
+                MessageBox("✅ محصول به صورت آفلاین ذخیره شد", title="موفقانه", type="info").show()
+                MessageBox("محصول پس از اتصال به اینترنت به صورت خودکار آپلود خواهد شد", title="اطلاع", type="info").show()
+            except Exception as e:
+                MessageBox(f"❌ خطا در ذخیره آفلاین: {e}", title="خطا", type="error").show()
+            finally:
+                conn_sq.close()
+
+        # افزودن ویجت محصول به رابط کاربری
+        product_box = ProductBox()
+        product_box.set_product_info(
+            name=name,
+            barcode=barcode,
+            buy_price=per_buy,
+            sale_price=sale_price,
+            number=per_quantity,
+            expire_date=exp_date,
+            image_path=self.image_path
+        )
+        row, col = divmod(self.inventory_page.box_layout.count(), 4)
+        self.inventory_page.box_layout.addWidget(product_box, row, col)
+
+        # پاک کردن فیلدها
+        self.name_line.clear()
+        self.bar_line.clear()
+        self.buy_line.clear()
+        self.sale_line.clear()
+        self.sale_big_line.clear()
+        self.number_line.clear()
+        self.exp_line.clear()
+        self.choise_c.setCurrentIndex(0)
+        self.under_choise.setCurrentIndex(0)
+        self.cate_ch.setCurrentIndex(0)
+        self.total_line.setText("0.00")
+        self.img_preveiw.clear()
+   
+
+    def sync_to_server(self):
+        db_connect = self.get_db_config()
+        if not db_connect:
+            return
+
+        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
+        cursor_sq = conn_sq.cursor()
+
+        cursor_sq.execute('''SELECT barcode,name,category,sub_category,
+                        buy_date,buy_price,sale_price,big_price,
+                        big_category,quantity,expire_date,image_path,total,user_id
+                        FROM products WHERE is_synced = 0''')
+
+        unsynced_products = cursor_sq.fetchall()
+
         try:
             conn = pymysql.connect(
-                host=self.db_connection["host"],
-                user=self.db_connection["user"],
-                password=self.db_connection["password"],
-                database=self.db_connection["database"]
+                host=db_connect["host"],
+                user=db_connect["user"],
+                password=db_connect["password"],
+                database=db_connect["database"]
             )
             cursor = conn.cursor()
 
-            result = cursor.execute('''
-                INSERT INTO inventories (
-                    product_name, barcode, category, sub_category, buy_price,
-                    sell_price, buy_date, big_price, quantity, product_image,
-                    expiration_dates, big_category, user_id, total
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (
-                name, barcode, f_ch, s_ch, per_buy, sale_price, date,
-                sale_big, per_quantity, ftp_image_url, exp_date, category, id_user, total
-            ))
+            for product in unsynced_products:
+                (barcode, name, category, sub_category, buy_date, buy_price,
+                sale_price, big_price, big_category, quantity, expire_date,
+                image_path, total, user_id) = product
 
-            if result:
-                conn.commit()
-                MessageBox(text="شما موفقانه اطلاعات را ذخیره نمودید ✅", title="✅ موفقانه", type="info").show()
+                ftp_image_url = ""
 
-                # افزودن محصول به رابط کاربری
-                cursor.execute('''
-                    SELECT product_name, barcode, buy_price, sell_price, quantity, expiration_dates, product_image
-                    FROM inventories
-                    WHERE barcode = %s
-                    ORDER BY invent_id DESC LIMIT 1
-                ''', (barcode,))
-                new_data = cursor.fetchone()
+                if image_path and os.path.isfile(image_path):
+                    try:
+                        image_name = ntpath.basename(image_path)
+                        ftp_image_url = f"uploads/app_images/{image_name}"  # برای دیتابیس
 
-                if new_data:
-                    product_name, product_barcode, buy_price, sale_price, quantity, exp_date, image_url = new_data
+                        ftp_host = 'ihr.blg.mybluehost.me'
+                        ftp_user = 'shop@ihr.blg.mybluehost.me'
+                        ftp_pass = 't@fQvz-7e9'
 
-                    product_box = ProductBox()
-                    product_box.set_product_info(
-                        name=product_name,
-                        barcode=product_barcode,
-                        buy_price=buy_price,
-                        sale_price=sale_price,
-                        number=quantity,
-                        expire_date=exp_date,
-                        image_path=self.image_path  # تصویر لوکال برای پیش‌نمایش
-                    )
-                    # محاسبه سطر و ستون با استفاده از divmod
-                    row, col = divmod(self.inventory_page.box_layout.count(), 4)
+                        ftp = FTP()
+                        ftp.connect(ftp_host, 21)
+                        ftp.login(ftp_user, ftp_pass)
 
-                    # افزودن product_box به box_layout
-                    self.inventory_page.box_layout.addWidget(product_box, row, col)
+                        with open(image_path, 'rb') as file:
+                            ftp.storbinary(f'STOR {image_name}', file)
 
-                # پاک‌سازی فرم
-                self.name_line.clear()
-                self.bar_line.clear()
-                self.exp_line.clear()
-                self.buy_line.clear()
-                self.number_line.clear()
-                self.sale_line.clear()
-                self.sale_big_line.clear()
-                self.choise_c.setCurrentIndex(0)
-                self.under_choise.setCurrentIndex(0)
-                self.cate_ch.setCurrentIndex(0)
-                self.total_line.setText("0.00")
-                self.img_preveiw.clear()
+                        ftp.quit()
+                        print("✅ تصویر با موفقیت آپلود شد:", ftp_image_url)
 
-                if self.unit_lineedit:
-                    self.unit_lineedit.clear()
-                    self.unit_lineedit.hide()
+                    except Exception as e:
+                        print("❌ خطا در آپلود تصویر:", e)
+                        ftp_image_url = ""
 
-                if self.unit_label:
-                    self.unit_label.setText("")
-                    self.unit_label.hide()
 
-            else:
-                MessageBox(text="اطلاعات ذخیره نشد 😣", title="❌ خطا", type="error").show()
+                # جلوگیری از None بودن مقادیر
+                big_category = big_category or ""
+                category = category or ""
+                name = name or ""
+                sub_category = sub_category or ""
 
-        except pymysql.Error as e:
-            MessageBox(text=f"{e}: خطا در اتصال به دیتابیس", title="❌ خطا", type="error").show()
+                # بررسی وجود محصول در جدول آنلاین
+                cursor.execute("SELECT COUNT(*) FROM inventories WHERE barcode = %s", (barcode,))
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('''
+                        INSERT INTO inventories (
+                            barcode, product_name, category, sub_category, buy_date,
+                            buy_price, sell_price, big_price, big_category, quantity,
+                            expiration_dates, product_image, total, user_id
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', (
+                        barcode, name, category, sub_category, buy_date,
+                        buy_price, sale_price, big_price, big_category, quantity,
+                        expire_date, ftp_image_url, total, user_id
+                    ))
+
+            conn.commit()
+            conn.close()
+
+            # به‌روزرسانی SQLite
+            cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
+            conn_sq.commit()
+
+        except Exception as e:
+            print("خطا در همگام‌سازی:", e)
 
         finally:
-            if conn:
-                conn.close()
+            conn_sq.close()
+
 
 
 

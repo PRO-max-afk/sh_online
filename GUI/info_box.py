@@ -49,7 +49,7 @@ class ProductBox(QWidget):
     def label_UI(self):
         labels = [
             (self.name_lb, 198, 160),
-            (self.na_lb, 145, 160),
+            (self.na_lb, 147, 160),
             (self.barcode_lb, 54, 160),
             (self.bar_lb, 15, 160),
             (self.buy_price, 190, 210),
