@@ -15,8 +15,7 @@ from decimal import Decimal
 import threading
 from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
-    QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout
-)
+    QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
 
 class DataLoaderThread(QThread):
@@ -195,11 +194,68 @@ class DataLoaderThread(QThread):
         conn.commit()
         conn.close()
 
+    ##
+    def load_from_local_db(self):
+        try:
+            conn = sqlite3.connect("Data\\sh_online.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users LIMIT 1")
+            row = cursor.fetchone()
+            if not row:
+                self.error_occurred.emit("❌ کاربر در دیتابیس آفلاین یافت نشد")
+                return
+            user_id = row[0]
 
+            cursor.execute('''
+                SELECT name, barcode, buy_price, sale_price, quantity, expire_date, image_path
+                FROM products
+                WHERE user_id = ?
+            ''', (user_id,))
+            rows = cursor.fetchall()
 
+            temp_dir = os.path.join(os.getcwd(), 'temp_images')
+            os.makedirs(temp_dir, exist_ok=True)
 
+            product_list = []
+            for r in rows:
+                name, barcode, buy_price, sale_price, quantity, expire_date, image_path = r
+
+                local_image = image_path
+                if image_path:
+                    local_image_path = os.path.join(temp_dir, os.path.basename(image_path))
+                    if not os.path.exists(local_image_path):
+                        try:
+                            with open(image_path, 'rb') as src, open(local_image_path, 'wb') as dst:
+                                dst.write(src.read())
+                        except Exception as e:
+                            print(f"❌ خطا در کپی عکس: {e}")
+                    local_image = local_image_path
+
+                product_list.append({
+                    "name": name,
+                    "barcode": barcode,
+                    "buy_price": buy_price,
+                    "sale_price": sale_price,
+                    "quantity": quantity,
+                    "expire_date": expire_date,
+                    "image_path": local_image
+                })
+
+            self.data_loaded.emit(product_list)
+
+        except Exception as e:
+            self.error_occurred.emit(f"❌ خطا در بارگذاری آفلاین: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+    ##
     def run(self):
-        self.load_all_data()
+        if self.get_db_config():
+            self.load_all_data()  # حالت آنلاین
+        else:
+            self.load_from_local_db()  # حالت آفلاین
+
 
 class SearchThread(QThread):
     data_loaded = pyqtSignal(list)
@@ -281,8 +337,9 @@ class Inventory(QFrame):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
-        self.start_sync_thread()
-        self.show_first_spinner()
+        self.show_spinner_and_load_data()
+        self.start_auto_refresh()
+        self.start_auto_sync_timer()
         
 
 
@@ -520,11 +577,18 @@ class Inventory(QFrame):
             color: #333;
             margin-left:30px;
         ''')
-    ##spinner 
-    def show_first_spinner(self):
-        self.show_spinner_and_load_data()
+    ##spinner
+    def start_auto_refresh(self):
+        self.refresh_timer= QTimer(self)
+        self.refresh_timer.timeout.connect(self.show_first_spinner) 
+        self.refresh_timer.start(15 * 60 *1000)
     ##
+    def show_first_spinner(self):
+        self.clear_products()
+        self.show_spinner_and_load_data()
+   ##
     def show_spinner_and_load_data(self):
+        # نمایش spinner
         spinner_wrapper = QWidget()
         spinner_layout = QVBoxLayout(spinner_wrapper)
         spinner_layout.setContentsMargins(0, 100, 0, 100)
@@ -536,6 +600,7 @@ class Inventory(QFrame):
 
         self.box_layout.addWidget(spinner_wrapper, 0, 0, 1, 2)
 
+        # شروع بارگذاری داده‌ها
         QTimer.singleShot(100, self.run_data_loader)
     ##
     def run_data_loader(self):
@@ -545,56 +610,45 @@ class Inventory(QFrame):
         self.thread.start()
 
     ##
-    def download_image_from_url(self, image_path):
-
+    def get_db_config(self):
+        url = "https://aryaict.com/connect.php"
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'MyApp/1.0',
+        }
         try:
-            if not image_path:
-                raise ValueError("image_path is empty or None")
-
-            if not image_path.startswith("http"):
-                base_url = "https://ihr.blg.mybluehost.me/storage/"
-                image_path = base_url + image_path.lstrip("/")
-
-            print(f"📥 در حال تلاش برای دریافت تصویر از: {image_path}")
-
-            local_dir = os.path.join(os.getcwd(), "temp_images")
-            os.makedirs(local_dir, exist_ok=True)
-
-            filename = os.path.basename(image_path)
-            local_path = os.path.join(local_dir, filename)
-
-            # اضافه کردن هدرهای مناسب برای درخواست
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-
-            response = requests.get(image_path, headers=headers, timeout=20)
+            response = requests.get(url, headers=headers, timeout=60)
             response.raise_for_status()
+            if "application/json" not in response.headers.get('Content-Type', ''):
+                raise ValueError("پاسخ سرور JSON نیست!")
 
-            with open(local_path, 'wb') as f:
-                f.write(response.content)
+            data = response.json()
+            required_keys = ("host", "user", "password", "database")
+            if not all(k in data for k in required_keys):
+                raise ValueError("پاسخ JSON ناقص است")
 
-            print("✅ تصویر با موفقیت دانلود شد:", local_path)
-            return local_path
-
+            return data
         except Exception as e:
-            print("❌ خطا در دریافت تصویر از URL:", e)
-            default_image_path = os.path.join(os.getcwd(), "default.png")
-            if os.path.exists(default_image_path):
-                print("🔁 بازگشت به تصویر پیش‌فرض:", default_image_path)
-                return default_image_path
-            else:
-                print("⚠️ تصویر پیش‌فرض پیدا نشد.")
-                return None
-
+            print("خطا در دریافت config:", e)
+            return None
+    
     ##
     def on_data_loaded(self, product_list):
+        # زمانی که داده‌ها بارگذاری شدند
+        has_internet = self.get_db_config() is not None
+
         for index, data in enumerate(product_list):
             product_box = ProductBox()
 
             image_path = None
             if data["image_path"]:
-                image_path = self.download_image_from_url(data["image_path"])
+                if has_internet:
+                    image_path = self.download_image_from_url(data["image_path"])
+                    if image_path is None:
+                        # اگر دانلود موفق نبود، از فولدر temp_images استفاده کن
+                        image_path = self.load_image_from_temp(data["image_path"])
+                else:
+                    image_path = self.load_image_from_temp(data["image_path"])
 
             product_box.set_product_info(
                 name=data["name"],
@@ -607,9 +661,93 @@ class Inventory(QFrame):
             )
 
             row, col = divmod(index, 4)
-            # اضافه کردن به grid layout
             self.box_layout.addWidget(product_box, row, col)
-    
+
+        # متوقف کردن spinner بعد از بارگذاری داده‌ها
+        self.spinner.stop()
+    ##
+    def on_data_error(self, error):
+        # در صورت بروز خطا، spinner را متوقف کنید
+        self.spinner.stop()
+
+        # نمایش پیام خطا
+        print(f"❌ خطا در بارگذاری داده‌ها: {error}")
+        self.show_error_message(error)
+
+    def show_error_message(self, error):
+        # نمایش پیام خطا در صورت بروز مشکل
+        print(f"خطا: {error}")
+        ##
+    ##
+    def download_image_from_url(self, image_path):
+            try:
+                if not image_path:
+                    raise ValueError("image_path is empty or None")
+
+                if not image_path.startswith("http"):
+                    base_url = "https://ihr.blg.mybluehost.me/storage/"
+                    image_path = base_url + image_path.lstrip("/")
+
+                print(f"📥 در حال تلاش برای دریافت تصویر از: {image_path}")
+
+                local_dir = os.path.join(os.getcwd(), "temp_images")
+                os.makedirs(local_dir, exist_ok=True)
+
+                filename = os.path.basename(image_path)
+                local_path = os.path.join(local_dir, filename)
+
+                # اضافه کردن هدرهای مناسب برای درخواست
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+
+                response = requests.get(image_path, headers=headers, timeout=20)
+                response.raise_for_status()
+
+                with open(local_path, 'wb') as f:
+                    f.write(response.content)
+
+                print("✅ تصویر با موفقیت دانلود شد:", local_path)
+                return local_path
+
+            except Exception as e:
+                print("❌ خطا در دریافت تصویر از URL:", e)
+                default_image_path = os.path.join(os.getcwd(), "default.png")
+                if os.path.exists(default_image_path):
+                    print("🔁 بازگشت به تصویر پیش‌فرض:", default_image_path)
+                    return default_image_path
+                else:
+                    print("⚠️ تصویر پیش‌فرض پیدا نشد.")
+                    return None
+
+    def load_image_from_temp(self, image_relative_path):
+        """
+        فقط تصویر را از فولدر temp_images بارگذاری می‌کند.
+        اگر وجود نداشت، تصویر پیش‌فرض را بازمی‌گرداند.
+        """
+        try:
+            if not image_relative_path:
+                raise ValueError("مسیر تصویر نامعتبر است.")
+
+            filename = os.path.basename(image_relative_path)
+            temp_dir = os.path.join(os.getcwd(), "temp_images")
+            local_path = os.path.join(temp_dir, filename)
+
+            if os.path.exists(local_path):
+                return local_path
+
+            # اگر عکس نبود، تصویر پیش‌فرض
+            fallback = os.path.join(os.getcwd(), "default.png")
+            if os.path.exists(fallback):
+                return fallback
+            else:
+                print("❌ تصویر پیش‌فرض یافت نشد.")
+                return None
+
+        except Exception as e:
+            print("❌ خطا در بارگذاری تصویر از temp_images:", e)
+            return None
+
     ##search actions
     def show_spinner_and_load_dataes(self):
         text = self.search_line.text().strip()
@@ -828,6 +966,11 @@ class Inventory(QFrame):
         form = ProductForm(inventory_page=self)
         form.exec()
     ###
+    def start_auto_sync_timer(self):
+        self.sync_timer = QTimer(self)
+        self.sync_timer.timeout.connect(self.start_sync_thread)
+        self.sync_timer.start(5 * 60 * 1000)  # هر 15 دقیقه
+
     def start_sync_thread(self):
         from new_p import ProductForm
         products= ProductForm(inventory_page=self)

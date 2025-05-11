@@ -7,9 +7,8 @@ from home import WidgetManager
 import os
 from profile_picture import ProfileImage
 
-
 class mainwindow(QWidget):
-    def __init__(self):
+    def __init__(self): 
         super().__init__()
         screen = QApplication.primaryScreen().geometry()
         self.setGeometry(screen.x(), screen.y(), screen.width(), screen.height())

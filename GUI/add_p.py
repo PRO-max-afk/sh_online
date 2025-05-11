@@ -81,6 +81,7 @@ class AddProduct(QDialog):
         ### event
         self.buy_line.textEdited.connect(self.calculate_total)
         self.number_line.textEdited.connect(self.calculate_total)
+        self.quantity_line.textChanged.connect(self.calculate_total)
 
         ##
         self.product_list= QPushButton(self)
@@ -108,19 +109,6 @@ class AddProduct(QDialog):
         self.move(
             int((screen.width() - size.width()) / 2),
             int((screen.height() - size.height()) / 2))
-    ##
-    def calculate_total(self):
-        buy_price = self.buy_line.text().strip()
-        quantity = self.number_line.text().strip()
-
-        if buy_price and quantity:
-            try:
-                total = float(buy_price) * float(quantity)
-                self.total_line.setText(f'{total:.2f}')
-            except ValueError:
-                self.total_line.setText("0.00")  # اگر کاربر متن اشتباهی مثل حروف وارد کند، خروجی خالی بماند
-        else:
-            self.total_line.setText("")  # اگر یکی از فیلدها خالی بود، خروجی خالی شود
     ##
     def lable_UI(self):
         self.title_lb.setGeometry(360,15,150,20)
@@ -619,18 +607,57 @@ class AddProduct(QDialog):
 
     ##
     def calculate_total(self):
-        barcode= self.bar_line.text()
-        old_number= self.quantity_line.text()
-        new_number= self.number_line.text()
-        db_connect= self.get_db_config()
+        name = self.name_line.text()
+        old_number = self.quantity_line.text()
+        new_number = self.number_line.text()
+        bu_price = self.buy_price.text()
+        db_connect = self.get_db_config()
+
         if not db_connect:
-            MessageBox("مشکلی در اتصال به سرور رخ داده است",title="خطا",type="error")
+            MessageBox("مشکلی در اتصال به سرور رخ داده است", title="خطا", type="error")
+            return
+
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
         try:
-            conn= pymysql.connect(
-                
+            old_quantity = float(old_number) if old_number.strip() else 0.0
+            new_quantity = float(new_number) if new_number.strip() else 0.0
+            buy_price = float(bu_price) if bu_price.strip() else 0.0
+        except ValueError:
+            self.total_line.setText("0.00")
+            return
+
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT id FROM users;")
+            res_id = cursor_sq.fetchone()
+            if res_id is None:
+                raise Exception("کاربر محلی یافت نشد.")
+            id_user = res_id[0]
+        except Exception as e:
+            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn = pymysql.connect(
+                host=db_connect["host"],
+                user=db_connect["user"],
+                password=db_connect["password"],
+                database=db_connect["database"]
             )
+            cursor = conn.cursor()
+            cursor.execute('SELECT buy_price FROM inventories WHERE product_name=%s AND user_id=%s', (name, id_user))
+            price = cursor.fetchone()
+            total_price = float(price[0]) if price and price[0] else 0.0
+            final_total = (total_price * old_quantity) + (buy_price * new_quantity)
+            self.total_line.setText(f'{final_total:.2f}')
         except pymysql.Error as e:
-            MessageBox(f"{e}: خطا در دیتابیس",title="خطا",type="error")
+            MessageBox(f"{e}: خطا در دیتابیس", title="خطا", type="error")
+
         
     def update_product(self):
         pass

@@ -6,7 +6,6 @@ import sys
 import jdatetime
 from profile_picture import ProfileImage
 from info_box import ProductBox
-from inventory import Inventory
 from message_b import MessageBox
 from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
@@ -96,6 +95,7 @@ class ProductForm(QDialog):
         self.picture_btn= QPushButton(self)
         self.submit_btn= QPushButton(self)
         self.calendar_btn= QPushButton(self)
+        self.details_btn= QPushButton(self)
         ##
         self.name_category= ["انتخاب","مواد غذایی","نوشیدنی","لوازم خانه گی و آشپزخانه","لوازم برقی و الکترونیکی","لوازم کودک و اسباب بازی"]
         self.under_cate= []
@@ -104,7 +104,6 @@ class ProductForm(QDialog):
         self.enties_UI()
         self.Button_UI()
         self.under_category()
-        #self.start_sync_thread()
     
     ###
     def center_window(self):
@@ -374,7 +373,7 @@ class ProductForm(QDialog):
         ''')
         ##
         self.cate_ch.setGeometry(355,330,250,45)
-        self.cate_ch.addItems(["انتخاب","دانه","کارتن","بسته","کیسه","شانه","جعبه"])
+        self.cate_ch.addItems(["انتخاب","دانه","کیلو","کارتن","بسته","کیسه","شانه","جعبه"])
         self.cate_ch.setCurrentText("انتخاب")
         self.cate_ch.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.cate_ch.setStyleSheet('''
@@ -539,6 +538,31 @@ class ProductForm(QDialog):
             }
         ''')
         self.calendar_btn.clicked.connect(self.show_calendar)
+        ##
+        self.details_btn.setGeometry(38,461,155,43)
+        self.details_icon= QIcon(self.get_asset_path("View Details.png"))
+        self.details_btn.setIcon(self.details_icon)
+        self.details_btn.setIconSize(QtCore.QSize(35,35))
+        self.details_btn.clicked.connect(self.open_details)
+        self.details_btn.setText("  جزئیات بیشتر")
+        self.details_btn.setStyleSheet('''
+            QPushButton {
+                background-color: #2251DB;
+                font-family: "Mirza";
+                font-size: 18px;
+                font-weight: bold;
+                border-radius: 10px;
+                text-align: center;
+                padding: 5px;
+                padding-bottom: 10px;
+            }
+            QPushButton:hover {
+                background-color: #498bf5;  
+            }
+            QPushButton:pressed {
+                background-color: #2251DB;
+            }
+        ''')
     ##
     def set_today_date(self):
         today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")
@@ -556,7 +580,7 @@ class ProductForm(QDialog):
         self.under_choise.clear()
 
         if selected == "مواد غذایی":
-            self.under_cate = ["انتخاب", "خوارکی ها", "سبزیجات و میوه ها", "گوشت و ماهی", "روغن و چربی ها","خشکبار و مغزیجات","حبوبات","لبنیات"]
+            self.under_cate = ["انتخاب", "خوارکی ها", "تنقلات و شیرینی ها","سبزیجات و میوه ها", "گوشت و ماهی", "روغن و برنج","خشکبار و مغزیجات","حبوبات","لبنیات"]
         elif selected == "نوشیدنی":
             self.under_cate = ["انتخاب","چای","قهوه","نوشیدنی انرژی زا","نوشابه و آبمیوه ها"]
         elif selected == "لوازم خانه گی و آشپزخانه":
@@ -605,7 +629,7 @@ class ProductForm(QDialog):
             self.unit_lineedit.deleteLater()
             self.unit_lineedit = None
 
-        if text != "دانه" and text != "انتخاب":
+        if text != "دانه"and text !="کیلو" and text != "انتخاب":
             # ساخت لیبل
             self.unit_label = QLabel(f"هر {text}:", self)
             self.unit_label.setGeometry(270, 290, 60, 30)
@@ -646,20 +670,18 @@ class ProductForm(QDialog):
             return None
     ##
     def remove_background(self,image: Image.Image) -> Image.Image:
-        # تبدیل تصویر PIL به آرایه numpy برای پردازش OpenCV
+        ##
         image_np = np.array(image.convert("RGB"))
-        gray = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
+        lower = np.array([200, 200, 200], dtype=np.uint8)  # رنگ‌های روشن پس‌زمینه
+        upper = np.array([255, 255, 255], dtype=np.uint8)
 
-        # ماسک پس‌زمینه با استفاده از Threshold و کانتور
-        _, thresh = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)
-        mask = cv2.bitwise_not(thresh)
+        mask = cv2.inRange(image_np, lower, upper)
+        mask_inv = cv2.bitwise_not(mask)
 
-        # استفاده از ماسک برای حذف پس‌زمینه
         b, g, r = cv2.split(image_np)
-        rgba = [b, g, r, mask]
+        rgba = [b, g, r, mask_inv]
         image_with_alpha = cv2.merge(rgba)
 
-        # تبدیل آرایه مجدد به تصویر PIL
         return Image.fromarray(image_with_alpha, "RGBA")
 
     def select_image(self):
@@ -738,7 +760,16 @@ class ProductForm(QDialog):
         quantity = self.number_line.text()
         sale_price = self.sale_line.text()
         sale_big = self.sale_big_line.text()
-        big_s = float(self.unit_lineedit.text()) if self.unit_lineedit.text() else 1
+        
+        if hasattr(self, 'unit_lineedit') and self.unit_lineedit and self.unit_lineedit.isVisible():
+            text = self.unit_lineedit.text()
+            try:
+                big_s = float(text) if text.strip() else 0.0
+            except ValueError:
+                big_s = 0.0
+        else:
+            big_s = 0.0
+
 
         db_connection = self.get_db_config()
 
@@ -766,9 +797,16 @@ class ProductForm(QDialog):
             return
 
         date = jdatetime.date.today().strftime("%Y/%m/%d")
+        
         total = float(buy_price) * float(quantity)
-        per_buy = float(buy_price) / big_s
-        per_quantity = float(quantity) * big_s
+        if big_s != 0:
+            per_buy = float(buy_price) / big_s
+            per_quantity = float(quantity) * big_s
+        else:
+            per_buy = float(buy_price)  # اگر big_s صفر باشد، از buy_price استفاده می‌شود
+            per_quantity = float(quantity)  # اگر big_s صفر باشد، از quantity استفاده می‌شود
+        # در غیر این صورت محاسبه نمی‌شود
+
 
         local_temp_dir = os.path.join(os.getcwd(), "temp_images")
         os.makedirs(local_temp_dir, exist_ok=True)
@@ -987,7 +1025,11 @@ class ProductForm(QDialog):
         finally:
             conn_sq.close()
 
-
+    ##
+    def open_details(self):
+        from more_details import MoreDetails
+        details= MoreDetails()
+        details.exec()
 
 
 

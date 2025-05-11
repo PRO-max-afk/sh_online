@@ -51,7 +51,7 @@ class ProductBox(QWidget):
             (self.name_lb, 198, 160),
             (self.na_lb, 147, 160),
             (self.barcode_lb, 54, 160),
-            (self.bar_lb, 15, 160),
+            (self.bar_lb, 10, 160),
             (self.buy_price, 190, 210),
             (self.bu_lb, 151, 210),
             (self.sale_label, 59, 210),

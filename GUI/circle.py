@@ -25,3 +25,9 @@ class CircularSpinner(QWidget):
         pen = QPen(Qt.GlobalColor.darkCyan, 10)
         painter.setPen(pen)
         painter.drawArc(rect, int((90 - self.angle) * 16), -90 * 16)
+
+    def stop(self):
+        # توقف تایمر برای متوقف کردن انیمیشن
+        self.timer.stop()
+        self.update()  # اطمینان از به‌روز شدن نمایشگر بعد از توقف
+        self.hide()
