@@ -30,6 +30,7 @@ class ProductForm(QDialog):
         
 
         self.center_window()  # <-- وسط‌چین کردن
+        self.load_all_fonts()
         # نمونه ویجت تستی
         self.title_lb = QLabel("ثبت محصولات جدید",self)
         # 🔵 عکس پروفایل با کیفیت و کلیک‌پذیر

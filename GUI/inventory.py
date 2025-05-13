@@ -1,13 +1,14 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
-from PyQt6.QtGui import QColor,QIcon
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase
 from PyQt6 import QtCore
 import jdatetime
 import os
 import requests
 import sqlite3
 from message_b import MessageBox
+from notifi_box import Notification
 from circle import CircularSpinner
 import pymysql
 from info_box import ProductBox
@@ -340,11 +341,13 @@ class Inventory(QFrame):
         self.show_spinner_and_load_data()
         self.start_auto_refresh()
         self.start_auto_sync_timer()
+        self.load_all_fonts()
         
 
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
+
         # ScrollArea setup
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
@@ -381,7 +384,7 @@ class Inventory(QFrame):
         self.serach_btn = QPushButton("جستجو", self)
         self.add_btn = QPushButton()
         self.new_btn = QPushButton()
-    
+
         self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.serach_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
@@ -406,24 +409,31 @@ class Inventory(QFrame):
         button_layout.addWidget(self.new_btn)
         button_layout.addWidget(self.add_btn)
         button_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-        #scroll_layout.addLayout(button_layout)
-        scroll_layout.addSpacing(20)  # فضای بیشتر بین دکمه‌ها و جعبه‌ها
+        scroll_layout.addSpacing(20)
 
-        # لایه جعبه‌ها (ProductBoxها)
+        # لایه جعبه‌ها
         self.box_layout = QGridLayout()
         self.box_layout.setSpacing(10)
         scroll_layout.addLayout(self.box_layout)
-    
         scroll_layout.addStretch()
+
+        # افزودن ویجت‌ها به main_layout
         main_layout.addLayout(top_layout)
         main_layout.addLayout(button_layout)
         scroll_area.setWidget(scroll_widget)
         scroll_area.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         main_layout.addWidget(scroll_area)
-       
 
         self.setLayout(main_layout)
         self.setStyleSheet("background-color: #D9D9D9;")
+
+        # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
+        self.notification_frame = QFrame(self)
+        self.notification_frame.setStyleSheet("background: transparent;")
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.notification_frame.raise_()
+
         ##
 
     def label_UI(self):
@@ -982,3 +992,30 @@ class Inventory(QFrame):
         from add_p import AddProduct
         form= AddProduct(inventory_page=self)
         form.exec()
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)
+
+    def show_notification(self):
+        notif = Notification("محصول جدید به فروشگاه اضافه شد!", self.notification_frame)
+        notif.show()
