@@ -5,6 +5,7 @@ from PyQt6.QtGui import QPixmap, QFont,QColor,QIcon,QFontDatabase
 import sys
 import jdatetime
 from PyQt6.QtCore import Qt
+from message_b import MessageBox
 from PyQt6 import QtCore
 import os
 import numpy as np
@@ -24,6 +25,7 @@ class MoreDetails(QDialog):
         self.label_UI()
         self.Entries_UI()
         self.Button_UI()
+        #self.pending_details_data = {}  # ایجاد متغیر ذخیره‌سازی
         self.add_horizontal_line()
         self.center_window()
 
@@ -55,6 +57,7 @@ class MoreDetails(QDialog):
         self.save_btn= QPushButton(self)
         self.calendar_btn= QPushButton(self)
         
+            
         
     ##
     def label_UI(self):
@@ -211,8 +214,6 @@ class MoreDetails(QDialog):
             
         ''')
 
-
-
     ##
     def Button_UI(self):
         self.calendar_btn.setGeometry(364,212,30,30)
@@ -241,6 +242,7 @@ class MoreDetails(QDialog):
         self.save_btn.setIconSize(QtCore.QSize(36,36))
         self.save_btn.setText(" ذخیره اطلاعات")
         self.save_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.save_btn.clicked.connect(self.insert_moredetails)
         self.save_btn.setStyleSheet('''
             QPushButton {
                 background-color: #3EB516;
@@ -263,7 +265,6 @@ class MoreDetails(QDialog):
             }
         ''')
 
-     ##
     ##
     def show_calendar(self):
         self.calendar_popup = JalaliCalendar(self)
@@ -276,7 +277,7 @@ class MoreDetails(QDialog):
         self.line.setFrameShape(QFrame.Shape.HLine)
         self.line.setFrameShadow(QFrame.Shadow.Sunken)
         self.line.setStyleSheet("color: white; background-color: white;")
-
+    ##
     def center_window(self):
         screen= self.screen().availableGeometry()
         size= self.geometry()
@@ -285,6 +286,7 @@ class MoreDetails(QDialog):
             int((screen.height() - size.height()) / 2)
         )
      ##
+    ##
     def set_selected_date(self, date_str):
         self.pro_date_line.setText(date_str)
     ##images
@@ -296,7 +298,38 @@ class MoreDetails(QDialog):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
+   ##
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+            self.insert_moredetails()
     ##
+    def insert_moredetails(self):
+        brand= self.brand_line.text().strip()
+        weight= self.weight_line.text().strip()
+        palce= self.place_st_line.text().strip()
+        pro_date= self.pro_date_line.text().strip()
+        detail= self.more_detials.toPlainText().strip()
+        place= self.palce_line.text().strip()
+        status= self.state_line.text().strip()
+        
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("insert into details(brand,weight,production_date,production_place,product_state,more_details,keep_place) VALUES(?,?,?,?,?,?,?)",
+                              (brand,weight,pro_date,palce,status,detail,place))
+            conn_sq.commit()
+        except Exception as e:
+            MessageBox(text=f"خطا در خواندن اطلاعات محلی: {e}", title="❌ خطا", type="error").show()
+            return
+        self.accept()
+
+
+
 
 if __name__ == "main":
     app= QApplication(sys.argv)

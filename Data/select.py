@@ -6,7 +6,7 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-select * from products;
+select * from  users;
 ''')
 rows = cursor.fetchall()
 for row in rows:

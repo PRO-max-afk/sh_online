@@ -7,6 +7,7 @@ import jdatetime
 from profile_picture import ProfileImage
 from info_box import ProductBox
 from message_b import MessageBox
+from more_details import MoreDetails
 from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 import os
@@ -19,6 +20,7 @@ import sqlite3
 from  ftplib import FTP
 import ntpath
 from PIL import Image
+
 class ProductForm(QDialog):
     def __init__(self,inventory_page):
         super().__init__()
@@ -749,6 +751,7 @@ class ProductForm(QDialog):
         if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
             self.insert_product()
     ##
+        ##
     def insert_product(self):
         import shutil
         f_ch = self.choise_c.currentText()
@@ -761,6 +764,7 @@ class ProductForm(QDialog):
         quantity = self.number_line.text()
         sale_price = self.sale_line.text()
         sale_big = self.sale_big_line.text()
+        
         
         if hasattr(self, 'unit_lineedit') and self.unit_lineedit and self.unit_lineedit.isVisible():
             text = self.unit_lineedit.text()
@@ -793,6 +797,24 @@ class ProductForm(QDialog):
             cursor_sq.execute("SELECT id FROM users;")
             res_id = cursor_sq.fetchone()
             id_user = res_id[0]
+        except Exception as e:
+            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            return
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT weight,production_date,brand,production_place,product_state,more_details,keep_place FROM details;")
+            detail = cursor_sq.fetchone()
+            if detail:
+                weight= detail[0]
+                pro_date= detail[1]
+                brand= detail[2]
+                palce= detail[3]
+                status= detail[4]
+                data= detail[5]
+                place= detail[6]
+
+
         except Exception as e:
             MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
             return
@@ -870,6 +892,14 @@ class ProductForm(QDialog):
                     barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, 
                     category, per_quantity, exp_date, ftp_image_url, total, id_user
                 ))
+
+                invent_id = cursor.lastrowid  # گرفتن ID رکورد ثبت‌شده
+
+                cursor.execute('''
+                INSERT INTO product_details (weight,production_date,brand,production_place,product_state,
+                               more_detail,keep_place,invent_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
+            ''',(weight,pro_date,brand,palce,status,data,place,invent_id))
+                
                 conn.commit()
                 inserted_online = True
                 synced = 1
@@ -899,6 +929,14 @@ class ProductForm(QDialog):
                     barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, category, 
                     per_quantity, exp_date, image_path_to_store, total, id_user, synced
                 ))
+                
+                invent_ids = cursor_sq.lastrowid
+
+                cursor_sq.execute('''
+                INSERT INTO product_details (weight,production_date,brand,production_place,product_state,
+                               more_details,keep_place,is_synced,invent_id) VALUES(?,?,?,?,?,?,?,?,?)
+            ''',(weight,pro_date,brand,palce,status,data,place,invent_id,synced,invent_ids))
+                
                 conn_sq.commit()
                 MessageBox("✅ محصول به صورت آفلاین ذخیره شد", title="موفقانه", type="info").show()
                 MessageBox("محصول پس از اتصال به اینترنت به صورت خودکار آپلود خواهد شد", title="اطلاع", type="info").show()
@@ -944,10 +982,10 @@ class ProductForm(QDialog):
         conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
         cursor_sq = conn_sq.cursor()
 
-        cursor_sq.execute('''SELECT barcode,name,category,sub_category,
-                        buy_date,buy_price,sale_price,big_price,
-                        big_category,quantity,expire_date,image_path,total,user_id
-                        FROM products WHERE is_synced = 0''')
+        cursor_sq.execute('''SELECT invent_id, barcode, name, category, sub_category,
+                            buy_date, buy_price, sale_price, big_price,
+                            big_category, quantity, expire_date, image_path, total, user_id
+                            FROM products WHERE is_synced = 0''')
 
         unsynced_products = cursor_sq.fetchall()
 
@@ -961,37 +999,33 @@ class ProductForm(QDialog):
             cursor = conn.cursor()
 
             for product in unsynced_products:
-                (barcode, name, category, sub_category, buy_date, buy_price,
+                (local_product_id, barcode, name, category, sub_category, buy_date, buy_price,
                 sale_price, big_price, big_category, quantity, expire_date,
                 image_path, total, user_id) = product
 
                 ftp_image_url = ""
 
+                # آپلود تصویر
                 if image_path and os.path.isfile(image_path):
                     try:
                         image_name = ntpath.basename(image_path)
-                        ftp_image_url = f"uploads/app_images/{image_name}"  # برای دیتابیس
-
-                        ftp_host = 'ihr.blg.mybluehost.me'
-                        ftp_user = 'shop@ihr.blg.mybluehost.me'
-                        ftp_pass = 't@fQvz-7e9'
+                        ftp_image_url = f"uploads/app_images/{image_name}"
 
                         ftp = FTP()
-                        ftp.connect(ftp_host, 21)
-                        ftp.login(ftp_user, ftp_pass)
+                        ftp.connect('ihr.blg.mybluehost.me', 21)
+                        ftp.login('shop@ihr.blg.mybluehost.me', 't@fQvz-7e9')
 
                         with open(image_path, 'rb') as file:
                             ftp.storbinary(f'STOR {image_name}', file)
 
                         ftp.quit()
-                        print("✅ تصویر با موفقیت آپلود شد:", ftp_image_url)
+                        print("✅ تصویر آپلود شد:", ftp_image_url)
 
                     except Exception as e:
                         print("❌ خطا در آپلود تصویر:", e)
                         ftp_image_url = ""
 
-
-                # جلوگیری از None بودن مقادیر
+                # جایگزینی None با مقدار خالی
                 big_category = big_category or ""
                 category = category or ""
                 name = name or ""
@@ -1000,6 +1034,7 @@ class ProductForm(QDialog):
                 # بررسی وجود محصول در جدول آنلاین
                 cursor.execute("SELECT COUNT(*) FROM inventories WHERE barcode = %s", (barcode,))
                 if cursor.fetchone()[0] == 0:
+                    # درج در inventories
                     cursor.execute('''
                         INSERT INTO inventories (
                             barcode, product_name, category, sub_category, buy_date,
@@ -1013,22 +1048,51 @@ class ProductForm(QDialog):
                         expire_date, ftp_image_url, total, user_id
                     ))
 
+                    invent_id = cursor.lastrowid  # آیدی رکورد ثبت‌شده در سرور
+
+                    # خواندن اطلاعات product_details از SQLite
+                    cursor_sq.execute('''
+                        SELECT weight, production_date, brand, production_place, product_state,
+                            more_detail, keep_place
+                        FROM product_details WHERE invent_id = ?
+                    ''', (local_product_id,))
+                    detail = cursor_sq.fetchone()
+
+                    if detail:
+                        weight, pro_date, brand, place, status, description, keep_place = detail
+                        # درج در product_details در سرور
+                        cursor.execute('''
+                            INSERT INTO product_details (
+                                weight, production_date, brand, production_place,
+                                product_state, more_detail, keep_place, invent_id
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ''', (
+                            weight, pro_date, brand, place,
+                            status, description, keep_place, invent_id
+                        ))
+
             conn.commit()
-            conn.close()
+            print("✅ همگام‌سازی با موفقیت انجام شد")
 
             # به‌روزرسانی SQLite
             cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
+            cursor_sq.execute("UPDATE product_details SET is_synced = 1 WHERE is_synced = 0")
             conn_sq.commit()
 
         except Exception as e:
-            print("خطا در همگام‌سازی:", e)
+            print("❌ خطا در همگام‌سازی:", e)
 
         finally:
             conn_sq.close()
+            if conn:
+                conn.close()
+
+   
+    
 
     ##
     def open_details(self):
-        from more_details import MoreDetails
         details= MoreDetails()
         details.exec()
 
