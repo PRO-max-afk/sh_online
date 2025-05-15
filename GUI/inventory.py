@@ -10,6 +10,7 @@ import sqlite3
 from message_b import MessageBox
 from notifi_box import Notification
 from circle import CircularSpinner
+from notifi_check import NotificationChecker
 import pymysql
 from info_box import ProductBox
 from decimal import Decimal
@@ -342,6 +343,7 @@ class Inventory(QFrame):
         self.start_auto_refresh()
         self.start_auto_sync_timer()
         self.load_all_fonts()
+        self.start_notification_checker()
         
 
 
@@ -690,46 +692,51 @@ class Inventory(QFrame):
         ##
     ##
     def download_image_from_url(self, image_path):
-            try:
-                if not image_path:
-                    raise ValueError("image_path is empty or None")
+        try:
+            if not image_path:
+                raise ValueError("image_path is empty or None")
 
-                if not image_path.startswith("http"):
-                    base_url = "https://ihr.blg.mybluehost.me/storage/"
-                    image_path = base_url + image_path.lstrip("/")
+            if not image_path.startswith("http"):
+                base_url = "https://ihr.blg.mybluehost.me/storage/"
+                image_path = base_url + image_path.lstrip("/")
 
-                print(f"📥 در حال تلاش برای دریافت تصویر از: {image_path}")
+            print(f"📥 در حال تلاش برای دریافت تصویر از: {image_path}")
 
-                local_dir = os.path.join(os.getcwd(), "temp_images")
-                os.makedirs(local_dir, exist_ok=True)
+            local_dir = os.path.join(os.getcwd(), "temp_images")
+            os.makedirs(local_dir, exist_ok=True)
 
-                filename = os.path.basename(image_path)
-                local_path = os.path.join(local_dir, filename)
+            filename = os.path.basename(image_path)
+            local_path = os.path.join(local_dir, filename)
 
-                # اضافه کردن هدرهای مناسب برای درخواست
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
-
-                response = requests.get(image_path, headers=headers, timeout=20)
-                response.raise_for_status()
-
-                with open(local_path, 'wb') as f:
-                    f.write(response.content)
-
-                print("✅ تصویر با موفقیت دانلود شد:", local_path)
+            # ✅ بررسی کش - اگر فایل قبلاً دانلود شده باشد، مستقیماً بازگردانده می‌شود
+            if os.path.exists(local_path):
+                print("📦 تصویر قبلاً دانلود شده. بارگیری از حافظه محلی:", local_path)
                 return local_path
 
-            except Exception as e:
-                print("❌ خطا در دریافت تصویر از URL:", e)
-                default_image_path = os.path.join(os.getcwd(), "default.png")
-                if os.path.exists(default_image_path):
-                    print("🔁 بازگشت به تصویر پیش‌فرض:", default_image_path)
-                    return default_image_path
-                else:
-                    print("⚠️ تصویر پیش‌فرض پیدا نشد.")
-                    return None
+            # اضافه کردن هدرهای مناسب برای درخواست
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
 
+            response = requests.get(image_path, headers=headers, timeout=20)
+            response.raise_for_status()
+
+            with open(local_path, 'wb') as f:
+                f.write(response.content)
+
+            print("✅ تصویر با موفقیت دانلود شد:", local_path)
+            return local_path
+
+        except Exception as e:
+            print("❌ خطا در دریافت تصویر از URL:", e)
+            default_image_path = os.path.join(os.getcwd(), "default.png")
+            if os.path.exists(default_image_path):
+                print("🔁 بازگشت به تصویر پیش‌فرض:", default_image_path)
+                return default_image_path
+            else:
+                print("⚠️ تصویر پیش‌فرض پیدا نشد.")
+                return None
+    ##
     def load_image_from_temp(self, image_relative_path):
         """
         فقط تصویر را از فولدر temp_images بارگذاری می‌کند.
@@ -1016,6 +1023,17 @@ class Inventory(QFrame):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         return super().resizeEvent(event)
 
-    def show_notification(self):
-        notif = Notification("محصول جدید به فروشگاه اضافه شد!", self.notification_frame)
+    ##
+    def start_notification_checker(self):
+        self.notif_checker = NotificationChecker()
+        self.notif_checker.new_message.connect(self.show_notification_message)  # بدون ()
+        self.notif_checker.start()
+
+    def show_notification_message(self, pro_name: str, message: str):
+        notif = Notification(
+            pro_name=pro_name,
+            message=message,
+            parent_frame=self.notification_frame,
+            icon_path=self.get_asset_path("alarm.png")
+        )
         notif.show()

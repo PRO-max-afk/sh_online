@@ -7,10 +7,10 @@ from PyQt6.QtCore import Qt
 import os
 
 
-class MniniBox(QWidget):
+class Stock(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(150, 100)
+        self.setMinimumSize(100, 50)
         self.setMaximumSize(170, 100)
         self.setStyleSheet("background-color: transparent;")
         self.load_all_fonts()
@@ -27,12 +27,12 @@ class MniniBox(QWidget):
 
         # آیکون
         self.icon_label = QLabel()
-        self.icon_label.setFixedSize(42, 42)
+        self.icon_label.setFixedSize(45, 45)
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        icon_path = self.get_asset_path("delivery-box_5006763.png")
+        icon_path = self.get_asset_path("clock_18481836 (1).png")
         if icon_path:
             icon_pix = QPixmap(icon_path).scaled(
-                42, 42, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                45, 45, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
             )
             self.icon_label.setPixmap(icon_pix)
 
@@ -46,7 +46,7 @@ class MniniBox(QWidget):
         self.number_label.setStyleSheet("color: black; font-family: PoetsenOne; font-size: 18px; font-weight: bold;")
         self.number_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.text_label = QLabel("محصولات اتمام شده")
+        self.text_label = QLabel("پایان اعتبار تخفیف")
         self.text_label.setStyleSheet("color: #666666; font-family: B Nazanin; font-size: 12px; font-weight: bold;")
         self.text_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 

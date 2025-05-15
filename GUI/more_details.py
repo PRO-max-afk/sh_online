@@ -306,10 +306,10 @@ class MoreDetails(QDialog):
     def insert_moredetails(self):
         brand= self.brand_line.text().strip()
         weight= self.weight_line.text().strip()
-        palce= self.place_st_line.text().strip()
+        palce= self.palce_line.text().strip()
         pro_date= self.pro_date_line.text().strip()
         detail= self.more_detials.toPlainText().strip()
-        place= self.palce_line.text().strip()
+        place= self.place_st_line.text().strip()
         status= self.state_line.text().strip()
         
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"

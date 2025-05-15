@@ -9,11 +9,12 @@ import requests
 import sqlite3
 from message_b import MessageBox
 from notifi_box import Notification
-from circle import CircularSpinner
+from m_dec import Decrease
+from m_de import Stock
+from notifi_info import Notifi_Box
 import pymysql
 from info_box import ProductBox
-from decimal import Decimal
-import threading
+from mini_box import MniniBox
 from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
@@ -29,6 +30,7 @@ class Frame2(QFrame):
         self.field_UI()
         self.set_today_date()
         self.set_today_time()
+        self.show_nt()
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -87,8 +89,14 @@ class Frame2(QFrame):
         top_layout.addWidget(self.label, 1)
         ##box layouts
         mini_box= QHBoxLayout()
-        
 
+        self.mini_info= MniniBox()
+        self.decrease= Decrease() 
+        self.stock= Stock()
+        mini_box.addWidget(self.stock)
+        mini_box.addWidget(self.decrease)
+        mini_box.addWidget(self.mini_info)
+    
         # لایه جعبه‌ها
         self.box_layout = QGridLayout()
         self.box_layout.setSpacing(10)
@@ -97,6 +105,9 @@ class Frame2(QFrame):
 
         # افزودن ویجت‌ها به main_layout
         main_layout.addLayout(top_layout)
+        main_layout.addSpacing(10)
+        main_layout.addLayout(mini_box)
+        main_layout.addSpacing(10)
         scroll_area.setWidget(scroll_widget)
         scroll_area.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         main_layout.addWidget(scroll_area)
@@ -217,3 +228,24 @@ class Frame2(QFrame):
     def show_notification(self):
         notif = Notification("محصول جدید به فروشگاه اضافه شد!", self.notification_frame)
         notif.show()
+    ##
+    def show_nt(self):
+        notif= Notifi_Box()
+        notif.set_product_info(
+            name= "چای",
+            number= "120",
+            expire_date= "1403/02/24",
+            image_path= self.get_asset_path("coffee (1).png")
+        )
+        self.box_layout.addWidget(notif)
+    
+    # #images
+    def get_asset_path(self, filename):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        image_path = os.path.join(project_root, "assets", filename)
+        if os.path.exists(image_path):
+            return image_path
+        else:
+            print(f"⚠ فایل یافت نشد: {image_path}")
+            return None
+    ###

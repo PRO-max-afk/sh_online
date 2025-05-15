@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt
 import os
 
 
-class MniniBox(QWidget):
+class Decrease(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(150, 100)
@@ -29,7 +29,7 @@ class MniniBox(QWidget):
         self.icon_label = QLabel()
         self.icon_label.setFixedSize(42, 42)
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        icon_path = self.get_asset_path("delivery-box_5006763.png")
+        icon_path = self.get_asset_path("shopping_16000035.png")
         if icon_path:
             icon_pix = QPixmap(icon_path).scaled(
                 42, 42, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
@@ -46,7 +46,7 @@ class MniniBox(QWidget):
         self.number_label.setStyleSheet("color: black; font-family: PoetsenOne; font-size: 18px; font-weight: bold;")
         self.number_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.text_label = QLabel("محصولات اتمام شده")
+        self.text_label = QLabel("محصولات انقضاء شده")
         self.text_label.setStyleSheet("color: #666666; font-family: B Nazanin; font-size: 12px; font-weight: bold;")
         self.text_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
