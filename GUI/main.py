@@ -1,9 +1,10 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout,QGraphicsDropShadowEffect
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout,QGraphicsDropShadowEffect,QLabel
 from PyQt6.QtCore import QPropertyAnimation, QRect, Qt
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase
 import sys
 from PyQt6 import QtCore
 from home import WidgetManager  
+from notifi_check import NotificationChecker
 import os
 from profile_picture import ProfileImage
 
@@ -14,6 +15,7 @@ class mainwindow(QWidget):
         self.setGeometry(screen.x(), screen.y(), screen.width(), screen.height())
         self.setWindowTitle("برنامه فروشگاه")
         self.setStyleSheet("background-color:#D9D9D9;")
+        self.notifications = []
         
         self.panel_width = 90
         panel_x = screen.width() - self.panel_width  # قرار دادن پنل در سمت راست
@@ -59,6 +61,27 @@ class mainwindow(QWidget):
         self.notification_btn.setIcon(self.n_icon)
         self.notification_btn.setIconSize(QtCore.QSize(35,35))
         self.notification_btn.clicked.connect(lambda: self.toggle_notification())
+        # 🔴 Badge اعلان (فرزند دکمه notification_btn)
+        self.notification_badge = QLabel("1", self.notification_btn)
+        self.notification_badge.setFixedSize(20, 20)
+        self.notification_badge.move(30, 3)  # موقعیت نسبی روی خود دکمه
+        self.notification_badge.setStyleSheet("""
+            background-color: red;
+            color: white;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            qproperty-alignment: AlignCenter;
+        """)
+        self.notification_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.notification_badge.raise_()
+        #self.notification_badge.hide()  # تا زمانی که پیامی نیامده، مخفی بماند
+
+        # شروع چک کردن نوتیفیکیشن‌ها
+        self.notification_checker = NotificationChecker()
+        self.notification_checker.new_message.connect(self.handle_new_notification)
+        self.notification_checker.start()
+
         ##dasboard
         self.dashboard_btn= QPushButton(self.side_panel)
         self.d_icon= QIcon(self.get_asset_path("dashboard 1.png"))
@@ -135,9 +158,29 @@ class mainwindow(QWidget):
         self.widget_manager.switch_frame("frame1")
         self.set_active_button(self.home_btn)
     ##
+    def handle_new_notification(self, product_name, message):
+        # بررسی اینکه پیام قبلاً اضافه نشده
+        for p, m in self.notifications:
+            if p == product_name and m == message:
+                return
+        # افزودن پیام به لیست
+        self.notifications.append((product_name, message))
+
+        # به‌روزرسانی badge
+        self.notification_badge.setText(str(len(self.notifications)))
+        self.notification_badge.show()
+
     def toggle_notification(self):
         self.widget_manager.switch_frame("frame2")
         self.set_active_button(self.notification_btn)
+        print("نمایش پیام‌ها:")
+        for product_name, message in self.notifications:
+            print(f"{product_name}: {message}")
+        
+        # پاک کردن لیست و مخفی کردن badge
+        self.notifications.clear()
+        self.notification_badge.hide()
+
     ##
     def toggle_dashboard(self):
         self.widget_manager.switch_frame("dash_frame")

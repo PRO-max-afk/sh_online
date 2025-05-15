@@ -33,17 +33,17 @@ class Notification(QWidget):
         super().__init__(parent_frame)
         self.parent_frame = parent_frame
         self.timestamp = datetime.now()
-        self.setFixedHeight(70)
+        self.setFixedHeight(80)
         self.setStyleSheet("background-color: transparent;")
         self.load_all_fonts()
 
         parent_width = parent_frame.width()
         notif_width = min(400, parent_width - 40)
         x_pos = (parent_width - notif_width) // 2
-        self.setGeometry(x_pos, -80, notif_width, 70)
+        self.setGeometry(x_pos, -80, notif_width, 80)
 
         inner_frame = QFrame(self)
-        inner_frame.setGeometry(0, 0, notif_width, 70)
+        inner_frame.setGeometry(0, 0, notif_width, 80)
         inner_frame.setStyleSheet("""
             background-color: white;
             border-radius: 12px;
@@ -79,7 +79,7 @@ class Notification(QWidget):
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         message_layout = QVBoxLayout()
-        message_layout.setSpacing(1)
+        message_layout.setSpacing(3)
         message_layout.setContentsMargins(0, 8, 0, 8)
         message_layout.addWidget(name_lb)
         message_layout.addWidget(text_label)
