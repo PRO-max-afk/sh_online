@@ -62,7 +62,7 @@ class mainwindow(QWidget):
         self.notification_btn.setIconSize(QtCore.QSize(35,35))
         self.notification_btn.clicked.connect(lambda: self.toggle_notification())
         # 🔴 Badge اعلان (فرزند دکمه notification_btn)
-        self.notification_badge = QLabel("1", self.notification_btn)
+        self.notification_badge = QLabel("", self.notification_btn)
         self.notification_badge.setFixedSize(20, 20)
         self.notification_badge.move(30, 3)  # موقعیت نسبی روی خود دکمه
         self.notification_badge.setStyleSheet("""
@@ -75,11 +75,11 @@ class mainwindow(QWidget):
         """)
         self.notification_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.notification_badge.raise_()
-        #self.notification_badge.hide()  # تا زمانی که پیامی نیامده، مخفی بماند
+        self.notification_badge.hide()  # تا زمانی که پیامی نیامده، مخفی بماند
 
         # شروع چک کردن نوتیفیکیشن‌ها
         self.notification_checker = NotificationChecker()
-        self.notification_checker.new_message.connect(self.handle_new_notification)
+        self.notification_checker.new_count.connect(self.handle_new_notification)
         self.notification_checker.start()
 
         ##dasboard
@@ -158,25 +158,20 @@ class mainwindow(QWidget):
         self.widget_manager.switch_frame("frame1")
         self.set_active_button(self.home_btn)
     ##
-    def handle_new_notification(self, product_name, message):
-        # بررسی اینکه پیام قبلاً اضافه نشده
-        for p, m in self.notifications:
-            if p == product_name and m == message:
-                return
-        # افزودن پیام به لیست
-        self.notifications.append((product_name, message))
+    def handle_new_notification(self, count):
+        if count > 0:
+            self.notifications.append(count)
+            total_sum = sum(self.notifications)
+            self.notification_badge.setText(str(total_sum))
+            self.notification_badge.show()
+        else:
+            self.notification_badge.hide()
 
-        # به‌روزرسانی badge
-        self.notification_badge.setText(str(len(self.notifications)))
-        self.notification_badge.show()
 
+    #
     def toggle_notification(self):
         self.widget_manager.switch_frame("frame2")
         self.set_active_button(self.notification_btn)
-        print("نمایش پیام‌ها:")
-        for product_name, message in self.notifications:
-            print(f"{product_name}: {message}")
-        
         # پاک کردن لیست و مخفی کردن badge
         self.notifications.clear()
         self.notification_badge.hide()

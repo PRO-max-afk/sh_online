@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QLabel,
-    QHBoxLayout, QFrame, QPushButton
+    QHBoxLayout, QFrame, QPushButton,QGridLayout
 )
 from PyQt6.QtCore import QTimer, QRect, QPropertyAnimation, Qt
 from PyQt6.QtGui import QFont, QPixmap,QColor,QFontDatabase
@@ -67,6 +67,7 @@ class Notification(QWidget):
         font-weight: bold;
         font-size: 13px;
         ''')
+        text_label.setWordWrap(True)
         text_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         self.time_label = QLabel(relative_time_string(self.timestamp))
@@ -78,12 +79,13 @@ class Notification(QWidget):
         ''')
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        message_layout = QVBoxLayout()
-        message_layout.setSpacing(3)
+        # ✅ جایگزینی QVBoxLayout با QGridLayout برای تنظیم بهتر
+        message_layout = QGridLayout()
         message_layout.setContentsMargins(0, 8, 0, 8)
-        message_layout.addWidget(name_lb)
-        message_layout.addWidget(text_label)
-        message_layout.addWidget(self.time_label)
+        message_layout.setSpacing(3)
+        message_layout.addWidget(name_lb, 0, 0, 1, 1)
+        message_layout.addWidget(text_label, 1, 0, 1, 1)
+        message_layout.addWidget(self.time_label, 2, 0, 1, 1)
 
         # چیدمان افقی نهایی
         layout = QHBoxLayout(inner_frame)

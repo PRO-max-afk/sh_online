@@ -3,15 +3,25 @@ import pymysql
 import requests
 import sqlite3
 import time
+import jdatetime
 import os
+from PyQt6.QtCore import QThread, pyqtSignal
+import pymysql
+import sqlite3
+import jdatetime
+import time
+import os
+import requests
 
 class NotificationChecker(QThread):
     new_message = pyqtSignal(str, str)  # ارسال همزمان product_name و message
+    new_count = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
         self.running = True
-        self.shown_messages = set()  # پیام‌های نمایش داده‌شده
+        self.shown_messages = set()
+        self.count_ms = set()
 
     def run(self):
         while self.running:
@@ -43,6 +53,8 @@ class NotificationChecker(QThread):
                     database=db_config["database"]
                 )
                 cursor = conn.cursor()
+
+                # پیام محصول
                 cursor.execute("""
                     SELECT product_name, product_message 
                     FROM inventories 
@@ -52,11 +64,32 @@ class NotificationChecker(QThread):
                 """, (id_user,))
                 result = cursor.fetchone()
 
-                if result:
-                    pro_name = result[0]
-                    message = result[1]
-                    unique_key = f"{pro_name}::{message}"
+                # تعداد پیام‌ها
+                cursor.execute("""
+                    SELECT COUNT(product_message) 
+                    FROM inventories 
+                    WHERE denied=1 AND user_id=%s;
+                """, (id_user,))
+                m_count = cursor.fetchone()[0]
 
+                # تعداد تاریخ‌های انقضا معتبر
+                jalali_date = jdatetime.date.today().isoformat()
+                cursor.execute("""
+                    SELECT COUNT(expiration_dates) 
+                    FROM inventories 
+                    WHERE expiration_dates > %s AND user_id=%s;
+                """, (jalali_date, id_user))
+                e_count = cursor.fetchone()[0]
+
+                total_count = m_count + e_count
+
+                if total_count not in self.count_ms:
+                    self.count_ms.add(total_count)
+                    self.new_count.emit(total_count)  # ارسال مقدار عددی
+
+                if result:
+                    pro_name, message = result
+                    unique_key = f"{pro_name}::{message}"
                     if unique_key not in self.shown_messages:
                         self.shown_messages.add(unique_key)
                         self.new_message.emit(pro_name, message)
@@ -65,7 +98,7 @@ class NotificationChecker(QThread):
             except pymysql.MySQLError as e:
                 print(f"{e} : خطا در اتصال یا کوئری به دیتابیس")
 
-            time.sleep(2)  # بررسی هر ۲ ثانیه
+            time.sleep(2)
 
     def get_db_config(self):
         url = "https://aryaict.com/connect.php"

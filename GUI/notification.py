@@ -12,9 +12,13 @@ from notifi_box import Notification
 from m_dec import Decrease
 from m_de import Stock
 from notifi_info import Notifi_Box
+from notifi_check import NotificationChecker
+from notifi_box import Notification
+from notifi_ch import ExpirationNotifier
 import pymysql
 from info_box import ProductBox
 from mini_box import MniniBox
+from persiantools.jdatetime import JalaliDate
 from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
@@ -30,7 +34,8 @@ class Frame2(QFrame):
         self.field_UI()
         self.set_today_date()
         self.set_today_time()
-        self.show_nt()
+        self.start_notification_checker()
+
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -89,10 +94,11 @@ class Frame2(QFrame):
         top_layout.addWidget(self.label, 1)
         ##box layouts
         mini_box= QHBoxLayout()
-
+        ##top boxes
         self.mini_info= MniniBox()
         self.decrease= Decrease() 
         self.stock= Stock()
+        ##
         mini_box.addWidget(self.stock)
         mini_box.addWidget(self.decrease)
         mini_box.addWidget(self.mini_info)
@@ -121,6 +127,13 @@ class Frame2(QFrame):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_frame.raise_()
+        ##
+        self.notifier = ExpirationNotifier()
+        self.notifier.new_expired_info.connect(self.show_nt)
+        self.notifier.expired_count_signal.connect(self.show_exp)
+        self.notifier.start()
+
+
         
     def label_UI(self):
         self.label.setMinimumSize(200, 40)
@@ -162,7 +175,7 @@ class Frame2(QFrame):
     def button_UI(self):
         self.serach_btn.setMinimumSize(100, 30)
         self.serach_btn.setMaximumSize(140, 40)
-        self.serach_btn.clicked.connect(self.show_notification)
+        #self.serach_btn.clicked.connect(self.show_notification)
         self.serach_btn.setStyleSheet('''
             QPushButton {
                 background-color: #2251DB;
@@ -224,20 +237,81 @@ class Frame2(QFrame):
     def resizeEvent(self, event):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         return super().resizeEvent(event)
-
-    def show_notification(self):
-        notif = Notification("محصول جدید به فروشگاه اضافه شد!", self.notification_frame)
-        notif.show()
+    
     ##
-    def show_nt(self):
-        notif= Notifi_Box()
-        notif.set_product_info(
-            name= "چای",
-            number= "120",
-            expire_date= "1403/02/24",
-            image_path= self.get_asset_path("coffee (1).png")
-        )
-        self.box_layout.addWidget(notif)
+    def download_image_from_url(self, image_path):
+        try:
+            if not image_path:
+                raise ValueError("image_path is empty or None")
+
+            if not image_path.startswith("http"):
+                base_url = "https://ihr.blg.mybluehost.me/storage/"
+                image_path = base_url + image_path.lstrip("/")
+
+            print(f"📥 در حال تلاش برای دریافت تصویر از: {image_path}")
+
+            local_dir = os.path.join(os.getcwd(), "temp_images")
+            os.makedirs(local_dir, exist_ok=True)
+
+            filename = os.path.basename(image_path)
+            local_path = os.path.join(local_dir, filename)
+
+            # ✅ بررسی کش - اگر فایل قبلاً دانلود شده باشد، مستقیماً بازگردانده می‌شود
+            if os.path.exists(local_path):
+                print("📦 تصویر قبلاً دانلود شده. بارگیری از حافظه محلی:", local_path)
+                return local_path
+
+            # اضافه کردن هدرهای مناسب برای درخواست
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+
+            response = requests.get(image_path, headers=headers, timeout=20)
+            response.raise_for_status()
+
+            with open(local_path, 'wb') as f:
+                f.write(response.content)
+
+            print("✅ تصویر با موفقیت دانلود شد:", local_path)
+            return local_path
+
+        except Exception as e:
+            print("❌ خطا در دریافت تصویر از URL:", e)
+            default_image_path = os.path.join(os.getcwd(), "default.png")
+            if os.path.exists(default_image_path):
+                print("🔁 بازگشت به تصویر پیش‌فرض:", default_image_path)
+                return default_image_path
+            else:
+                print("⚠️ تصویر پیش‌فرض پیدا نشد.")
+                return None
+    ##
+    def show_nt(self, products: list):
+        # پاک کردن ویجت‌های قبلی در layout
+        for i in reversed(range(self.box_layout.count())):
+            widget = self.box_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
+        # اضافه کردن محصولات جدید
+        for product in products:
+            notif = Notifi_Box()
+
+            # دریافت مسیر محلی عکس با استفاده از متد دانلود
+            image_path = self.download_image_from_url(product.get("product_image", ""))
+
+            notif.set_product_info(
+                name=product.get("product_name", ""),
+                number=str(product.get("quantity", "")),
+                expire_date=str(product.get("expiration_dates", "")),
+                image_path=image_path or ""  # استفاده از تصویر دانلود شده یا مسیر خالی
+            )
+
+            self.box_layout.addWidget(notif)
+
+
+    def show_exp(self, count):
+        self.decrease.set_product_info(number=str(count))
+
     
     # #images
     def get_asset_path(self, filename):
@@ -248,4 +322,17 @@ class Frame2(QFrame):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
-    ###
+     ##notifications
+    def start_notification_checker(self):
+        self.notif_checker = NotificationChecker()
+        self.notif_checker.new_message.connect(self.show_notification_message)  # بدون ()
+        self.notif_checker.start()
+
+    def show_notification_message(self, pro_name: str, message: str):
+        notif = Notification(
+            pro_name=pro_name,
+            message=message,
+            parent_frame=self.notification_frame,
+            icon_path=self.get_asset_path("alarm.png")
+        )
+        notif.show()
