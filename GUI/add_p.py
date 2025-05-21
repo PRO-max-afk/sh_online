@@ -48,6 +48,8 @@ class AddProduct(QDialog):
         self.name_lb= QLabel("نام محصول:", self)
         self.name_line= QLineEdit(self)
         self.name_line.setReadOnly(True)
+        self.name_line.textChanged.connect(self.auto_search_name)
+
         ##
         self.quantity_lb= QLabel("موجودی فعلی:", self)
         self.quantity_line= QLineEdit(self)
@@ -320,6 +322,7 @@ class AddProduct(QDialog):
         self.submit_btn.setIconSize(QtCore.QSize(36,36))
         self.submit_btn.setText("ذخیره محصول")
         self.submit_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.submit_btn.clicked.connect(self.update_product)
         self.submit_btn.setStyleSheet('''
             QPushButton {
                 background-color: #3EB516;
@@ -492,8 +495,17 @@ class AddProduct(QDialog):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             if self.bar_line.hasFocus():
                 self.search_barcode()
-            elif self.name_line.hasFocus():
-                self.search_name()
+            elif any(line.hasFocus() for line in [
+                self.exp_line,self.number_line, self.buy_line, self.sale_line, self.sale_big_line
+            ]):
+                self.update_product()
+
+    ##
+    def auto_search_name(self):
+        text = self.name_line.text().strip()
+        if text:  # اگر حتی یک حرف نوشته شده باشد
+            self.search_name()
+
 
     ##upadte actions:
     def search_barcode(self):
@@ -508,21 +520,14 @@ class AddProduct(QDialog):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
         try:
+            ##
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
-            cursor_sq.execute("SELECT id FROM users;")
-            res_id = cursor_sq.fetchone()
-            id_user = res_id[0]
-        except Exception as e:
-            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
-            return
-        try:
-            ##
             cursor_sq.execute('''
             select name,buy_price,
             sale_price,quantity,
             expire_date,big_price
-            From products WHERE  barcode=? and user_id=?''',(barcode,id_user))
+            From products WHERE  barcode=?''',(barcode,))
             result= cursor_sq.fetchone()
             
             if result:
@@ -555,22 +560,16 @@ class AddProduct(QDialog):
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
-        try:
-            conn_sq = sqlite3.connect(db_path)
-            cursor_sq = conn_sq.cursor()
-            cursor_sq.execute("SELECT id FROM users;")
-            res_id = cursor_sq.fetchone()
-            id_user = res_id[0]
-        except Exception as e:
-            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
-            return
+        
         try:
             ##
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
             cursor_sq.execute('''
             select barcode,buy_price,
             sale_price,quantity,
             expire_date,big_price
-            From products WHERE  name=? and user_id=?''',(name,id_user))
+            From products WHERE  name=?''',(name,))
             result= cursor_sq.fetchone()
             
             if result:
@@ -610,12 +609,7 @@ class AddProduct(QDialog):
         name = self.name_line.text()
         old_number = self.quantity_line.text()
         new_number = self.number_line.text()
-        bu_price = self.buy_price.text()
-        db_connect = self.get_db_config()
-
-        if not db_connect:
-            MessageBox("مشکلی در اتصال به سرور رخ داده است", title="خطا", type="error")
-            return
+        bu_price = self.buy_line.text()
 
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
@@ -629,18 +623,120 @@ class AddProduct(QDialog):
         except ValueError:
             self.total_line.setText("0.00")
             return
-
+         
         try:
             conn_sq = sqlite3.connect(db_path)
-            cursor_sq = conn_sq.cursor()
-            cursor_sq.execute("SELECT id FROM users;")
-            res_id = cursor_sq.fetchone()
-            if res_id is None:
-                raise Exception("کاربر محلی یافت نشد.")
-            id_user = res_id[0]
-        except Exception as e:
-            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            cursor_sq= conn_sq.cursor()
+            cursor_sq.execute('SELECT buy_price FROM products WHERE name= ? ', (name,))
+            price = cursor_sq.fetchone()
+            total_price = float(price[0]) if price and price[0] else 0.0
+            final_total = (total_price * old_quantity) + (buy_price * new_quantity)
+            self.total_line.setText(f'{final_total:.2f}')
+        except pymysql.Error as e:
+            MessageBox(f"{e}: خطا در دیتابیس", title="خطا", type="error")
+
+    ##
+    def update_product(self):
+        barcode = self.bar_line.text().strip()
+        name = self.name_line.text().strip()
+        quantity = self.quantity_line.text()
+        number = self.number_line.text().strip()
+        expire_date = self.exp_line.text().strip()
+        buy_price = self.buy_line.text().strip()
+        sale_price = self.sale_line.text().strip()
+        big_sale = self.sale_big_line.text()
+        date = jdatetime.date.today().strftime("%Y/%m/%d")
+
+        # بررسی کامل اعتبارسنجی فیلدها
+        if not all([barcode, name, quantity, number, expire_date, buy_price, sale_price, big_sale]):
+            MessageBox("لطفاً تمام فیلدها را پر کنید.", title="⚠️ هشدار", type="warning").show()
             return
+
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            number = float(number) if number else 0
+            buy_price = float(buy_price) if buy_price else 0
+
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+
+            # واکشی مقدار قبلی
+            cursor_sq.execute("""
+                SELECT quantity, buy_price 
+                FROM products 
+                WHERE name = ?
+            """, (name,))
+            row = cursor_sq.fetchone()
+
+            if row:
+                old_quantity = float(row[0]) if row[0] else 0
+                old_price = float(row[1]) if row[1] else 0
+
+                updated_quantity = old_quantity + number
+
+                if updated_quantity > 0:
+                    new_avg_price = ((old_price * old_quantity) + (buy_price * number)) / updated_quantity
+                else:
+                    new_avg_price = buy_price
+
+                total = ((old_price * old_quantity) + (buy_price * number))
+
+                self.calculate_total()
+
+                is_synced = 0
+                cursor_sq.execute("""
+                    UPDATE products 
+                    SET quantity = ?, buy_price = ?, update_date = ?, 
+                        new_quantity = ?, expire_date = ?, 
+                        sale_price = ?, big_price = ?, 
+                        total = ?, is_synced = ?
+                    WHERE name = ?
+                """, (
+                    updated_quantity, new_avg_price, date, number,
+                    expire_date, sale_price, big_sale,
+                    total, is_synced, name
+                ))
+
+                conn_sq.commit()
+
+                # پیام موفقیت واضح
+                MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()
+                print("✅ تغییرات در جدول products ثبت شد.")
+                
+                self.name_line.clear()
+                self.bar_line.clear()
+                self.quantity_line.clear()
+                self.number_line.clear()
+                self.exp_line.clear()
+                self.buy_line.clear()
+                self.sale_line.clear()
+                self.sale_big_line.clear()
+                self.total_line.setText("0.00")
+            else:
+                MessageBox("محصولی با این نام یافت نشد!", title="❗ خطا", type="warning").show()
+
+        except sqlite3.Error as e:
+            MessageBox(f"{e}: خطا در پایگاه داده", title="❌ خطا", type="error").show()
+
+    ##
+    def synced_to_server(self):
+        db_connect = self.get_db_config()
+        if not db_connect:
+            return
+
+        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
+        cursor_sq = conn_sq.cursor()
+
+        cursor_sq.execute('''SELECT barcode,
+                            buy_date, buy_price, sale_price, big_price,
+                            quantity, expire_date, total, user_id
+                            FROM products WHERE is_synced = 0''')
+
+        unsynced_products = cursor_sq.fetchall()
 
         try:
             conn = pymysql.connect(
@@ -650,17 +746,51 @@ class AddProduct(QDialog):
                 database=db_connect["database"]
             )
             cursor = conn.cursor()
-            cursor.execute('SELECT buy_price FROM inventories WHERE product_name=%s AND user_id=%s', (name, id_user))
-            price = cursor.fetchone()
-            total_price = float(price[0]) if price and price[0] else 0.0
-            final_total = (total_price * old_quantity) + (buy_price * new_quantity)
-            self.total_line.setText(f'{final_total:.2f}')
-        except pymysql.Error as e:
-            MessageBox(f"{e}: خطا در دیتابیس", title="خطا", type="error")
 
-        
-    def update_product(self):
-        pass
+            for product in unsynced_products:
+                (barcode, buy_date, buy_price,
+                sale_price, big_price, quantity, expire_date,
+                total, user_id) = product
+
+                # بررسی وجود محصول
+                cursor.execute("SELECT COUNT(*) FROM inventories WHERE barcode = %s AND user_id = %s", (barcode, user_id))
+                exists = cursor.fetchone()[0]
+
+                if exists:
+                    # بروزرسانی
+                    cursor.execute('''
+                        UPDATE inventories SET
+                            quantity = %s,
+                            buy_price = %s,
+                            buy_date = %s,
+                            sell_price = %s,
+                            big_price = %s,
+                            expiration_dates = %s,
+                            total = %s
+                        WHERE barcode = %s AND user_id = %s
+                    ''', (
+                        quantity, buy_price, buy_date,
+                        sale_price, big_price, expire_date,
+                        total, barcode, user_id
+                    ))
+                    print(f"✅ محصول {barcode} بروزرسانی شد")
+                else:
+                    print(f"⚠️ محصول {barcode} در سرور پیدا نشد")
+
+            conn.commit()
+            print("✅ اطلاعات با موفقیت انجام شد")
+
+            # بروزرسانی SQLite
+            cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
+            conn_sq.commit()
+
+        except Exception as e:
+            print("❌ خطا در همگام‌سازی:", e)
+
+        finally:
+            conn_sq.close()
+            if conn:
+                conn.close()
 
 
 

@@ -13,7 +13,7 @@ import time
 import os
 import requests
 
-class NotificationChecker(QThread):
+class NotificationQuantity(QThread):
     new_message = pyqtSignal(str, str)  # ارسال همزمان product_name و message
     new_count = pyqtSignal(int)
 
@@ -73,7 +73,7 @@ class NotificationChecker(QThread):
                 m_count = cursor.fetchone()[0]
 
                 # تعداد تاریخ‌های انقضا معتبر
-                jalali_date = jdatetime.date.today().strftime("%Y/%m/%d")
+                jalali_date = jdatetime.date.today().isoformat()
                 cursor.execute("""
                     SELECT COUNT(expiration_dates) 
                     FROM inventories 

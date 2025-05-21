@@ -6,7 +6,7 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-select * from  users;
+SELECT * from products where is_synced=0;
 ''')
 rows = cursor.fetchall()
 for row in rows:

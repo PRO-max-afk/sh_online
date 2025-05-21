@@ -6,11 +6,11 @@ import os
 class ProductBox(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(260, 340)
+        self.setMinimumSize(270, 360)
         self.setStyleSheet("background-color: transparent;")
 
         self.frame = QFrame(self)
-        self.frame.setGeometry(10, 10, 260, 310)
+        self.frame.setGeometry(10, 10, 270, 340)
         self.frame.setStyleSheet("background-color: white; border-radius: 20px;")
 
         shadow = QGraphicsDropShadowEffect(self)
@@ -43,23 +43,31 @@ class ProductBox(QWidget):
         self.nu_lb = QLabel("", self.frame)
         self.expire_date = QLabel("تاریخ انقضاء:", self.frame)
         self.exp_lb = QLabel("", self.frame)
+        self.big_s_lb= QLabel("موجودی فعلی:",self.frame)
+        self.bg_lb= QLabel("",self.frame)
+        self.big_price= QLabel("قمیت عمده:",self.frame)
+        self.big_sa_lb= QLabel("",self.frame)
 
         self.label_UI()
 
     def label_UI(self):
         labels = [
             (self.name_lb, 198, 160),
-            (self.na_lb, 147, 160),
+            (self.na_lb, 145, 160),
             (self.barcode_lb, 54, 160),
-            (self.bar_lb, 10, 160),
+            (self.bar_lb, 5, 160),
             (self.buy_price, 190, 210),
-            (self.bu_lb, 151, 210),
+            (self.bu_lb, 150, 210),
             (self.sale_label, 59, 210),
             (self.sa_lb, 15, 210),
             (self.number_lb, 185, 260),
-            (self.nu_lb, 151, 260),
+            (self.nu_lb, 150, 260),
             (self.expire_date, 63, 260),
             (self.exp_lb, 5, 260),
+            (self.big_s_lb,190,300),
+            (self.bg_lb,145,300),
+            (self.big_price,59,300),
+            (self.big_sa_lb,15,300)
         ]
         for label, x, y in labels:
             label.move(x, y)
@@ -72,7 +80,7 @@ class ProductBox(QWidget):
             ''')
             label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-    def set_product_info(self, name, barcode, buy_price, sale_price, number, expire_date, image_path="default.png"):
+    def set_product_info(self, name, barcode, buy_price, sale_price, number, expire_date,big_sub,big_price,image_path="default.png"):
         self.na_lb.setText(name)
         self.na_lb.adjustSize()
         
@@ -90,6 +98,13 @@ class ProductBox(QWidget):
         
         self.exp_lb.setText(expire_date)
         self.exp_lb.adjustSize()
+
+        self.bg_lb.setText(str(big_sub))
+        self.bg_lb.adjustSize()
+
+        self.big_sa_lb.setText(str(big_price))
+        self.big_sa_lb.adjustSize()
+
 
         if image_path and os.path.exists(image_path):
             pixmap = QPixmap(image_path).scaled(120, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)

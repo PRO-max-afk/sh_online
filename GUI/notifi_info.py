@@ -53,8 +53,12 @@ class Notifi_Box(QWidget):
         self.expire_date = QLabel("تاریخ انقضاء:")
         self.exp_lb = QLabel("")
         self.text_lb= QLabel("محصولات انقضاء شده")
+        self.nt_lb= QLabel("تاریخ محصول گذشته است")
+        self.nt_lb.setFixedSize(140,25)
+        self.nt_lb.setStyleSheet("background-color: red; font-family: Mirza; font-weight: bold; font-size: 15px; color: white; border-radius: 5px;")
         self.text_lb.setStyleSheet("color: gray; font-family: B Nazanin; font-weight: bold; font-size: 14px;")
         self.text_lb.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
+        self.nt_lb.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         self.set_label_style(self.name_lb)
         self.set_label_style(self.na_lb)
@@ -68,7 +72,9 @@ class Notifi_Box(QWidget):
         right_layout.addLayout(self.label_pair(self.nu_lb,self.number_lb))
         right_layout.addWidget(self.text_lb)
         #
+        
         info_layout.addLayout(self.label_pair(self.exp_lb,self.expire_date))
+        info_layout.addWidget(self.nt_lb)
 
         # اضافه کردن به چیدمان اصلی فریم
         # اضافه کردن به چیدمان اصلی فریم (ترتیب اصلاح شده)

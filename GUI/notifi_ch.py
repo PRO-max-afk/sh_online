@@ -48,12 +48,13 @@ class ExpirationNotifier(QThread):
                 )
                 cursor = conn.cursor()
 
-                today = jdatetime.date.today().isoformat()
+                today = jdatetime.date.today().strftime("%Y/%m/%d")
+                #print(today)
 
                 cursor.execute("""
                     SELECT product_name, quantity, expiration_dates, product_image
                     FROM inventories
-                    WHERE expiration_dates > %s AND user_id = %s
+                    WHERE expiration_dates < %s AND user_id = %s
                 """, (today, id_user))
                 results = cursor.fetchall()
 

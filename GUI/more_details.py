@@ -320,6 +320,9 @@ class MoreDetails(QDialog):
         try:
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
+            # حذف تمام داده‌های قبلی
+            cursor_sq.execute("DELETE FROM details")
+            #
             cursor_sq.execute("insert into details(brand,weight,production_date,production_place,product_state,more_details,keep_place) VALUES(?,?,?,?,?,?,?)",
                               (brand,weight,pro_date,palce,status,detail,place))
             conn_sq.commit()

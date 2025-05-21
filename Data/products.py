@@ -14,16 +14,20 @@ cursor.execute('''
             buy_price REAL,
             sale_price REAL,
             big_price REAL,
+            big_sub REAL,
             big_category TEXT,
             quantity REAL,
+            new_quantity REAL,
+            update_date TEXT,
             discount_percent,
             new_price REAL,
             store_name TEXT,
             total REAL,
+            big_quantity INTEGER,
             is_synced INTEGER DEFAULT 0,
-            new_quantity REAL,
             expire_date TEXT,
             image_path TEXT,
+            big_sub_display TEXT,
             user_id INTEGER
         );
     ''')

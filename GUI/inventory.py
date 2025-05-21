@@ -81,16 +81,16 @@ class DataLoaderThread(QThread):
             cursor.execute('''
                 SELECT product_name, barcode,category,sub_category,buy_date,buy_price, sell_price,
                            big_category,quantity, expiration_dates, product_image,store_name, 
-                           new_price, discount_percent, big_price, total
+                           new_price, discount_percent, big_price,big_sub,big_sub_display, total
                 FROM inventories
-                WHERE user_id = %s
+                WHERE quantity > 0 and user_id = %s 
                 ORDER BY invent_id DESC
             ''', (id_user,))
             products = cursor.fetchall()
 
             product_list = []
             for product in products:
-                name, barcode,category, sub_category,buy_date,buy_price, sale_price,big_category,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price, total= product
+                name, barcode,category, sub_category,buy_date,buy_price, sale_price,big_category,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price,big_sub,big_sub_display, total= product
 
                 product_info = {
                     "name": name,
@@ -109,6 +109,8 @@ class DataLoaderThread(QThread):
                     "new_price": float(new_price) if isinstance(new_price, Decimal) else new_price,
                     "discount_percent": float(discount_percent) if isinstance(discount_percent, Decimal) else discount_percent,
                     "big_price": float(big_price) if isinstance(big_price, Decimal) else big_price,
+                    "big_sub" : float(big_sub) if isinstance(big_sub,Decimal) else big_sub,
+                    "big_sub_display" : big_sub_display,
                     "total": float(total) if isinstance(total, Decimal) else total
                 }
                 product_list.append(product_info)
@@ -133,7 +135,7 @@ class DataLoaderThread(QThread):
         cursor = conn.cursor()
 
         for product in product_list:
-            if all(key in product for key in ["barcode", "name", "category","sub_category","buy_date","buy_price", "sale_price","big_category","store_name", "new_price", "discount_percent", "big_price", "total", "quantity", "expire_date", "image_path", "user_id"]):
+            if all(key in product for key in ["barcode", "name", "category","sub_category","buy_date","buy_price", "sale_price","big_category","store_name", "new_price", "discount_percent", "big_price", "big_sub","big_sub_display","total", "quantity", "expire_date", "image_path", "user_id"]):
                 
                 # بررسی وجود محصول با barcode
                 cursor.execute("SELECT COUNT(*) FROM products WHERE barcode = ?", (product["barcode"],))
@@ -144,7 +146,7 @@ class DataLoaderThread(QThread):
                     cursor.execute('''
                         UPDATE products SET
                             barcode=?,name = ?, category=?,sub_category=?,buy_date=?,buy_price = ?, sale_price = ?, store_name = ?, new_price = ?, 
-                            discount_percent = ?, big_price = ?, total = ?, quantity = ?, expire_date = ?, 
+                            discount_percent = ?, big_price = ?, big_sub=?, big_sub_display=?,total = ?, quantity = ?, expire_date = ?, 
                             image_path = ?, user_id = ?
                         WHERE barcode = ?
                     ''', (
@@ -160,6 +162,8 @@ class DataLoaderThread(QThread):
                         product["new_price"],
                         product["discount_percent"],
                         product["big_price"],
+                        product["big_sub"],
+                        product["big_sub_display"],
                         product["total"],
                         product["quantity"],
                         product["expire_date"],
@@ -170,9 +174,9 @@ class DataLoaderThread(QThread):
                     # اگر وجود نداشت: درج کن
                     cursor.execute('''
                         INSERT INTO products (barcode, name, category,sub_category,buy_date,
-                                   buy_price, sale_price,big_category,store_name, new_price, discount_percent, big_price,
+                                   buy_price, sale_price,big_category,store_name, new_price, discount_percent, big_price,big_sub,big_sub_display,
                                     total, quantity, expire_date, image_path, user_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?)
                     ''', (
                         product["barcode"],
                         product["name"],
@@ -186,6 +190,8 @@ class DataLoaderThread(QThread):
                         product["new_price"],
                         product["discount_percent"],
                         product["big_price"],
+                        product["big_sub"],
+                        product["big_sub_display"],
                         product["total"],
                         product["quantity"],
                         product["expire_date"],
@@ -209,7 +215,7 @@ class DataLoaderThread(QThread):
             user_id = row[0]
 
             cursor.execute('''
-                SELECT name, barcode, buy_price, sale_price, quantity, expire_date, image_path
+                SELECT name, barcode, buy_price, sale_price, quantity, expire_date,big_price,big_sub_display, image_path
                 FROM products
                 WHERE user_id = ?
             ''', (user_id,))
@@ -220,7 +226,7 @@ class DataLoaderThread(QThread):
 
             product_list = []
             for r in rows:
-                name, barcode, buy_price, sale_price, quantity, expire_date, image_path = r
+                name, barcode, buy_price, sale_price, quantity, expire_date,big_price,big_sub_display, image_path = r
 
                 local_image = image_path
                 if image_path:
@@ -240,6 +246,8 @@ class DataLoaderThread(QThread):
                     "sale_price": sale_price,
                     "quantity": quantity,
                     "expire_date": expire_date,
+                    "big_sub_display": big_sub_display,
+                    "big_price" : big_price,
                     "image_path": local_image
                 })
 
@@ -281,9 +289,9 @@ class SearchThread(QThread):
                     return
             # جستجو بر اساس متن وارد شده در نام محصول
             cursor.execute('''
-                SELECT name, barcode, buy_price, sale_price, quantity, expire_date, image_path
+                SELECT name, barcode, buy_price, sale_price, quantity, expire_date,big_price,big_sub_display, image_path
                 FROM products
-                WHERE user_id = ? and name LIKE ?
+                WHERE quantity > 0 and user_id = ? and name LIKE ?
             ''', (id_user,'%' + self.search_text + '%',))
             products = cursor.fetchall()
 
@@ -292,7 +300,7 @@ class SearchThread(QThread):
 
             product_list = []
             for product in products:
-                name, barcode, buy_price, sale_price, quantity, exp_date, image_path = product
+                name, barcode, buy_price, sale_price, quantity, exp_date,big_price,big_sub_display, image_path = product
 
                 # بررسی وجود عکس
                 if image_path:
@@ -315,6 +323,8 @@ class SearchThread(QThread):
                     "sale_price": sale_price,
                     "quantity": quantity,
                     "expire_date": exp_date,
+                    "big_sub_display" : big_sub_display,
+                    "big_price" :big_price,
                     "image_path": image_path
                 }
                 product_list.append(product_info)
@@ -344,6 +354,7 @@ class Inventory(QFrame):
         self.start_auto_sync_timer()
         self.load_all_fonts()
         self.start_notification_checker()
+        self.start_synced_to_server()
         
 
 
@@ -669,6 +680,8 @@ class Inventory(QFrame):
                 sale_price=data["sale_price"],
                 number=data["quantity"],
                 expire_date=data["expire_date"],
+                big_sub= data["big_sub_display"],
+                big_price= data["big_price"],
                 image_path=image_path
             )
 
@@ -830,6 +843,8 @@ class Inventory(QFrame):
                 sale_price=data["sale_price"],
                 number=data["quantity"],
                 expire_date=data["expire_date"],
+                big_sub= data["big_sub_display"],
+                big_price= data["big_price"],
                 image_path=image_path
             )
             row, col = divmod(index, 4)
@@ -857,7 +872,7 @@ class Inventory(QFrame):
                 return
 
             cursor.execute('''
-                SELECT name, barcode, buy_price, sale_price, quantity, expire_date, image_path
+                SELECT name, barcode, buy_price, sale_price, quantity, expire_date,big_price,big_sub_display, image_path
                 FROM products
                 WHERE user_id = ?
             ''', (id_user,))
@@ -868,7 +883,7 @@ class Inventory(QFrame):
 
             product_list = []
             for product in products:
-                name, barcode, buy_price, sale_price, quantity, exp_date, image_path = product
+                name, barcode, buy_price, sale_price, quantity, exp_date,big_price,big_sub_display, image_path = product
 
                 # بررسی وجود عکس
                 if image_path:
@@ -889,6 +904,8 @@ class Inventory(QFrame):
                     "sale_price": sale_price,
                     "quantity": quantity,
                     "expire_date": exp_date,
+                    "big_sub_display" : big_sub_display,
+                    "big_price" : big_price,
                     "image_path": image_path
                 }
                 product_list.append(product_info)
@@ -897,7 +914,7 @@ class Inventory(QFrame):
             self.Full_data_load(product_list)
 
         except Exception as e:
-            self.error_occurred.emit(str(e))
+            print(str(e))
         except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در بارگذاری اطلاعات", title="خطا", type="error")
         finally:
@@ -925,6 +942,8 @@ class Inventory(QFrame):
                         sale_price=data["sale_price"],
                         number=data["quantity"],
                         expire_date=data["expire_date"],
+                        big_sub= data["big_sub_display"],
+                        big_price= data["big_price"],
                         image_path=image_path
                     )
                     row, col = divmod(index, 4)
@@ -982,11 +1001,11 @@ class Inventory(QFrame):
         from new_p import ProductForm  # 🔥 اینجا ایمپورت می‌کنیم، نه بالا
         form = ProductForm(inventory_page=self)
         form.exec()
-    ###
+    ### insert
     def start_auto_sync_timer(self):
         self.sync_timer = QTimer(self)
         self.sync_timer.timeout.connect(self.start_sync_thread)
-        self.sync_timer.start(5 * 60 * 1000)  # هر 15 دقیقه
+        self.sync_timer.start(5 * 60 * 1000)  # هر 5 دقیقه
 
     def start_sync_thread(self):
         from new_p import ProductForm
@@ -994,6 +1013,18 @@ class Inventory(QFrame):
         sync_thread = threading.Thread(target=products.sync_to_server)
         sync_thread.setDaemon(True)  # اگر پنجره بسته شد، ترد هم بسته شود
         sync_thread.start()
+    ###update
+    def start_synced_to_server(self):
+        self.synced_timer= QTimer(self)
+        self.synced_timer.timeout.connect(self.start_synced_to_thread)
+        self.synced_timer.start(2 *60 *1000)
+
+    def start_synced_to_thread(self):
+        from add_p import AddProduct
+        add_pro= AddProduct(inventory_page=self)
+        synced_thread= threading.Thread(target=add_pro.synced_to_server)
+        synced_thread.setDaemon(True)
+        synced_thread.start()
     ##
     def open_add_form(self):
         from add_p import AddProduct
