@@ -1,7 +1,8 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 import pymysql
 import sqlite3
-import jdatetime
+import datetime
+from datetime import date
 import time
 import os
 import requests
@@ -48,7 +49,7 @@ class ExpirationNotifier(QThread):
                 )
                 cursor = conn.cursor()
 
-                today = jdatetime.date.today().strftime("%Y/%m/%d")
+                today = datetime.date.today().strftime("%Y/%m/%d")
                 #print(today)
 
                 cursor.execute("""

@@ -3,12 +3,12 @@ import pymysql
 import requests
 import sqlite3
 import time
-import jdatetime
 import os
 from PyQt6.QtCore import QThread, pyqtSignal
 import pymysql
 import sqlite3
-import jdatetime
+import datetime
+from datetime import date
 import time
 import os
 import requests
@@ -73,7 +73,7 @@ class NotificationChecker(QThread):
                 m_count = cursor.fetchone()[0]
 
                 # تعداد تاریخ‌های انقضا معتبر
-                jalali_date = jdatetime.date.today().strftime("%Y/%m/%d")
+                jalali_date = datetime.date.today().strftime("%Y/%m/%d")
                 cursor.execute("""
                     SELECT COUNT(expiration_dates) 
                     FROM inventories 

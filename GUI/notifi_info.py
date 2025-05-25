@@ -1,6 +1,7 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QFrame, QGraphicsDropShadowEffect, QVBoxLayout, QHBoxLayout, QSizePolicy
-from PyQt6.QtGui import QPixmap, QColor, QPainter, QPainterPath
+from PyQt6.QtWidgets import QWidget, QLabel, QFrame, QGraphicsDropShadowEffect, QVBoxLayout, QHBoxLayout, QSizePolicy,QPushButton
+from PyQt6.QtGui import QPixmap, QColor, QPainter, QPainterPath,QIcon
 from PyQt6.QtCore import Qt
+from PyQt6 import QtCore
 import os
 
 class Notifi_Box(QWidget):
@@ -59,6 +60,32 @@ class Notifi_Box(QWidget):
         self.text_lb.setStyleSheet("color: gray; font-family: B Nazanin; font-weight: bold; font-size: 14px;")
         self.text_lb.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
         self.nt_lb.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        ##
+        self.delete_btn= QPushButton()
+        delete_icon= QIcon(self.get_asset_path("trash.png"))
+        self.delete_btn.setIcon(delete_icon)
+        self.delete_btn.setText("حذف محصول")
+        self.delete_btn.setIconSize(QtCore.QSize(20,20))
+        self.delete_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.delete_btn.setStyleSheet('''
+        QPushButton{
+                background-color: white;
+                color: red;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 12px;
+                padding-right: 15px;
+                padding-left: 0px;          
+                                        }
+        QPushButton:hover{
+            text-decoration: underline;
+                                      }
+        QPushButton:pressed{
+            color: red;
+                                      }
+
+            
+        ''')
 
         self.set_label_style(self.name_lb)
         self.set_label_style(self.na_lb)
@@ -75,6 +102,7 @@ class Notifi_Box(QWidget):
         
         info_layout.addLayout(self.label_pair(self.exp_lb,self.expire_date))
         info_layout.addWidget(self.nt_lb)
+        info_layout.addWidget(self.delete_btn)
 
         # اضافه کردن به چیدمان اصلی فریم
         # اضافه کردن به چیدمان اصلی فریم (ترتیب اصلاح شده)
@@ -130,3 +158,15 @@ class Notifi_Box(QWidget):
         painter.end()
 
         self.image_label.setPixmap(rounded)
+    ##images
+    def get_asset_path(self, filename):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        image_path = os.path.join(project_root, "assets", filename)
+        if os.path.exists(image_path):
+            return image_path
+        else:
+            print(f"⚠ فایل یافت نشد: {image_path}")
+            return None
+
+        # دریافت اطلاعات دیتابیس از سرور
+    ##

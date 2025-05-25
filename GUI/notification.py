@@ -8,6 +8,7 @@ import os
 import requests
 import sqlite3
 from message_b import MessageBox
+from circle import CircularSpinner
 from notifi_box import Notification
 from m_dec import Decrease
 from m_de import Stock
@@ -28,6 +29,7 @@ from PyQt6.QtCore import Qt
 class Frame2(QFrame):
     def __init__(self):
         super().__init__()
+        self.spinner= None
         self.init_ui()
         self.label_UI()
         self.button_UI()
@@ -35,6 +37,7 @@ class Frame2(QFrame):
         self.set_today_date()
         self.set_today_time()
         self.start_notification_checker()
+        self.show_first_spinner()
 
 
     def init_ui(self):
@@ -128,10 +131,7 @@ class Frame2(QFrame):
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_frame.raise_()
         ##
-        self.notifier = ExpirationNotifier()
-        self.notifier.new_expired_info.connect(self.show_nt)
-        self.notifier.expired_count_signal.connect(self.show_exp)
-        self.notifier.start()
+        
 
 
         
@@ -284,6 +284,32 @@ class Frame2(QFrame):
             else:
                 print("⚠️ تصویر پیش‌فرض پیدا نشد.")
                 return None
+    ##
+    ##
+    def show_first_spinner(self):
+        self.show_spinner_and_load_data()
+   ##
+    def show_spinner_and_load_data(self):
+        # نمایش spinner
+        spinner_wrapper = QWidget()
+        spinner_layout = QVBoxLayout(spinner_wrapper)
+        spinner_layout.setContentsMargins(0, 100, 0, 100)
+        spinner_layout.addStretch()
+
+        self.spinner = CircularSpinner(self)
+        spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        spinner_layout.addStretch()
+
+        self.box_layout.addWidget(spinner_wrapper)
+
+        # شروع بارگذاری داده‌ها
+        QTimer.singleShot(100, self.run_data_loader)
+    ##
+    def run_data_loader(self):
+        self.notifier = ExpirationNotifier()
+        self.notifier.new_expired_info.connect(self.show_nt)
+        self.notifier.expired_count_signal.connect(self.show_exp)
+        self.notifier.start()
     ##
     def show_nt(self, products: list):
         # پاک کردن ویجت‌های قبلی در layout

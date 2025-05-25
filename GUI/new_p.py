@@ -4,6 +4,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPixmap, QFont,QColor,QIcon,QFontDatabase
 import sys
 import jdatetime
+import datetime 
+from datetime import date
 from profile_picture import ProfileImage
 from info_box import ProductBox
 from message_b import MessageBox
@@ -14,6 +16,7 @@ import os
 import cv2
 import numpy as np
 from calendars import JalaliCalendar
+from c_calendar import Calendar
 import requests
 import pymysql
 import sqlite3
@@ -63,7 +66,7 @@ class ProductForm(QDialog):
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(15)
         self.layout.setContentsMargins(20, 20, 20, 20)
-        self.jalali_calendar = JalaliCalendar(self)
+        self.jalali_calendar = Calendar(self)
         self.jalali_calendar.setMaximumHeight(0)  # در ابتدا بسته باشد
         self.layout.addWidget(self.jalali_calendar)
         ##
@@ -600,7 +603,7 @@ class ProductForm(QDialog):
         self.under_choise.addItems(self.under_cate)
     ##
     def show_calendar(self):
-        self.calendar_popup = JalaliCalendar(self)
+        self.calendar_popup = Calendar(self)
         pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomRight())
         self.calendar_popup.show_with_animation(pos)
     ##fonts
@@ -824,7 +827,8 @@ class ProductForm(QDialog):
             MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
             return
 
-        date = jdatetime.date.today().strftime("%Y/%m/%d")
+        date = datetime.date.today().strftime("%Y/%m/%d")
+        date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
    
         
         total = float(buy_price) * float(quantity)
@@ -837,10 +841,13 @@ class ProductForm(QDialog):
               # اگر big_s صفر باشد، از quantity استفاده می‌شود
         # در غیر این صورت محاسبه نمی‌شود
         if big_s > 0:
-            big_sub = round(float(quantity) / big_s, 1)
+            big_sub = round(big_s / float(quantity) , 1)
             print(f"{big_sub} : تعداد هر بسته 😉✅")
         else:
             big_sub = 0
+        
+        ##small_price
+        small_price= float(sale_big) / big_s
         
         # افزودن ویجت محصول به رابط کاربری
         new_sub= f'{big_sub} {category}'
@@ -900,11 +907,11 @@ class ProductForm(QDialog):
 
                 cursor.execute('''
                     INSERT INTO inventories (barcode, product_name, category,sub_category,buy_date,buy_price, sell_price, big_price, big_category,quantity, expiration_dates, big_quantity,big_sub,
-                                            product_image, total, user_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s,%s,%s,%s,%s)
+                                            product_image,small_price, total, user_id,created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ''', (
                     barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, 
-                    category, per_quantity, exp_date,big_s,big_sub, ftp_image_url, total, id_user
+                    category, per_quantity, exp_date,big_s,big_sub, ftp_image_url, small_price or 0,total, id_user,date_ent
                 ))
 
                 invent_id = cursor.lastrowid  # گرفتن ID رکورد ثبت‌شده
@@ -937,11 +944,11 @@ class ProductForm(QDialog):
                 cursor_sq = conn_sq.cursor()
                 cursor_sq.execute('''
                     INSERT INTO products (barcode, name,category,sub_category,buy_date,buy_price,sale_price, big_price,big_category,quantity, expire_date,big_quantity,big_sub,big_sub_display,
-                                        image_path, total, user_id, is_synced)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?)
+                                        image_path,small_price, total, user_id, is_synced,create_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?,?,?,?,?)
                 ''', (
                     barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, category, 
-                    per_quantity, exp_date, big_s,big_sub,new_sub,image_path_to_store, total, id_user, synced
+                    per_quantity, exp_date, big_s,big_sub,new_sub,image_path_to_store,small_price or 0, total, id_user, synced,date_ent
                 ))
                 
                 invent_ids = cursor_sq.lastrowid
@@ -1001,7 +1008,7 @@ class ProductForm(QDialog):
 
         cursor_sq.execute('''SELECT invent_id, barcode, name, category, sub_category,
                             buy_date, buy_price, sale_price, big_price,
-                            big_category, quantity, expire_date,big_quantity,big_sub, image_path, total, user_id
+                            big_category, quantity, expire_date,big_quantity,big_sub, image_path, small_price,total, user_id,create_at
                             FROM products WHERE is_synced = 0''')
 
         unsynced_products = cursor_sq.fetchall()
@@ -1018,7 +1025,7 @@ class ProductForm(QDialog):
             for product in unsynced_products:
                 (local_product_id, barcode, name, category, sub_category, buy_date, buy_price,
                 sale_price, big_price, big_category, quantity, expire_date,big_quantity,big_sub,
-                image_path, total, user_id) = product
+                image_path, small_price,total, user_id,create_at) = product
 
                 ftp_image_url = ""
 
@@ -1056,13 +1063,13 @@ class ProductForm(QDialog):
                         INSERT INTO inventories (
                             barcode, product_name, category, sub_category, buy_date,
                             buy_price, sell_price, big_price, big_category, quantity,
-                            expiration_dates,big_quantity,big_sub,product_image, total, user_id
+                            expiration_dates,big_quantity,big_sub,product_image,small_price, total, user_id,created_at
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s)
                     ''', (
                         barcode, name, category, sub_category, buy_date,
                         buy_price, sale_price, big_price, big_category, quantity,
-                        expire_date, big_quantity,big_sub,ftp_image_url, total, user_id
+                        expire_date, big_quantity,big_sub,ftp_image_url, small_price,total, user_id,create_at
                     ))
 
                     invent_id = cursor.lastrowid  # آیدی رکورد ثبت‌شده در سرور

@@ -27,7 +27,10 @@ cursor.execute('''
             is_synced INTEGER DEFAULT 0,
             expire_date TEXT,
             image_path TEXT,
+            small_price REAL,
             big_sub_display TEXT,
+            create_at TEXT,
+            update_at TEXT,
             user_id INTEGER
         );
     ''')

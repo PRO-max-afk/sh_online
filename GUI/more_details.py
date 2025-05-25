@@ -10,6 +10,7 @@ from PyQt6 import QtCore
 import os
 import numpy as np
 from calendars import JalaliCalendar
+from c_calendar import Calendar
 import requests
 import pymysql
 import sqlite3
@@ -267,7 +268,7 @@ class MoreDetails(QDialog):
 
     ##
     def show_calendar(self):
-        self.calendar_popup = JalaliCalendar(self)
+        self.calendar_popup = Calendar(self)
         pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomRight())
         self.calendar_popup.show_with_animation(pos)
     ##   
