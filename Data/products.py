@@ -6,7 +6,7 @@ cursor= conn.cursor()
 cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
             invent_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            barcode TEXT Not NULL,
+            barcode TEXT UNIQUE,
             name TEXT,
             category TEXT,
             sub_category TEXT,

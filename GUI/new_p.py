@@ -841,7 +841,7 @@ class ProductForm(QDialog):
               # اگر big_s صفر باشد، از quantity استفاده می‌شود
         # در غیر این صورت محاسبه نمی‌شود
         if big_s > 0:
-            big_sub = round(big_s / float(quantity) , 1)
+            big_sub = round(float(per_quantity) / big_s , 1)
             print(f"{big_sub} : تعداد هر بسته 😉✅")
         else:
             big_sub = 0

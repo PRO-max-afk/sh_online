@@ -553,6 +553,7 @@ class AddProduct(QDialog):
                 
         except pymysql.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
+    
     ##
     def search_name(self):
         name= self.name_line.text().strip()

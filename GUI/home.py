@@ -1,9 +1,15 @@
-from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
+from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QTableWidgetItem,QGridLayout,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont
 from PyQt6 import QtCore
 import jdatetime
+import sqlite3
+import pymysql
+import requests
+import datetime
+from message_b import MessageBox
+from switch import ToggleSwitch
 import os
 from PyQt6.QtGui import QFont, QTextDocument
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
@@ -37,6 +43,7 @@ class WidgetManager(QFrame):
         self.set_today_time()
         self.Button_ui()
         self.Entries_ui()
+        self.set_factor_number()
 
 
     def create_frame1(self):
@@ -84,18 +91,67 @@ class WidgetManager(QFrame):
         # جدول فروش
         table_frame = QFrame()
         table_frame.setStyleSheet("background-color: white; border-radius: 12px;")
+        ##
         table_layout = QVBoxLayout(table_frame)
-
+        ##
         self.table_title = QLabel("بل فروشات")
-        self.table_title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-
-        self.table = QTableWidget(0,4)
-        self.table.setHorizontalHeaderLabels(["بارکد محصول", "نام محصول", "قیمت واحد", "قیمت کل"])
-        self.table.verticalHeader().setVisible(True)
+        self.table_title.setAlignment( Qt.AlignmentFlag.AlignHCenter)
+        ##
+        self.date_layout= QHBoxLayout()
+        self.date = jdatetime.date.today().strftime("%Y/%m/%d")
+        self.date_lb= QLabel(f"تاریخ: {self.date}")
+        self.date_layout.addWidget(self.date_lb)
+        self.date_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        ##
+        self.factor_layout= QHBoxLayout()
+        self.factor_lb= QLabel("نمبر فاکتور:")
+        self.factor_number= QLabel("0")
+        self.factor_lb.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.factor_number.setAlignment(Qt.AlignmentFlag.AlignRight)
+        ##
+        self.factor_layout.addLayout(self.date_layout)
+        self.factor_layout.addStretch(1)
+        self.factor_layout.addWidget(self.table_title)
+        self.factor_layout.addWidget(self.factor_number)
+        self.factor_layout.addWidget(self.factor_lb)
+        
+        
+        ##
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(["نام محصول", "قیمت","تعداد", "واحد", "تخفیف","قیمت کل"])
+        self.table.verticalHeader().setVisible(False)  # عدم نمایش شماره ردیف
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.setStyleSheet("QTableWidget { border: 2px solid black; color: black; font-family: B Nazanin; font-size: 14px; font-weight: bold; } QHeaderView::section { background-color: transparent; border: 1px solid gray; color: black; border-radius: 9px; font-family: B Nazanin; font-size: 16px; font-weight: bold;  }")
+        self.table.setGridStyle(Qt.PenStyle.SolidLine)  # اضافه برای نمایش خط‌ها
+
+        self.table.setStyleSheet("""
+            QTableWidget {
+                border: 2px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 0px;  /* گوشه‌ها صاف */
+                gridline-color: black;
+            }
+            QHeaderView::section {
+                background-color: transparent;
+                border: 1px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 0px;  /* صاف کردن سرستون‌ها */
+            }
+        """)
+
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        
+        
+        #table_layout.addWidget(self.table_title)
+        table_layout.addLayout(self.factor_layout)
+        table_layout.addWidget(self.table)
+
 
         table_layout.addWidget(self.table_title)
         table_layout.addWidget(self.table)
@@ -107,23 +163,41 @@ class WidgetManager(QFrame):
         self.form_layout = QVBoxLayout(form_frame)
         self.title_layout= QHBoxLayout()
         
+        ##
+        self.radio_layout= QHBoxLayout()
+        self.radio_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
+        
+        self.switch= ToggleSwitch()
+        self.switch.setChecked(False)
+        #self.switch.setFixedSize(55,30)
+        self.switch.clicked = lambda: print("ON") if self.switch.isChecked() else print("OFF")
+        self.radio_layout.addWidget(self.switch)
+       
+        ##
+        self.lb_layout= QHBoxLayout()
         self.form_title = QLabel("فرم فروشات")
         self.form_title.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         
         self.barcode_input= QLineEdit()
         self.barcode_input.setPlaceholderText("بارکد محصول")
+        self.barcode_input.textChanged.connect(self.auto_search)
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("نام محصول")
 
         self.qty_input = QLineEdit()
-        self.qty_input.setPlaceholderText("مقدار")
+        self.qty_input.setPlaceholderText("تعداد")
         self.qty_input.textChanged.connect(self.update_total_price)
 
         self.unit_price_input = QLineEdit()
-        self.unit_price_input.setPlaceholderText("قیمت واحد")
+        self.unit_price_input.setPlaceholderText("قیمت")
         self.unit_price_input.textChanged.connect(self.update_total_price)
+
+        self.discount_input = QLineEdit()
+        self.discount_input.setPlaceholderText("تخفیف")
+        self.discount_input.textChanged.connect(self.update_total_price)
+
 
         self.total_price_input = QLineEdit()
         self.total_price_input.setPlaceholderText("قیمت کل")
@@ -133,8 +207,13 @@ class WidgetManager(QFrame):
         self.add_button.setStyleSheet("background-color: #2A64C5; color: white; padding: 10px; border-radius: 6px;")
         self.add_button.clicked.connect(self.add_product)
         ##
+        
+        self.title_layout.addLayout(self.radio_layout)
+        self.title_layout.addStretch(1)
         self.title_layout.addWidget(self.form_title)
+        self.title_layout.addStretch(2)
         self.title_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.form_layout.addLayout(self.title_layout)
         ##
         middle_layout.addWidget(table_frame, 2)
@@ -159,19 +238,16 @@ class WidgetManager(QFrame):
         label_layout.addWidget(self.print_button)
         label_layout.addStretch()
         label_layout.addWidget(self.faktur_label)
+       
         ###
-        
-        ###
-        
-
+    
         self.invoice_list = QListWidget()
         self.invoice_list.itemClicked.connect(self.load_invoice)
         self.invoice_list.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
 
         bottom_layout.addLayout(label_layout)
         bottom_layout.addWidget(self.invoice_list)
-
-        main_layout.addWidget(bottom_frame,2)
+        main_layout.addWidget(bottom_frame,1)
 
 
         self.frames["frame1"] = frame1
@@ -202,7 +278,7 @@ class WidgetManager(QFrame):
         shadow.setColor(QColor(0, 0, 0, 70))
         self.search_line.setGraphicsEffect(shadow)
         ##
-        for input in (self.barcode_input, self.name_input, self.qty_input,self.unit_price_input, self.total_price_input):
+        for input in (self.barcode_input, self.name_input,self.unit_price_input,self.qty_input,self.discount_input, self.total_price_input):
             self.form_layout.addWidget(input)
             input.setFixedHeight(40)
             
@@ -286,7 +362,30 @@ class WidgetManager(QFrame):
             color: black;
             font-family: B Nazanin;
         ''')
-
+        ##
+        self.factor_lb.setStyleSheet('''
+            font-size: 18px;
+            font-weight: bold; 
+            color: black;
+            font-family: B Nazanin;
+        ''')
+        ##
+        self.factor_number.setFixedHeight(20)
+        self.factor_number.setStyleSheet('''
+            font-size: 18px;
+            font-weight: bold; 
+            color: black;
+            font-family: Arial;
+        ''')
+        ##
+        self.date_lb.setFixedHeight(28)
+        self.date_lb.setStyleSheet('''
+            font-size: 18px;
+            font-weight: bold; 
+            color: black;
+            font-family: Mirza;
+        ''')
+        
     ##
     def Button_ui(self):
         self.serach_btn.setMinimumSize(100, 30)
@@ -327,7 +426,24 @@ class WidgetManager(QFrame):
                 background-color: #d0d0d0;  /* خاکستری ملایم هنگام کلیک */
             }
         ''')    
-      
+        ##
+        self.add_button.setStyleSheet('''
+            QPushButton {
+                    background-color: #2251DB;
+                    font-family: "B Nazanin";
+                    font-size: 18px;
+                    font-weight: bold;
+                    border-radius: 10px;
+                    text-align: center;
+                    padding: 5px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #498bf5;  
+                }
+                QPushButton:pressed {
+                    background-color: #2251DB;
+                }
+    ''')
     ##
 
     def set_today_date(self):
@@ -344,7 +460,28 @@ class WidgetManager(QFrame):
             margin-top: 5px;
             margin-left:20px
         ''')
+    ##
+    def set_factor_number(self):
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+        try:
+            conn= sqlite3.connect(db_path)
+            cursor= conn.cursor()
+            cursor.execute('''
+                SELECT sale_id FROM sale_factor ORDER BY sale_id DESC LIMIT 1;
+            ''')
+            result = cursor.fetchone()
+            factor= result[0] if result and result is not None else 0
+            factor += 1
+            self.factor_number.setText(f"{factor}")
+            self.factor_value= factor
+            
+        except sqlite3.Error as e:
+            print(f"{e}: خطا در بارگذاری نمبر فاکتور")
 
+    ##
     def set_today_time(self):
         weekdays_fa = {
             'Saturday': 'شنبه',
@@ -369,46 +506,169 @@ class WidgetManager(QFrame):
             color: #333;
             margin-left:30px;
         ''')
-
+    
+    ##search_action:
+    def search_barcode(self):
+        barcode= self.barcode_input.text().strip()
+        if not barcode:
+            MessageBox("لطفاً بارکد محصول را وارد کنید",title="یادآوری",type="warning").show()
+        conn_sq=None
+        cursor_sq= None
+        # خواندن شناسه کاربر از دیتابیس محلی
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+        try:
+            ##
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute('''
+            select name,sale_price
+            From products WHERE  barcode=?''',(barcode,))
+            result= cursor_sq.fetchone()
+            
+            if result:
+                self.name_input.clear()
+                self.name_input.insert(str(result[0]))
+                print(f"{result[0]}: name")
+                ##
+                self.unit_price_input.clear()
+                self.unit_price_input.insert(str(result[1]))
+                
+                
+        except pymysql.Error as e:
+            MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
     ##
-    def add_product(self):
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if self.barcode_input.hasFocus():
+                self.search_barcode()
+            elif any(line.hasFocus() for line in [
+                self.qty_input,self.unit_price_input, self.discount_input
+            ]):
+                self.add_product()
+    
+    def auto_search(self):
+        text= self.barcode_input.text().strip()
+        if text:
+            self.search_barcode()
+    ##
+    def add_product(self): 
         barcode = self.barcode_input.text().strip()
         name = self.name_input.text().strip()
-        qty = self.qty_input.text().strip()
-        unit_price = self.unit_price_input.text().strip()
+        qty = self.qty_input.text()
+        unit_price = self.unit_price_input.text()
+        discount= self.discount_input.text()
         total_price = self.total_price_input.text()
+        date = datetime.date.today().strftime("%Y/%m/%d")
+        date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
+        is_switch_on = self.switch.isChecked()
+
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
 
         if barcode and name and qty and unit_price and total_price:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
 
-            # به ترتیب صحیح اضافه کن
-            self.table.setItem(row, 0, QTableWidgetItem(str(barcode)))      # بارکد محصول
-            self.table.setItem(row, 1, QTableWidgetItem(name))              # نام محصول
-            self.table.setItem(row, 2, QTableWidgetItem(unit_price))        # قیمت واحد
-            self.table.setItem(row, 3, QTableWidgetItem(total_price))       # قیمت کل
+                cursor.execute("SELECT id FROM users;")
+                res_id = cursor.fetchone()
+                id_user = res_id[0] if res_id else None
 
-            for col in range(4):
-                item = self.table.item(row, col)
-                if item:
-                    item.setForeground(Qt.GlobalColor.black)
+                cursor.execute("SELECT quantity, big_category, big_sub FROM products WHERE barcode = ?", (barcode,))
+                product_info = cursor.fetchone()
+                if not product_info:
+                    MessageBox("محصول یافت نشد!", title="خطا", type="error").show()
+                    return
 
-            # پاکسازی فیلدها
-            self.barcode_input.clear()
-            self.name_input.clear()
-            self.qty_input.clear()
-            self.unit_price_input.clear()
-            self.total_price_input.clear()
+                product_quantity, big_category, big_sub = product_info
+
+                total = qty * unit_price
+                if discount:
+                    final_total= total - discount
+                else:
+                    final_total = total
+
+                if int(qty) >= int(product_quantity):
+                    MessageBox("موجودی محصول کافی نیست", title="ناموفق", type="warning").show()
+                    return
+
+                is_synced = 0
+                sale_type= None
+
+                if is_switch_on:
+                    sale_type= "عمده"
+                    # حالت ON: اطلاعات big_category و big_sub نیز ذخیره شود
+                    cursor.execute('''
+                        INSERT INTO sale_factor (barcode, product_name, sale_price, sale_date,quantity,
+                            product_type, sale_type, discount, total, created_at, user_id, is_synced)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        barcode, name, unit_price, date,big_sub,sale_type, big_category, discount or 0, final_total, date_ent,
+                        id_user, is_synced
+                    ))
+                else:
+                    sale_type= "پرچون"
+                    # حالت OFF: فقط اطلاعات پایه ذخیره شود
+                    cursor.execute('''
+                        INSERT INTO sale_factor (barcode, product_name, sale_price, sale_date, quantity,
+                            product_type, sale_type, discount, total, created_at, user_id, is_synced)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        barcode, name, unit_price, date, qty, 'عدد', sale_type, discount or 0,final_total, date_ent,
+                        id_user, is_synced
+                    ))
+
+                conn.commit()
+
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+
+                self.table.setItem(row, 0, QTableWidgetItem(name))             # نام
+                self.table.setItem(row, 1, QTableWidgetItem(unit_price))       # قیمت
+                self.table.setItem(row, 2, QTableWidgetItem(qty))           # واحد (ثابت یا جداگانه ذخیره شود)
+                self.table.setItem(row, 3, QTableWidgetItem(sale_type)) 
+                self.table.setItem(row,4, QTableWidgetItem(discount))
+                self.table.setItem(row, 5, QTableWidgetItem(total_price))      # قیمت کل
+
+                for col in range(6):
+                    item = self.table.item(row, col)
+                    if item:
+                        item.setForeground(Qt.GlobalColor.black)
+
+                # پاک‌سازی فیلدها
+                self.barcode_input.clear()
+                self.name_input.clear()
+                self.qty_input.clear()
+                self.unit_price_input.clear()
+                self.discount_input.clear()
+                self.total_price_input.clear()
+
+            except sqlite3.Error as e:
+                MessageBox(text=f"{e}: خطا در دیتابیس", title="ناموفق", type="error").show()
+            finally:
+                conn.close()
 
 
     def update_total_price(self):
         try:
             qty = float(self.qty_input.text())
             unit_price = float(self.unit_price_input.text())
+
+            # اگر تخفیف وارد نشده بود یا خالی بود، مقدار آن را 0 در نظر بگیر
+            discount_text = self.discount_input.text()
+            discount = float(discount_text) if discount_text.strip() else 0.0
+
             total = qty * unit_price
-            self.total_price_input.setText(str(round(total, 2)))
+            final_total = total - discount
+            self.total_price_input.setText(str(round(final_total, 2)))
         except ValueError:
             self.total_price_input.clear()
+
 
     def print_invoice(self):
         items = []
@@ -427,13 +687,74 @@ class WidgetManager(QFrame):
         dialog = QPrintDialog(printer, self)
         if dialog.exec():
             doc = QTextDocument()
-            html = "<h2 align='center'>فاکتور فروش</h2><table border='1' width='100%' cellspacing='0' cellpadding='4'><tr><th>قیمت کل </th><th> واحد</th><th>نام محصول</th></tr>"
+
+            html = """
+            <html>
+            <head>
+            <meta charset="utf-8">
+            <style>
+                body {
+                    font-family: 'B Nazanin', Tahoma;
+                    direction: rtl;
+                    background-color: white;
+                    margin: 0;
+                    padding: 20px;
+                }
+                .container {
+                    text-align: center;
+                }
+                table {
+                    width: 80%;
+                    margin: 0 auto;
+                    border-collapse: collapse;
+                    font-size: 16pt;
+                }
+                th, td {
+                    border: 1px solid black;
+                    padding: 12px;
+                    text-align: center;
+                }
+                h2 {
+                    font-size: 20pt;
+                    margin-bottom: 20px;
+                }
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <h2>فاکتور فروش</h2>
+                <table>
+                    <tr>
+                        <th>قیمت کل</th>
+                        <th>واحد</th>
+                        <th>نام محصول</th>
+                    </tr>
+            """
+
             for name, unit, total in items:
-                html += f"<tr><td>{total}</td><td>{unit}</td><td>{name}</td></tr>"
-            html += "</table>"
+                html += f"""
+                    <tr>
+                        <td>{total}</td>
+                        <td>{unit}</td>
+                        <td>{name}</td>
+                    </tr>
+                """
+
+            html += """
+                </table>
+            </div>
+            </body>
+            </html>
+            """
+
+
+
             doc.setHtml(html)
             doc.print(printer)
-            self.table.clear()
+
+        self.table.setRowCount(0)
+        self.table.setShowGrid(False)
+
 
     def load_invoice(self, item):
         invoice_name = item.text()
