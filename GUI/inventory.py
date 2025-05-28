@@ -607,7 +607,7 @@ class Inventory(QFrame):
     def start_auto_refresh(self):
         self.refresh_timer= QTimer(self)
         self.refresh_timer.timeout.connect(self.show_first_spinner) 
-        self.refresh_timer.start(15 * 60 *1000)
+        self.refresh_timer.start(10 * 60 *1000)
     ##
     def show_first_spinner(self):
         self.clear_products()
@@ -1020,7 +1020,7 @@ class Inventory(QFrame):
     def start_synced_to_server(self):
         self.synced_timer= QTimer(self)
         self.synced_timer.timeout.connect(self.start_synced_to_thread)
-        self.synced_timer.start(2 *60 *1000)
+        self.synced_timer.start(40 *1000)
 
     def start_synced_to_thread(self):
         from add_p import AddProduct

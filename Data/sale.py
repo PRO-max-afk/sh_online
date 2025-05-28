@@ -7,7 +7,8 @@ cursor.execute('''
 Create TABLE IF NOT EXISTS sale_factor(
             sale_id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_name TEXT NOT NULL,
-            barcode TEXT UNIQUE,
+            barcode TEXT Not NULL,
+            factor_number INTEGER,
             sale_price REAL NOT NULL,
             sale_date TEXT NOT NULL,
             quantity REAL NOT NULL,
@@ -20,4 +21,9 @@ Create TABLE IF NOT EXISTS sale_factor(
             updated_at TEXT,
             is_synced INTEGER DEFAULT 0
                )
+''')
+
+cursor.execute('''
+Create TABLE IF NOT EXISTS factor_number(
+            sale_id INTEGER );
 ''')

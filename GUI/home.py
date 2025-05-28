@@ -1,12 +1,13 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QTableWidgetItem,QGridLayout,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
+from PyQt6.QtCore import Qt,QTimer,QThread
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont
 from PyQt6 import QtCore
 import jdatetime
 import sqlite3
 import pymysql
 import requests
+import threading
 import datetime
 from message_b import MessageBox
 from switch import ToggleSwitch
@@ -43,7 +44,12 @@ class WidgetManager(QFrame):
         self.set_today_time()
         self.Button_ui()
         self.Entries_ui()
+        self.auto_synced()
         self.set_factor_number()
+        self.added_products = []  # هر آیتم: دیکشنری حاوی اطلاعات محصول
+        self.load_today_invoices()
+
+
 
 
     def create_frame1(self):
@@ -119,6 +125,7 @@ class WidgetManager(QFrame):
         ##
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(["نام محصول", "قیمت","تعداد", "واحد", "تخفیف","قیمت کل"])
+        self.table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         self.table.verticalHeader().setVisible(False)  # عدم نمایش شماره ردیف
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setGridStyle(Qt.PenStyle.SolidLine)  # اضافه برای نمایش خط‌ها
@@ -132,6 +139,7 @@ class WidgetManager(QFrame):
                 font-weight: bold;
                 border-radius: 0px;  /* گوشه‌ها صاف */
                 gridline-color: black;
+                text-align: center;
             }
             QHeaderView::section {
                 background-color: transparent;
@@ -385,8 +393,11 @@ class WidgetManager(QFrame):
             color: black;
             font-family: Mirza;
         ''')
-        
+        ##
+        self.invoice_list.itemClicked.connect(self.load_invoice)
+
     ##
+
     def Button_ui(self):
         self.serach_btn.setMinimumSize(100, 30)
         self.serach_btn.setMaximumSize(140, 40)
@@ -445,6 +456,16 @@ class WidgetManager(QFrame):
                 }
     ''')
     ##
+    def auto_synced(self):
+        self.synced_timer= QTimer(self)
+        self.synced_timer.timeout.connect(self.start_synce_thread)
+        self.synced_timer.start( 10 * 1000)
+
+    def start_synce_thread(self):
+        synced_thread= threading.Thread(target=self.synced_to_server_to_sale)
+        synced_thread.setDaemon(True)
+        synced_thread.start()
+    ##
 
     def set_today_date(self):
         today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")
@@ -462,25 +483,27 @@ class WidgetManager(QFrame):
         ''')
     ##
     def set_factor_number(self):
+        if hasattr(self, "factor_value") and self.factor_value:
+            # اگر قبلاً مقدار گرفته شده، دوباره نگیر
+            return
+
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
         try:
-            conn= sqlite3.connect(db_path)
-            cursor= conn.cursor()
-            cursor.execute('''
-                SELECT sale_id FROM sale_factor ORDER BY sale_id DESC LIMIT 1;
-            ''')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT sale_id FROM factor_number ORDER BY sale_id DESC LIMIT 1')
             result = cursor.fetchone()
-            factor= result[0] if result and result is not None else 0
+            factor = result[0] if result else 0
             factor += 1
+
             self.factor_number.setText(f"{factor}")
-            self.factor_value= factor
-            
+            self.factor_value = factor  # فقط یک بار در هر فاکتور
+            conn.close()
         except sqlite3.Error as e:
             print(f"{e}: خطا در بارگذاری نمبر فاکتور")
-
     ##
     def set_today_time(self):
         weekdays_fa = {
@@ -510,33 +533,45 @@ class WidgetManager(QFrame):
     ##search_action:
     def search_barcode(self):
         barcode= self.barcode_input.text().strip()
+        is_switch_on = self.switch.isChecked()
         if not barcode:
             MessageBox("لطفاً بارکد محصول را وارد کنید",title="یادآوری",type="warning").show()
         conn_sq=None
         cursor_sq= None
+
         # خواندن شناسه کاربر از دیتابیس محلی
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
         try:
-            ##
-            conn_sq = sqlite3.connect(db_path)
-            cursor_sq = conn_sq.cursor()
-            cursor_sq.execute('''
-            select name,sale_price
-            From products WHERE  barcode=?''',(barcode,))
-            result= cursor_sq.fetchone()
+            if is_switch_on:
+                ##
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute('''
+                select name,big_price,barcode
+                From products WHERE  barcode=?''',(barcode,))
+                result= cursor_sq.fetchone()
+            else:
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute('''
+                select name,sale_price,barcode
+                From products WHERE  barcode=?''',(barcode,))
+                result= cursor_sq.fetchone()
             
             if result:
-                self.name_input.clear()
-                self.name_input.insert(str(result[0]))
-                print(f"{result[0]}: name")
-                ##
-                self.unit_price_input.clear()
-                self.unit_price_input.insert(str(result[1]))
-                
-                
+                    self.name_input.clear()
+                    self.name_input.insert(str(result[0]))
+                    print(f"{result[0]}: name")
+                    ##
+                    self.unit_price_input.clear()
+                    self.unit_price_input.insert(str(result[1]))
+                    ##
+                    self.barocde= str(result[2])
+
+    
         except pymysql.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
     ##
@@ -545,24 +580,22 @@ class WidgetManager(QFrame):
             if self.barcode_input.hasFocus():
                 self.search_barcode()
             elif any(line.hasFocus() for line in [
-                self.qty_input,self.unit_price_input, self.discount_input
+                self.qty_input,self.unit_price_input, self.discount_input,self.name_input
             ]):
                 self.add_product()
-    
+    ##
     def auto_search(self):
         text= self.barcode_input.text().strip()
         if text:
             self.search_barcode()
     ##
-    def add_product(self): 
+    def add_product(self):
         barcode = self.barcode_input.text().strip()
         name = self.name_input.text().strip()
         qty = self.qty_input.text()
         unit_price = self.unit_price_input.text()
-        discount= self.discount_input.text()
+        discount = self.discount_input.text()
         total_price = self.total_price_input.text()
-        date = datetime.date.today().strftime("%Y/%m/%d")
-        date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
         is_switch_on = self.switch.isChecked()
 
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
@@ -575,70 +608,49 @@ class WidgetManager(QFrame):
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
 
-                cursor.execute("SELECT id FROM users;")
-                res_id = cursor.fetchone()
-                id_user = res_id[0] if res_id else None
-
-                cursor.execute("SELECT quantity, big_category, big_sub FROM products WHERE barcode = ?", (barcode,))
+                cursor.execute("SELECT big_category, big_sub, big_quantity FROM products WHERE barcode = ?", (barcode,))
                 product_info = cursor.fetchone()
                 if not product_info:
                     MessageBox("محصول یافت نشد!", title="خطا", type="error").show()
                     return
 
-                product_quantity, big_category, big_sub = product_info
+                big_category, big_sub, big_quantity = product_info
 
-                total = qty * unit_price
-                if discount:
-                    final_total= total - discount
-                else:
-                    final_total = total
-
-                if int(qty) >= int(product_quantity):
-                    MessageBox("موجودی محصول کافی نیست", title="ناموفق", type="warning").show()
-                    return
-
-                is_synced = 0
-                sale_type= None
+                unit_price = float(unit_price or 0)
+                qty = float(qty or 0)
+                discount = float(discount or 0)
 
                 if is_switch_on:
-                    sale_type= "عمده"
-                    # حالت ON: اطلاعات big_category و big_sub نیز ذخیره شود
-                    cursor.execute('''
-                        INSERT INTO sale_factor (barcode, product_name, sale_price, sale_date,quantity,
-                            product_type, sale_type, discount, total, created_at, user_id, is_synced)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        barcode, name, unit_price, date,big_sub,sale_type, big_category, discount or 0, final_total, date_ent,
-                        id_user, is_synced
-                    ))
+                    s_type = big_category
+                    quantity = big_sub if big_sub == big_quantity else qty
+                    sale_type = "عمده"
                 else:
-                    sale_type= "پرچون"
-                    # حالت OFF: فقط اطلاعات پایه ذخیره شود
-                    cursor.execute('''
-                        INSERT INTO sale_factor (barcode, product_name, sale_price, sale_date, quantity,
-                            product_type, sale_type, discount, total, created_at, user_id, is_synced)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        barcode, name, unit_price, date, qty, 'عدد', sale_type, discount or 0,final_total, date_ent,
-                        id_user, is_synced
-                    ))
+                    s_type = 'عدد'
+                    quantity = qty
+                    sale_type = "پرچون"
 
-                conn.commit()
-
+                # درج در جدول نمایشی
                 row = self.table.rowCount()
                 self.table.insertRow(row)
 
-                self.table.setItem(row, 0, QTableWidgetItem(name))             # نام
-                self.table.setItem(row, 1, QTableWidgetItem(unit_price))       # قیمت
-                self.table.setItem(row, 2, QTableWidgetItem(qty))           # واحد (ثابت یا جداگانه ذخیره شود)
-                self.table.setItem(row, 3, QTableWidgetItem(sale_type)) 
-                self.table.setItem(row,4, QTableWidgetItem(discount))
-                self.table.setItem(row, 5, QTableWidgetItem(total_price))      # قیمت کل
+                self.table.setItem(row, 0, self._make_cell(name))
+                self.table.setItem(row, 1, self._make_cell(str(unit_price)))
+                self.table.setItem(row, 2, self._make_cell(str(quantity)))
+                self.table.setItem(row, 3, self._make_cell(s_type))
+                self.table.setItem(row, 4, self._make_cell(str(discount)))
+                self.table.setItem(row, 5, self._make_cell(total_price))
 
-                for col in range(6):
-                    item = self.table.item(row, col)
-                    if item:
-                        item.setForeground(Qt.GlobalColor.black)
+                # ذخیره در لیست حافظه‌ای
+                self.added_products.append({
+                    "barcode": barcode,
+                    "name": name,
+                    "unit_price": unit_price,
+                    "quantity": quantity,
+                    "s_type": s_type,
+                    "sale_type": sale_type,
+                    "discount": discount,
+                    "total": float(total_price),
+                })
 
                 # پاک‌سازی فیلدها
                 self.barcode_input.clear()
@@ -647,13 +659,21 @@ class WidgetManager(QFrame):
                 self.unit_price_input.clear()
                 self.discount_input.clear()
                 self.total_price_input.clear()
+                self.switch.setChecked(False)
 
             except sqlite3.Error as e:
                 MessageBox(text=f"{e}: خطا در دیتابیس", title="ناموفق", type="error").show()
             finally:
                 conn.close()
 
+    def _make_cell(self, text):
+        item = QTableWidgetItem(text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item.setForeground(Qt.GlobalColor.black)
+        return item
 
+
+    ##
     def update_total_price(self):
         try:
             qty = float(self.qty_input.text())
@@ -669,104 +689,317 @@ class WidgetManager(QFrame):
         except ValueError:
             self.total_price_input.clear()
 
-
+    ##
     def print_invoice(self):
         items = []
         for row in range(self.table.rowCount()):
-            name = self.table.item(row, 2).text()
-            unit = self.table.item(row, 1).text()
-            total = self.table.item(row, 0).text()
-            items.append((name, unit, total))
+            names = self.table.item(row, 0).text()
+            price = self.table.item(row, 1).text()
+            number = self.table.item(row, 2).text()
+            unit = self.table.item(row, 3).text()
+            discount = self.table.item(row, 4).text()
+            total = self.table.item(row, 5).text()
+            items.append((names, price, number, unit, discount, total))
 
-        invoice_number = f"فاکتور {self.invoice_counter}"
-        self.invoices[invoice_number] = items
-        self.invoice_list.addItem(invoice_number)
-        self.invoice_counter += 1
+        if not self.added_products:
+            MessageBox("هیچ محصولی به فاکتور اضافه نشده است", title="خطا", type="warning").show()
+            return
+
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        barcode = self.barocde
+        factor_number = self.factor_value
+        date = datetime.date.today().strftime("%Y/%m/%d")
+        date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
+
+        invoice_key = f"فاکتور {factor_number}"
+        self.invoices[invoice_key] = items
+
+        # حذف آیتم تکراری از لیست فاکتورها (در صورت وجود)
+        for i in range(self.invoice_list.count()):
+            if self.invoice_list.item(i).text() == invoice_key:
+                self.invoice_list.takeItem(i)
+                break
+
+        self.invoice_list.addItem(invoice_key)
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT id FROM users;")
+            res_id = cursor.fetchone()
+            id_user = res_id[0] if res_id else None
+
+            for product in self.added_products:
+                barcode = product['barcode']
+                name = product['name']
+                unit_price = product['unit_price']
+                quantity = product['quantity']
+                s_type = product['s_type']
+                sale_type = product['sale_type']
+                discount_val = product['discount']
+                final_total = product['total']
+
+                cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
+                product_quantity_row = cursor.fetchone()
+                product_quantity = product_quantity_row[0] if product_quantity_row else 0
+
+                if float(quantity) > product_quantity:
+                    MessageBox(f"موجودی محصول {name} کافی نیست", title="ناموفق", type="warning").show()
+                    continue
+
+                cursor.execute('''
+                    INSERT INTO sale_factor (barcode, product_name, factor_number, sale_price, sale_date, quantity,
+                        product_type, sale_type, discount, total, created_at, user_id, is_synced)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    barcode, name, factor_number, unit_price, date, quantity, s_type, sale_type,
+                    discount_val, final_total, date_ent, id_user, 0
+                ))
+
+            cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
+            conn.commit()
+
+            # 🎯 نمایش و ذخیره فاکتورهای امروز در self.invoices
+            cursor.execute("""
+                SELECT factor_number FROM sale_factor
+                WHERE sale_date = ?
+                GROUP BY factor_number
+                ORDER BY factor_number DESC
+            """, (date,))
+            today_factors = cursor.fetchall()
+
+            for f in today_factors:
+                factor_num = f[0]
+                invoice_key = f"فاکتور {factor_num}"
+
+                cursor.execute("""
+                    SELECT product_name, sale_price, quantity, product_type, discount, total
+                    FROM sale_factor
+                    WHERE factor_number = ?
+                """, (factor_num,))
+                rows = cursor.fetchall()
+
+                self.invoices[invoice_key] = rows
+
+                # از افزودن دوباره آیتم جلوگیری کن
+                duplicate = False
+                for i in range(self.invoice_list.count()):
+                    if self.invoice_list.item(i).text() == invoice_key:
+                        duplicate = True
+                        break
+                if not duplicate:
+                    self.invoice_list.addItem(invoice_key)
+
+
+            conn.close()
+
+            self.factor_value = None
+            self.set_factor_number()
+            self.factor_number.setText(f"{self.factor_value}")
+            self.added_products.clear()
+            self.table.setRowCount(0)
+
+        except sqlite3.Error as e:
+            print(f"{e}: خطا در پایگاه داده")
+            MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
+        finally:
+            if conn:
+                conn.close()
+
 
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         dialog = QPrintDialog(printer, self)
         if dialog.exec():
             doc = QTextDocument()
 
-            html = """
+            total_sum = sum(float(item[5]) for item in items if item[5])
+
+            html = f"""
             <html>
             <head>
             <meta charset="utf-8">
             <style>
-                body {
-                    font-family: 'B Nazanin', Tahoma;
+                body {{
+                    font-family: 'B Nazanin', Mirza;
                     direction: rtl;
                     background-color: white;
                     margin: 0;
                     padding: 20px;
-                }
-                .container {
+                }}
+                .container {{
                     text-align: center;
-                }
-                table {
+                }}
+                table {{
                     width: 80%;
                     margin: 0 auto;
                     border-collapse: collapse;
                     font-size: 16pt;
-                }
-                th, td {
+                }}
+                th, td {{
                     border: 1px solid black;
                     padding: 12px;
                     text-align: center;
-                }
-                h2 {
-                    font-size: 20pt;
+                }}
+                h2 {{
+                    font-size: 22pt;
                     margin-bottom: 20px;
-                }
+                }}
             </style>
             </head>
             <body>
             <div class="container">
-                <h2>فاکتور فروش</h2>
+                <h3>فاکتور فروش</h3>
                 <table>
                     <tr>
-                        <th>قیمت کل</th>
+                        <td colspan="7">
+                            <b>شماره فاکتور</b> {self.factor_value}
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                            <b>تاریخ</b> {self.date}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>مجموعه</th>
+                        <th>تخفیف</th>
                         <th>واحد</th>
-                        <th>نام محصول</th>
+                        <th>تعداد</th>
+                        <th>قیمت</th>
+                        <th>نام</th>
+                        <th>شماره</th>
                     </tr>
             """
 
-            for name, unit, total in items:
+            for i, (names, price, number, unit, discount, total) in enumerate(items, 1):
                 html += f"""
                     <tr>
                         <td>{total}</td>
+                        <td>{discount}</td>
                         <td>{unit}</td>
-                        <td>{name}</td>
+                        <td>{number}</td>
+                        <td>{price}</td>
+                        <td>{names}</td>
+                        <td>{i}</td>
                     </tr>
                 """
 
-            html += """
+            html += f"""
+                    <tr>
+                        <td colspan="7"> {total_sum} <b>:مجموع کل</b> </td>
+                    </tr>
                 </table>
             </div>
             </body>
             </html>
             """
 
-
-
             doc.setHtml(html)
             doc.print(printer)
 
         self.table.setRowCount(0)
         self.table.setShowGrid(False)
+    ##
+    def get_db_config(self):
+        url = "https://aryaict.com/connect.php"
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'MyApp/1.0',
+        }
+        try:
+            response = requests.get(url, headers=headers, timeout=60)
+            response.raise_for_status()
+            if "application/json" not in response.headers.get('Content-Type', ''):
+                raise ValueError("پاسخ سرور JSON نیست!")
+
+            data = response.json()
+            required_keys = ("host", "user", "password", "database")
+            if not all(k in data for k in required_keys):
+                raise ValueError("پاسخ JSON ناقص است")
+
+            return data
+        except Exception as e:
+            print("خطا در دریافت config:", e)
+            return None
+    ##
+    def synced_to_server_to_sale(self):
+        db_connect = self.get_db_config()
+        if not db_connect:
+            return
+
+        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
+        cursor_sq = conn_sq.cursor()
+
+        cursor_sq.execute('''
+            SELECT product_name, factor_number, barcode,
+                sale_date, sale_price, quantity, product_type,
+                sale_type, discount, total, user_id, created_at
+            FROM sale_factor WHERE is_synced = 0
+        ''')
+
+        unsynced_products = cursor_sq.fetchall()
+
+        try:
+            conn = pymysql.connect(
+                host=db_connect["host"],
+                user=db_connect["user"],
+                password=db_connect["password"],
+                database=db_connect["database"]
+            )
+            cursor = conn.cursor()
+
+            for product in unsynced_products:
+                (product_name, factor_number, barcode, sale_date, sale_price,
+                quantity, product_type, sale_type, discount, total, user_id, created_at) = product
 
 
+                cursor.execute('''
+                        INSERT INTO sale_factor(product_name, barcode, factor_number, sale_date, sale_price,
+                            quantity, product_type, sale_type, discount, total, user_id, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', (
+                        product_name, barcode, factor_number, sale_date, sale_price,
+                        quantity, product_type, sale_type, discount, total, user_id, created_at
+                    ))
+                print(f"✅ محصول {barcode} افزوده شد")
+                ## update products
+                cursor_sq.execute("UPDATE products SET is_synced=0 where barcode=?",(barcode,))
+
+
+            conn.commit()
+            #print("✅ اطلاعات با موفقیت به فروش رسید")
+
+            cursor_sq.execute("UPDATE sale_factor SET is_synced = 1 WHERE is_synced = 0")
+            conn_sq.commit()
+
+        except Exception as e:
+            print("❌ خطا در همگام‌سازی:", e)
+
+        finally:
+            conn_sq.close()
+            if conn:
+                conn.close()
+   ##
     def load_invoice(self, item):
         invoice_name = item.text()
+
         if invoice_name in self.invoices:
-            self.table.setRowCount(0)
-            for name, unit, total in self.invoices[invoice_name]:
+            self.table.setRowCount(0)  # حذف همه ردیف‌های قبلی
+            self.table.setShowGrid(True)
+
+            for name, price, number, unit, discount, total in self.invoices[invoice_name]:
                 row = self.table.rowCount()
                 self.table.insertRow(row)
-                self.table.setItem(row, 0, QTableWidgetItem(total))
-                self.table.setItem(row, 1, QTableWidgetItem(unit))
-                self.table.setItem(row, 2, QTableWidgetItem(name))
+                self.table.setItem(row, 0, QTableWidgetItem(name))
+                self.table.setItem(row, 1, QTableWidgetItem(str(price)))
+                self.table.setItem(row, 2, QTableWidgetItem(str(number)))
+                self.table.setItem(row, 3, QTableWidgetItem(str(unit)))
+                self.table.setItem(row, 4, QTableWidgetItem(str(discount)))
+                self.table.setItem(row, 5, QTableWidgetItem(str(total)))
     ##
+
     def get_stack(self):
         return self.stack
 
@@ -819,4 +1052,35 @@ class WidgetManager(QFrame):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
+    ##
+    def load_today_invoices(self):
+        self.invoice_list.clear()  # پاک‌سازی لیست فاکتورها
+
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            today = datetime.date.today().strftime("%Y/%m/%d")
+
+            cursor.execute("""
+                SELECT DISTINCT factor_number FROM sale_factor
+                WHERE sale_date = ?
+                ORDER BY factor_number DESC
+            """, (today,))
+            today_factors = cursor.fetchall()
+
+            for f in today_factors:
+                invoice_key = f"فاکتور {f[0]}"
+                self.invoice_list.addItem(invoice_key)
+
+            conn.close()
+
+        except sqlite3.Error as e:
+            print(f"{e}: خطا در پایگاه داده")
+            MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
+
     ##

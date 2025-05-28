@@ -6,7 +6,7 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-SELECT big_quantity from products;
+SELECT * from products where barcode= 6291101134365;
 ''')
 rows = cursor.fetchall()
 for row in rows:

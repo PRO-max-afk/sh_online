@@ -10,6 +10,7 @@ from profile_picture import ProfileImage
 from info_box import ProductBox
 from inventory import Inventory
 from message_b import MessageBox
+from inventory import Inventory
 from PyQt6.QtCore import Qt,QPropertyAnimation,QEasingCurve,QPoint
 from PyQt6 import QtCore
 import os
@@ -22,7 +23,7 @@ from list_p import ProductListPopup
 
 
 class AddProduct(QDialog):
-    def __init__(self,inventory_page):
+    def __init__(self,inventory_page=None):
         super().__init__()
         self.setWindowTitle("📦 ثبت محصول جدید")
         self.resize(929, 630)
@@ -788,7 +789,7 @@ class AddProduct(QDialog):
                     print(f"⚠️ محصول {barcode} در سرور پیدا نشد")
 
             conn.commit()
-            print("✅ اطلاعات با موفقیت انجام شد")
+
 
             # بروزرسانی SQLite
             cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
@@ -801,6 +802,11 @@ class AddProduct(QDialog):
             conn_sq.close()
             if conn:
                 conn.close()
+    ##
+    def closeEvent(self, event):
+        if self.inventory_page:
+            self.inventory_page.show_first_spinner()
+        event.accept()
 
 
 
