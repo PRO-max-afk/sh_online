@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QTableWidgetItem,QGridLayout,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,QThread
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont
+from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
+    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+from PyQt6.QtCore import Qt,QTimer,QThread,QEvent
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush
 from PyQt6 import QtCore
 import jdatetime
 import sqlite3
@@ -20,8 +20,19 @@ from order import Orders
 from finance import Money
 from inventory import Inventory
 from settings import Settings
+from PyQt6.QtWidgets import QStyledItemDelegate
+from PyQt6.QtGui import QColor, QPalette
 
-class WidgetManager(QFrame):
+class BlackTextDelegate(QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        editor = super().createEditor(parent, option, index)
+        palette = editor.palette()
+        palette.setColor(QPalette.ColorRole.Text, QColor("black"))
+        editor.setPalette(palette)
+        return editor
+
+
+class WidgetManager(QWidget):
     def __init__(self, parent):
         super().__init__(parent)  # ✅ درستش اینه
         self.parent = parent
@@ -47,6 +58,7 @@ class WidgetManager(QFrame):
         self.auto_synced()
         self.set_factor_number()
         self.added_products = []  # هر آیتم: دیکشنری حاوی اطلاعات محصول
+        self.temp_loaded_invoice = []
         self.load_today_invoices()
 
 
@@ -61,13 +73,11 @@ class WidgetManager(QFrame):
         # لایه بالا
         top_layout = QHBoxLayout()
         self.label = QLabel("فروش محصولات", self)
-        self.search_line = QLineEdit(self)
-        self.serach_btn = QPushButton("جستجو", self)
+
 
         ##
         self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-        self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.serach_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+   
         ##
         datetime_layout = QVBoxLayout()
         self.date_label = QLabel(self)
@@ -78,8 +88,6 @@ class WidgetManager(QFrame):
 
         top_layout.addLayout(datetime_layout)
         top_layout.addStretch(1)
-        top_layout.addWidget(self.serach_btn)
-        top_layout.addWidget(self.search_line, 3)
         top_layout.addWidget(self.label, 1)
 
         # افزودن ویجت‌ها به main_layout
@@ -100,8 +108,25 @@ class WidgetManager(QFrame):
         ##
         table_layout = QVBoxLayout(table_frame)
         ##
+        self.top_layout= QHBoxLayout()
+        #
         self.table_title = QLabel("بل فروشات")
         self.table_title.setAlignment( Qt.AlignmentFlag.AlignHCenter)
+        self.ta_lb= QLabel("")
+        self.ta_lb.setAlignment( Qt.AlignmentFlag.AlignRight)
+        ##
+        self.delete_btn= QPushButton()
+        ##
+        self.clear_btn= QPushButton()
+        ##
+        self.top_layout.addWidget(self.delete_btn)
+        self.top_layout.addSpacing(230)
+        self.top_layout.addWidget(self.table_title)
+        self.top_layout.addStretch(1)
+        self.top_layout.addWidget(self.clear_btn)
+        self.top_layout.addSpacing(20)
+    
+        
         ##
         self.date_layout= QHBoxLayout()
         self.date = jdatetime.date.today().strftime("%Y/%m/%d")
@@ -117,11 +142,8 @@ class WidgetManager(QFrame):
         ##
         self.factor_layout.addLayout(self.date_layout)
         self.factor_layout.addStretch(1)
-        self.factor_layout.addWidget(self.table_title)
         self.factor_layout.addWidget(self.factor_number)
-        self.factor_layout.addWidget(self.factor_lb)
-        
-        
+        self.factor_layout.addWidget(self.factor_lb) 
         ##
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(["نام محصول", "قیمت","تعداد", "واحد", "تخفیف","قیمت کل"])
@@ -129,7 +151,7 @@ class WidgetManager(QFrame):
         self.table.verticalHeader().setVisible(False)  # عدم نمایش شماره ردیف
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setGridStyle(Qt.PenStyle.SolidLine)  # اضافه برای نمایش خط‌ها
-
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setStyleSheet("""
             QTableWidget {
                 border: 2px solid black;
@@ -137,9 +159,8 @@ class WidgetManager(QFrame):
                 font-family: B Nazanin;
                 font-size: 14px;
                 font-weight: bold;
-                border-radius: 0px;  /* گوشه‌ها صاف */
+                border-radius: 0px;
                 gridline-color: black;
-                text-align: center;
             }
             QHeaderView::section {
                 background-color: transparent;
@@ -150,18 +171,35 @@ class WidgetManager(QFrame):
                 font-weight: bold;
                 border-radius: 0px;  /* صاف کردن سرستون‌ها */
             }
+            QScrollArea {
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
         """)
 
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        
-        
-        #table_layout.addWidget(self.table_title)
+        self.table.setItemDelegate(BlackTextDelegate())
+        self.table.itemChanged.connect(self.calculate_total_price)
+        ###
         table_layout.addLayout(self.factor_layout)
-        table_layout.addWidget(self.table)
-
-
-        table_layout.addWidget(self.table_title)
+        table_layout.addLayout(self.top_layout)
         table_layout.addWidget(self.table)
 
         # فرم فروش
@@ -189,7 +227,7 @@ class WidgetManager(QFrame):
         
         self.barcode_input= QLineEdit()
         self.barcode_input.setPlaceholderText("بارکد محصول")
-        self.barcode_input.textChanged.connect(self.auto_search)
+       # self.barcode_input.textChanged.connect(self.auto_search)
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("نام محصول")
@@ -256,36 +294,16 @@ class WidgetManager(QFrame):
         bottom_layout.addLayout(label_layout)
         bottom_layout.addWidget(self.invoice_list)
         main_layout.addWidget(bottom_frame,1)
-
-
+        # در __init__ یا setup:
+        self.name_input.installEventFilter(self)
+        self.qty_input.installEventFilter(self)
+        self.barcode_input.installEventFilter(self)
+        # و هر فیلدی که لازم است
         self.frames["frame1"] = frame1
         self.stack.addWidget(frame1)
     ##
     def Entries_ui(self):
-        self.search_line.setMinimumHeight(60)
-        self.search_line.setMaximumHeight(70)
-        self.search_line.setMaximumWidth(700)
-        self.search_line.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        #self.search_line.textChanged.connect(self.show_spinner_and_load_dataes)
-        self.search_line.setPlaceholderText("جستجو محصولات...")
-        self.search_line.setStyleSheet('''
-            font-size: 17px;
-            color: black;
-            font-family: B Nazanin;
-            font-weight: bold;
-            background-color: white;
-            border: 5px solid transparent;
-            border-radius: 30px;
-            padding: 5px;
-            margin-right: 50px;
-        ''')
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(25)
-        shadow.setXOffset(0)
-        shadow.setYOffset(5)
-        shadow.setColor(QColor(0, 0, 0, 70))
-        self.search_line.setGraphicsEffect(shadow)
-        ##
+
         for input in (self.barcode_input, self.name_input,self.unit_price_input,self.qty_input,self.discount_input, self.total_price_input):
             self.form_layout.addWidget(input)
             input.setFixedHeight(40)
@@ -397,29 +415,14 @@ class WidgetManager(QFrame):
         self.invoice_list.itemClicked.connect(self.load_invoice)
 
     ##
+    def clear_table(self):
+        if self.table.rowCount() > 0:
+            self.table.setRowCount(0)  # پاک کردن تمام ردیف‌ها به شکل ایمن
+            self.table.clearContents()  # پاک کردن محتویات سلول‌ها
+            self.table.setShowGrid(False)
+    ##
 
     def Button_ui(self):
-        self.serach_btn.setMinimumSize(100, 30)
-        self.serach_btn.setMaximumSize(140, 40)
-        #self.serach_btn.clicked.connect(self.show_spinner_and_load_dataes)
-        self.serach_btn.setStyleSheet('''
-            QPushButton {
-                background-color: #2251DB;
-                font-family: "B Nazanin";
-                font-size: 18px;
-                font-weight: bold;
-                border-radius: 10px;
-                text-align: center;
-                padding: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: #498bf5;  
-            }
-            QPushButton:pressed {
-                background-color: #2251DB;
-            }
-        ''')
-        ##
         printer_icon= QIcon(self.get_asset_path("print_7848732.png"))
         self.print_button.setIcon(printer_icon)
         self.print_button.setIconSize(QtCore.QSize(35,35))
@@ -455,6 +458,51 @@ class WidgetManager(QFrame):
                     background-color: #2251DB;
                 }
     ''')
+        ##
+        delete_icon= QIcon(self.get_asset_path("trash.png"))
+        self.delete_btn.setIcon(delete_icon)
+        self.delete_btn.setIconSize(QtCore.QSize(25,25))
+        self.delete_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.delete_btn.clicked.connect(self.delete_product)
+        self.delete_btn.setText("حذف محصول")
+        self.delete_btn.setStyleSheet('''
+            QPushButton{
+                background-color: white;
+                color: red;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 14px;
+                padding-right: 15px;
+                padding-left: 0px;          
+                                        }
+        QPushButton:hover{
+            text-decoration: underline;
+                                      }
+        QPushButton:pressed{
+            color: red;
+                                      }
+        ''')
+        ##
+        clear_icon= QIcon(self.get_asset_path("paint-brush.png"))
+        self.clear_btn.setIcon(clear_icon)
+        self.clear_btn.setIconSize(QtCore.QSize(28,28))
+        self.clear_btn.clicked.connect(self.clear_table)
+        self.clear_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.clear_btn.setText("پاک کردن جدول  ")
+        self.clear_btn.setStyleSheet('''
+            QPushButton{
+                background-color: white;
+                color: black;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 14px;
+                padding-right: 40px;
+                padding-left: 0px;          
+                                        }
+        QPushButton:pressed{
+            color: black;
+                                      }
+        ''')
     ##
     def auto_synced(self):
         self.synced_timer= QTimer(self)
@@ -569,25 +617,52 @@ class WidgetManager(QFrame):
                     self.unit_price_input.clear()
                     self.unit_price_input.insert(str(result[1]))
                     ##
+                    self.qty_input.setText(str(1))
                     self.barocde= str(result[2])
 
     
         except pymysql.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
     ##
-    def keyPressEvent(self, event):
-        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            if self.barcode_input.hasFocus():
+    def eventFilter(self, source, event):
+        if event.type() == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+
+            if source == self.barcode_input:
+                self.barcode_input.selectAll()
+                # اگر قبلاً آماده شده (متن انتخاب شده)، مستقیماً محصول را اضافه کن
+                if getattr(self, 'barcode_ready', False) and self.barcode_input.hasSelectedText():
+                    self.add_product()
+                    self.barcode_ready = False  # ریست برای بعدی
+                    return True
+
+                # بار اول: جستجو و آماده‌سازی
                 self.search_barcode()
-            elif any(line.hasFocus() for line in [
-                self.qty_input,self.unit_price_input, self.discount_input,self.name_input
-            ]):
-                self.add_product()
+                self.barcode_input.selectAll()
+                self.barcode_ready = True  # آماده برای بار دوم
+
+                # اگر بعد از ۳ ثانیه هنوز کاربر در barcode_input بود، add_product را اجرا کن
+                def delayed_add():
+                    if self.barcode_input.hasSelectedText() and self.barcode_input.hasFocus():
+                        self.add_product()
+                        self.barcode_ready = False  # ریست بعد از اجرا
+
+                QTimer.singleShot(3000, delayed_add)
+                return True
+
+            elif source in [self.qty_input, self.unit_price_input, self.discount_input, self.name_input]:
+                name = self.name_input.text().strip()
+                qty = self.qty_input.text().strip()
+                if name or qty:
+                    self.add_product()
+                return True
+
+        return super().eventFilter(source, event)
     ##
     def auto_search(self):
         text= self.barcode_input.text().strip()
         if text:
             self.search_barcode()
+
     ##
     def add_product(self):
         barcode = self.barcode_input.text().strip()
@@ -608,51 +683,81 @@ class WidgetManager(QFrame):
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
 
-                cursor.execute("SELECT big_category, big_sub, big_quantity FROM products WHERE barcode = ?", (barcode,))
+                cursor.execute("SELECT big_category, quantity, big_quantity FROM products WHERE barcode = ?", (barcode,))
                 product_info = cursor.fetchone()
                 if not product_info:
                     MessageBox("محصول یافت نشد!", title="خطا", type="error").show()
                     return
 
-                big_category, big_sub, big_quantity = product_info
+                big_category, stock_quantity, big_quantity = product_info
 
                 unit_price = float(unit_price or 0)
-                qty = float(qty or 0)
+                qty = float(qty or 1)
                 discount = float(discount or 0)
 
                 if is_switch_on:
                     s_type = big_category
-                    quantity = big_sub if big_sub == big_quantity else qty
+                    quantity = qty * float(big_quantity or 1)
                     sale_type = "عمده"
                 else:
                     s_type = 'عدد'
                     quantity = qty
                     sale_type = "پرچون"
 
-                # درج در جدول نمایشی
+                # بررسی موجودی انبار:
+                if quantity > float(stock_quantity):
+                    MessageBox(f"موجودی محصول {name} کافی نیست", title="ناموفق", type="warning").show()
+                    return
+
+                # بررسی تکراری بودن محصول:
+                for i, product in enumerate(self.added_products):
+                    if product['barcode'] == barcode:
+                        total_quantity = product['quantity'] + quantity
+                        if total_quantity > float(stock_quantity):
+                            MessageBox(f"موجودی کافی برای افزودن {name} وجود ندارد", title="ناموفق", type="warning").show()
+                            return
+
+                        product['quantity'] = total_quantity
+                        product['raw_qty'] += qty
+                        product['total'] += float(total_price)
+
+                        self.table.setItem(i, 2, self._make_cell(str(product['raw_qty'])))
+                        self.table.setItem(i, 5, self._make_cell(str(product['total'])))
+
+                        # ✅ پاک‌سازی فیلدها حتی اگر فقط بروزرسانی شده باشد
+                        self.barcode_input.clear()
+                        self.name_input.clear()
+                        self.qty_input.clear()
+                        self.unit_price_input.clear()
+                        self.discount_input.clear()
+                        self.total_price_input.clear()
+                        self.switch.setChecked(False)
+                        return
+
+                # اگر تکراری نبود، سطر جدید اضافه شود
                 row = self.table.rowCount()
                 self.table.insertRow(row)
 
                 self.table.setItem(row, 0, self._make_cell(name))
                 self.table.setItem(row, 1, self._make_cell(str(unit_price)))
-                self.table.setItem(row, 2, self._make_cell(str(quantity)))
+                self.table.setItem(row, 2, self._make_cell(str(qty)))
                 self.table.setItem(row, 3, self._make_cell(s_type))
                 self.table.setItem(row, 4, self._make_cell(str(discount)))
                 self.table.setItem(row, 5, self._make_cell(total_price))
 
-                # ذخیره در لیست حافظه‌ای
                 self.added_products.append({
                     "barcode": barcode,
                     "name": name,
                     "unit_price": unit_price,
                     "quantity": quantity,
+                    "raw_qty": qty,
                     "s_type": s_type,
                     "sale_type": sale_type,
                     "discount": discount,
                     "total": float(total_price),
                 })
 
-                # پاک‌سازی فیلدها
+                # ✅ پاک‌سازی فیلدها بعد از درج جدید
                 self.barcode_input.clear()
                 self.name_input.clear()
                 self.qty_input.clear()
@@ -660,18 +765,21 @@ class WidgetManager(QFrame):
                 self.discount_input.clear()
                 self.total_price_input.clear()
                 self.switch.setChecked(False)
+                self.table.setShowGrid(True)
+                self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
             except sqlite3.Error as e:
                 MessageBox(text=f"{e}: خطا در دیتابیس", title="ناموفق", type="error").show()
             finally:
                 conn.close()
 
+
+    ##
     def _make_cell(self, text):
         item = QTableWidgetItem(text)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         item.setForeground(Qt.GlobalColor.black)
         return item
-
 
     ##
     def update_total_price(self):
@@ -688,20 +796,11 @@ class WidgetManager(QFrame):
             self.total_price_input.setText(str(round(final_total, 2)))
         except ValueError:
             self.total_price_input.clear()
-
     ##
     def print_invoice(self):
-        items = []
-        for row in range(self.table.rowCount()):
-            names = self.table.item(row, 0).text()
-            price = self.table.item(row, 1).text()
-            number = self.table.item(row, 2).text()
-            unit = self.table.item(row, 3).text()
-            discount = self.table.item(row, 4).text()
-            total = self.table.item(row, 5).text()
-            items.append((names, price, number, unit, discount, total))
+        items = self.added_products if self.added_products else self.temp_loaded_invoice
 
-        if not self.added_products:
+        if not items:
             MessageBox("هیچ محصولی به فاکتور اضافه نشده است", title="خطا", type="warning").show()
             return
 
@@ -716,14 +815,13 @@ class WidgetManager(QFrame):
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
 
         invoice_key = f"فاکتور {factor_number}"
-        self.invoices[invoice_key] = items
+        self.invoices[invoice_key] = self.added_products
 
-        # حذف آیتم تکراری از لیست فاکتورها (در صورت وجود)
+        # حذف آیتم تکراری
         for i in range(self.invoice_list.count()):
             if self.invoice_list.item(i).text() == invoice_key:
                 self.invoice_list.takeItem(i)
                 break
-
         self.invoice_list.addItem(invoice_key)
 
         try:
@@ -734,11 +832,11 @@ class WidgetManager(QFrame):
             res_id = cursor.fetchone()
             id_user = res_id[0] if res_id else None
 
-            for product in self.added_products:
+            for product in items:
                 barcode = product['barcode']
                 name = product['name']
                 unit_price = product['unit_price']
-                quantity = product['quantity']
+                quantity = product['quantity']       # برای ذخیره در دیتابیس
                 s_type = product['s_type']
                 sale_type = product['sale_type']
                 discount_val = product['discount']
@@ -764,7 +862,7 @@ class WidgetManager(QFrame):
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
             conn.commit()
 
-            # 🎯 نمایش و ذخیره فاکتورهای امروز در self.invoices
+            # بازخوانی فاکتورهای امروز برای نمایش
             cursor.execute("""
                 SELECT factor_number FROM sale_factor
                 WHERE sale_date = ?
@@ -783,41 +881,33 @@ class WidgetManager(QFrame):
                     WHERE factor_number = ?
                 """, (factor_num,))
                 rows = cursor.fetchall()
-
                 self.invoices[invoice_key] = rows
 
-                # از افزودن دوباره آیتم جلوگیری کن
-                duplicate = False
-                for i in range(self.invoice_list.count()):
-                    if self.invoice_list.item(i).text() == invoice_key:
-                        duplicate = True
-                        break
-                if not duplicate:
+                if not any(self.invoice_list.item(i).text() == invoice_key for i in range(self.invoice_list.count())):
                     self.invoice_list.addItem(invoice_key)
-
 
             conn.close()
 
             self.factor_value = None
             self.set_factor_number()
             self.factor_number.setText(f"{self.factor_value}")
+            items = self.added_products.copy()
             self.added_products.clear()
+            self.temp_loaded_invoice.clear()
             self.table.setRowCount(0)
 
         except sqlite3.Error as e:
             print(f"{e}: خطا در پایگاه داده")
             MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
-        finally:
-            if conn:
-                conn.close()
+            return
 
-
+        # چاپ فاکتور
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         dialog = QPrintDialog(printer, self)
         if dialog.exec():
             doc = QTextDocument()
 
-            total_sum = sum(float(item[5]) for item in items if item[5])
+            total_sum = sum(float(p['total']) for p in items)
 
             html = f"""
             <html>
@@ -857,9 +947,9 @@ class WidgetManager(QFrame):
                 <table>
                     <tr>
                         <td colspan="7">
-                            <b>شماره فاکتور</b> {self.factor_value}
+                            <b>شماره فاکتور</b> {factor_number}
                             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                            <b>تاریخ</b> {self.date}
+                            <b>تاریخ</b> {date}
                         </td>
                     </tr>
                     <tr>
@@ -873,15 +963,24 @@ class WidgetManager(QFrame):
                     </tr>
             """
 
-            for i, (names, price, number, unit, discount, total) in enumerate(items, 1):
+            for i, product in enumerate(items, 1):
+                name = product['name']
+                unit_price = product['unit_price']
+                quantity = product['quantity']
+                raw_qty = product.get('raw_qty')
+                unit = product['s_type']
+                discount = product['discount']
+                total = product['total']
+                qty_display = f"{raw_qty}" 
+
                 html += f"""
                     <tr>
                         <td>{total}</td>
                         <td>{discount}</td>
                         <td>{unit}</td>
-                        <td>{number}</td>
-                        <td>{price}</td>
-                        <td>{names}</td>
+                        <td>{qty_display}</td>
+                        <td>{unit_price}</td>
+                        <td>{name}</td>
                         <td>{i}</td>
                     </tr>
                 """
@@ -982,12 +1081,34 @@ class WidgetManager(QFrame):
             if conn:
                 conn.close()
    ##
+    def calculate_total_price(self, item):
+        row = item.row()
+        col = item.column()
+
+        # فقط اگر ستون قیمت (1)، تعداد (2) یا تخفیف (4) تغییر کرد
+        if col in [1, 2, 4]:
+            try:
+                price = float(self.table.item(row, 1).text())
+                count = float(self.table.item(row, 2).text())
+                discount = float(self.table.item(row, 4).text())
+
+                total = (price * count) - discount
+                total_item = QTableWidgetItem(str(round(total, 2)))
+                total_item.setFlags(total_item.flags() ^ Qt.ItemFlag.ItemIsEditable)  # غیرفعال‌سازی ویرایش برای قیمت کل
+                total_item.setForeground(QBrush(Qt.GlobalColor.black))  # متن سیاه
+                self.table.setItem(row, 5, total_item)
+
+            except Exception as e:
+                print("خطا در محاسبه قیمت کل:", e)
+
     def load_invoice(self, item):
         invoice_name = item.text()
 
         if invoice_name in self.invoices:
+            self.temp_loaded_invoice = []  # پاک کردن لیست موقت
             self.table.setRowCount(0)  # حذف همه ردیف‌های قبلی
             self.table.setShowGrid(True)
+            self.table.blockSignals(True)
 
             for name, price, number, unit, discount, total in self.invoices[invoice_name]:
                 row = self.table.rowCount()
@@ -998,8 +1119,40 @@ class WidgetManager(QFrame):
                 self.table.setItem(row, 3, QTableWidgetItem(str(unit)))
                 self.table.setItem(row, 4, QTableWidgetItem(str(discount)))
                 self.table.setItem(row, 5, QTableWidgetItem(str(total)))
-    ##
+                self.calculate_total_price(self.table.item(row, 1))
 
+                # واکشی barcode از دیتابیس براساس نام و قیمت (در صورت نیاز می‌توان دقیق‌تر کرد)
+                db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+                barcode = None
+
+                try:
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT barcode FROM products WHERE name = ? AND sale_price = ?", (name, price))
+                    row_data = cursor.fetchone()
+                    if row_data:
+                        barcode = row_data[0]
+                    conn.close()
+                except Exception as e:
+                    print(f"خطا در واکشی بارکد: {e}")
+
+                # ذخیره در لیست موقت
+                self.temp_loaded_invoice.append({
+                    "name": name,
+                    "unit_price": price,
+                    "quantity": number,
+                    "s_type": unit,
+                    "discount": discount,
+                    "total": total,
+                    "barcode": barcode,  # حالا مقدار دارد
+                    "sale_type": "",
+                    "raw_qty": number
+                })
+
+            self.table.setEditTriggers(QAbstractItemView.EditTrigger.AllEditTriggers)
+            self.table.blockSignals(False)
+           
+    
     def get_stack(self):
         return self.stack
 
@@ -1084,3 +1237,84 @@ class WidgetManager(QFrame):
             MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
 
     ##
+    def delete_product(self):
+        items = self.added_products if self.added_products else self.temp_loaded_invoice
+        if not items:
+            MessageBox("هیچ محصولی به فاکتور اضافه نشده است", title="خطا", type="warning").show()
+            return
+
+        selected_row = self.table.currentRow()
+        if selected_row < 0:
+            MessageBox("هیچ ردیفی انتخاب نشده است", title="خطا", type="warning").show()
+            return
+
+        # دریافت نام محصول از جدول
+        name_item = self.table.item(selected_row, 0)
+        if not name_item:
+            MessageBox("خطا در دریافت اطلاعات سطر انتخاب‌شده", title="خطا", type="error").show()
+            return
+        name = name_item.text()
+
+        # 🔷 رنگی کردن ردیف انتخاب‌شده به آبی روشن
+        for col in range(self.table.columnCount()):
+            item = self.table.item(selected_row, col)
+            if item:
+                item.setBackground(QColor("#cce5ff"))  # آبی روشن
+
+        # 🔷 تأیید حذف با MessageBox سفارشی
+        confirm_box = MessageBox(
+            f"آیا مطمئن هستید که می‌خواهید محصول '{name}' را حذف کنید؟",
+            title="تأیید حذف",
+            type="question",
+            buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        result = confirm_box.show()
+        if result != QMessageBox.StandardButton.Yes:
+            return  # لغو عملیات حذف
+
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # بررسی منبع اطلاعات
+            from_temp_invoice = (items is self.temp_loaded_invoice)
+
+            for i, item in enumerate(items):
+                if item.get("name") == name:
+                    barcode = item.get("barcode")
+                    quantity_to_return = item.get("quantity", 0)
+
+                    if from_temp_invoice:
+                        # فقط اگر از temp_loaded_invoice بود، به موجودی انبار اضافه شود
+                        if barcode:
+                            cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
+                            result = cursor.fetchone()
+                            if result:
+                                new_qty = float(result[0]) + float(quantity_to_return)
+                                cursor.execute("UPDATE products SET quantity = ?, is_synced = 0 WHERE barcode = ?", (new_qty, barcode))
+
+                        # همچنین حذف از جدول sale_factor
+                        name = item.get("name")
+                        cursor.execute("DELETE FROM sale_factor WHERE name = ? AND barcode = ?", (name, barcode))
+
+                        conn.commit()
+
+                    # حذف از لیست حافظه‌ای
+                    del items[i]
+                    break
+
+            # حذف از جدول نمایشی
+            self.table.removeRow(selected_row)
+
+        except sqlite3.Error as e:
+            MessageBox(f"{e} : خطا در حذف یا بروزرسانی محصول", title="خطای دیتابیس", type="error").show()
+        finally:
+            conn.close()
+
+
+        

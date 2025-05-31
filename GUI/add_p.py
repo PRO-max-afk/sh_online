@@ -606,8 +606,6 @@ class AddProduct(QDialog):
     def set_selected_product(self, item):
         self.name_line.setText(item.text())
         self.product_popup.hide()
-
-
     ##
     def calculate_total(self):
         name = self.name_line.text()
@@ -806,6 +804,7 @@ class AddProduct(QDialog):
     def closeEvent(self, event):
         if self.inventory_page:
             self.inventory_page.show_first_spinner()
+            self.inventory_page.start_synced_to_thread()
         event.accept()
 
 
