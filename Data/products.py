@@ -15,6 +15,7 @@ cursor.execute('''
             sale_price REAL,
             big_price REAL,
             big_sub REAL,
+            sale_unit TEXT,
             big_category TEXT,
             quantity REAL,
             new_quantity REAL,

@@ -5,6 +5,7 @@ import sys
 from PyQt6 import QtCore
 from home import WidgetManager  
 from notifi_check import NotificationChecker
+from order_box import OrderInformation
 import os
 from profile_picture import ProfileImage
 
@@ -16,6 +17,7 @@ class mainwindow(QWidget):
         self.setWindowTitle("برنامه فروشگاه")
         self.setStyleSheet("background-color:#D9D9D9;")
         self.notifications = []
+        self.orders= []
         
         self.panel_width = 90
         panel_x = screen.width() - self.panel_width  # قرار دادن پنل در سمت راست
@@ -96,6 +98,26 @@ class mainwindow(QWidget):
         self.order_btn.setIcon(self.order_icon)
         self.order_btn.setIconSize(QtCore.QSize(35,35))
         self.order_btn.clicked.connect(lambda: self.toggle_orders())
+        ##
+        self.order_badge= QLabel("",self.order_btn)
+        self.order_badge.setFixedSize(20,20)
+        self.order_badge.move(33,2)
+        self.order_badge.setStyleSheet('''
+            background-color: red;
+            color: white;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            qproperty-alignment: AlignCenter;
+    ''')
+        self.order_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.order_badge.raise_()
+        self.order_badge.hide()
+        ##
+        self.order_check= OrderInformation()
+        self.order_check.order_count_signal.connect(self.handl_order_notification)
+        self.order_check.start()
+
         ##finance
         self.finance_btn= QPushButton(self.side_panel)
         self.finance_icon= QIcon(self.get_asset_path("money (1).png"))
@@ -166,8 +188,6 @@ class mainwindow(QWidget):
             self.notification_badge.show()
         else:
             self.notification_badge.hide()
-
-
     #
     def toggle_notification(self):
         self.widget_manager.switch_frame("frame2")
@@ -181,9 +201,21 @@ class mainwindow(QWidget):
         self.widget_manager.switch_frame("dash_frame")
         self.set_active_button(self.dashboard_btn)
     ##
+    def handl_order_notification(self,count):
+        if count > 0:
+            self.orders.append(count)
+            total_orders= sum(self.orders)
+            self.order_badge.setText(str(total_orders))
+            self.order_badge.show()
+        else:
+            self.order_badge.hide()
+
     def toggle_orders(self):
         self.widget_manager.switch_frame("frame_order")
         self.set_active_button(self.order_btn)
+        ###
+        self.orders.clear()
+        #self.order_badge.hide()
     ##
     def toggle_finance(self):
         self.widget_manager.switch_frame("finance_frame")

@@ -87,6 +87,7 @@ class NotificationChecker(QThread):
                     self.count_ms.add(total_count)
                     self.new_count.emit(total_count)  # ارسال مقدار عددی
 
+
                 if result:
                     pro_name, message = result
                     unique_key = f"{pro_name}::{message}"

@@ -33,7 +33,7 @@ class ProductBox(QWidget):
         # ایجاد لیبل‌ها
         self.name_lb = QLabel("نام محصول:", self.frame)
         self.na_lb = QLabel("", self.frame)
-        self.barcode_lb = QLabel("بارکد محصول:", self.frame)
+        self.barcode_lb = QLabel("بارکد:", self.frame)
         self.bar_lb = QLabel("", self.frame)
         self.buy_price = QLabel("قیمت خرید:", self.frame)
         self.bu_lb = QLabel("", self.frame)
@@ -54,8 +54,8 @@ class ProductBox(QWidget):
         labels = [
             (self.name_lb, 198, 160),
             (self.na_lb, 145, 160),
-            (self.barcode_lb, 54, 160),
-            (self.bar_lb, 5, 160),
+            (self.barcode_lb, 85, 160),
+            (self.bar_lb, 3, 160),
             (self.buy_price, 190, 210),
             (self.bu_lb, 150, 210),
             (self.sale_label, 59, 210),
