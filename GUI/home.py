@@ -683,14 +683,14 @@ class WidgetManager(QWidget):
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
 
-                cursor.execute("SELECT big_category, quantity, big_quantity FROM products WHERE barcode = ?", (barcode,))
+                cursor.execute("SELECT big_category, quantity,sale_unit, big_quantity FROM products WHERE barcode = ?", (barcode,))
                 product_info = cursor.fetchone()
                 if not product_info:
                     MessageBox("محصول یافت نشد!", title="خطا", type="error").show()
                     return
 
-                big_category, stock_quantity, big_quantity = product_info
-
+                big_category, stock_quantity,sale_unit, big_quantity = product_info
+                print(sale_unit)
                 unit_price = float(unit_price or 0)
                 qty = float(qty or 1)
                 discount = float(discount or 0)
@@ -700,7 +700,7 @@ class WidgetManager(QWidget):
                     quantity = qty * float(big_quantity or 1)
                     sale_type = "عمده"
                 else:
-                    s_type = 'عدد'
+                    s_type = sale_unit
                     quantity = qty
                     sale_type = "پرچون"
 
@@ -711,7 +711,7 @@ class WidgetManager(QWidget):
 
                 # بررسی تکراری بودن محصول:
                 for i, product in enumerate(self.added_products):
-                    if product['barcode'] == barcode:
+                    if product['barcode'] == barcode and product['s_type'] == s_type:
                         total_quantity = product['quantity'] + quantity
                         if total_quantity > float(stock_quantity):
                             MessageBox(f"موجودی کافی برای افزودن {name} وجود ندارد", title="ناموفق", type="warning").show()

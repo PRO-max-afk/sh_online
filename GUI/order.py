@@ -113,10 +113,6 @@ class Orders(QFrame):
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_frame.raise_()
         ##
-        
-
-
-        
     def label_UI(self):
         self.label.setMinimumSize(200, 40)
         self.label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
@@ -292,28 +288,35 @@ class Orders(QFrame):
         self.notifier.new_order_info.connect(self.show_nt)
         self.notifier.start()
     ##
-    def show_nt(self,products : list):
-        # پاک کردن ویجت‌های قبلی در layout
+    def show_nt(self, products: list):
         for i in reversed(range(self.box_layout.count())):
             widget = self.box_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
-        
-        for product in products:
+
+        for order in products:
             box = Order_Box()
-            image= self.get_asset_path("Hourglass.png")
+            image = self.get_asset_path("Hourglass.png")
+
+            # آماده‌سازی ستون‌ها به‌صورت جداگانه
+            product_names = "\n".join(p["product_name"] for p in order.get("products", []))
+            quantities     = "\n".join(str(p["quantity"]) for p in order.get("products", []))
+            units          = "\n".join(p["unit"] for p in order.get("products", []))
+
             box.set_product_info(
-                number=str(product.get("id", "")),
-                name=product.get("customer_name", ""),
-                address=product.get("area",""),
-                plaged=str(product.get("home_number", "")),
-                phone= str(product.get("phone")),
-                product_name=product.get("product_name", ""),
-                quantity=str(product.get("quantity","")),
-                image_path= image
+                number=str(order.get("sale_number", "")),
+                name=order.get("customer_name", ""),
+                address=order.get("area", ""),
+                plaged=str(order.get("home_number", "")),
+                phone=str(order.get("phone", "")),
+                product_name=product_names,  # ← ستون نام محصولات
+                quantity=quantities,         # ← ستون تعداد
+                unit=units,                  # ← ستون واحد
+                image_path=image
             )
 
             self.box_layout.addWidget(box)
+
 
     # #images
     def get_asset_path(self, filename):

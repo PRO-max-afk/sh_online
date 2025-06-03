@@ -48,35 +48,43 @@ class OrderInformation(QThread):
                 cursor = conn.cursor()
 
                 cursor.execute("""
-                    SELECT id,customer_name, product_name,quantity, area, home_number,phone
+                    SELECT sale_number, customer_name, product_name, quantity, area, home_number, phone, product_unit
                     FROM orders
-                    WHERE  user_id = %s
-                """, (id_user))
+                    WHERE approve=0 and user_id = %s
+                """, (id_user,))
                 results = cursor.fetchall()
 
-                products = []
+                orders = {}
                 for row in results:
-                    id_order, name, product_name, quantity, area, home_number, phone = row
-                    products.append({
-                        "id": id_order,
-                        "customer_name": name,
+                    sale_number, name, product_name, quantity, area, home_number, phone, unit = row
+                    if sale_number not in orders:
+                        orders[sale_number] = {
+                            "sale_number": sale_number,
+                            "customer_name": name,
+                            "area": area,
+                            "home_number": home_number,
+                            "phone": phone,
+                            "products": []  # لیست محصولات
+                        }
+                    orders[sale_number]["products"].append({
                         "product_name": product_name,
                         "quantity": quantity,
-                        "area": area,
-                        "home_number": home_number,
-                        "phone": phone
+                        "unit": unit
                     })
 
-                count = len(products)
+                # تبدیل دیکشنری به لیست برای ارسال به show_nt
+                grouped_orders = list(orders.values())
+
+                count = len(grouped_orders)
                 if count != self.prev_count:
                     self.prev_count = count
-                    self.order_count_signal.emit(count)  # ← اینجا تعداد سفارشات ارسال می‌شود
-                    self.new_order_info.emit(products)
-
+                    self.order_count_signal.emit(count)
+                    self.new_order_info.emit(grouped_orders)
 
                 conn.close()
             except pymysql.MySQLError as e:
                 print(f"{e}: خطا در کوئری یا اتصال دیتابیس")
+
 
             time.sleep(5)
 

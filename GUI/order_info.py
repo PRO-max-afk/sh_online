@@ -34,8 +34,8 @@ class Order_Box(QWidget):
         table_layout.setContentsMargins(0,0,0,0)
         table_layout.setSpacing(0)
         ##
-        self.table = QTableWidget(3, 2)
-        self.table.setHorizontalHeaderLabels(["مقدار", "نام"])
+        self.table = QTableWidget(3, 3)
+        self.table.setHorizontalHeaderLabels(["واحد","مقدار", "نام"])
         self.table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -202,20 +202,28 @@ class Order_Box(QWidget):
         hbox.setAlignment(Qt.AlignmentFlag.AlignRight)
         return hbox
     ##
-    def set_product_info(self, name, number, address, plaged,phone,image_path="default.png", product_name="", quantity=""):
+    def set_product_info(self, name, number, address, plaged, phone, unit, image_path="default.png", product_name="", quantity=""):
         self.na_lb.setText(name)
-
         self.number.setText(str(number))
-
         self.address.setText(address)
-
         self.plag.setText(str(plaged))
-        
         self.phone.setText(str(phone))
 
-        # تنظیم مقادیر جدول
-        self.table.setItem(0, 1, QTableWidgetItem(product_name))
-        self.table.setItem(0, 0, QTableWidgetItem(str(quantity)))
+        # پاک کردن جدول قبل از افزودن سطرهای جدید
+        self.table.setRowCount(0)
+
+        # تبدیل رشته‌ها به لیست
+        product_names = product_name.split("\n")
+        quantities = quantity.split("\n")
+        units = unit.split("\n")
+
+        row_count = len(product_names)
+        self.table.setRowCount(row_count)
+
+        for i in range(row_count):
+            self.table.setItem(i, 2, QTableWidgetItem(self._make_cell(product_names[i])))
+            self.table.setItem(i, 1, QTableWidgetItem(self._make_cell(quantities[i])))
+            self.table.setItem(i, 0, QTableWidgetItem(self._make_cell(units[i])))
 
         # تنظیم تصویر
         if image_path and os.path.exists(image_path):
@@ -234,6 +242,12 @@ class Order_Box(QWidget):
         painter.end()
 
         self.image_label.setPixmap(rounded)
+    ##
+    def _make_cell(self, text):
+        item = QTableWidgetItem(text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item.setForeground(Qt.GlobalColor.black)
+        return item
 
     ##images
     def get_asset_path(self, filename):
