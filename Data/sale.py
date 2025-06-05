@@ -27,3 +27,13 @@ cursor.execute('''
 Create TABLE IF NOT EXISTS factor_number(
             sale_id INTEGER );
 ''')
+
+cursor.execute('''
+Create TABLE IF NOT EXISTS sale_number(
+            sale_id INTEGER );
+''')
+
+cursor.execute('''
+Create TABLE IF NOT EXISTS order_number(
+            order_id INTEGER );
+''')

@@ -8,6 +8,7 @@ import os
 import requests
 import sqlite3
 from message_b import MessageBox
+from functools import partial
 from order_info import Order_Box
 from circle import CircularSpinner
 from notifi_box import Notification
@@ -263,7 +264,6 @@ class Orders(QFrame):
                 print("⚠️ تصویر پیش‌فرض پیدا نشد.")
                 return None
     ##
-    ##
     def show_first_spinner(self):
         self.show_spinner_and_load_data()
    ##
@@ -298,24 +298,84 @@ class Orders(QFrame):
             box = Order_Box()
             image = self.get_asset_path("Hourglass.png")
 
-            # آماده‌سازی ستون‌ها به‌صورت جداگانه
             product_names = "\n".join(p["product_name"] for p in order.get("products", []))
-            quantities     = "\n".join(str(p["quantity"]) for p in order.get("products", []))
-            units          = "\n".join(p["unit"] for p in order.get("products", []))
+            quantities = "\n".join(str(p["quantity"]) for p in order.get("products", []))
+            units = "\n".join(p["unit"] for p in order.get("products", []))
+            product_ids = "\n".join(str(p["id"]) for p in order.get("products", [])) 
 
             box.set_product_info(
+                ids= product_ids,
                 number=str(order.get("sale_number", "")),
                 name=order.get("customer_name", ""),
                 address=order.get("area", ""),
                 plaged=str(order.get("home_number", "")),
                 phone=str(order.get("phone", "")),
-                product_name=product_names,  # ← ستون نام محصولات
-                quantity=quantities,         # ← ستون تعداد
-                unit=units,                  # ← ستون واحد
+                product_name=product_names,
+                quantity=quantities,
+                unit=units,
                 image_path=image
             )
 
+            box.accept_btn.clicked.connect(lambda _, b=box: self.handle_accept(b))
+            box.reject_btn.clicked.connect(lambda _, b=box: self.handle_reject(b))
+
+            # اتصال هر دکمه denied به remove_row مربوط به خودش با index صحیح
+            for row_index, btn in enumerate(box.denied_buttons):
+                btn.clicked.connect(partial(self.remove_row, row_index, box))
+
+
             self.box_layout.addWidget(box)
+    ##
+    def handle_accept(self, box: Order_Box):
+        info = OrderInformation()
+        success = info.accept_order()
+        if success:
+            notifi = Notification(
+                pro_name="موفقانه✅",
+                message="سفارش محصول ثبت شد!",
+                parent_frame=self.notification_frame,
+                icon_path=self.get_asset_path("Check Mark.png")
+            )
+            notifi.show()
+            box.hide()  # 👈 اینجا باکس را مخفی می‌کنیم
+        else:
+            notifi = Notification(
+                pro_name="خطا",
+                message="خطا در تایید سفارش",
+                parent_frame=self.notification_frame,
+                icon_path=self.get_asset_path("MacOS Close.png")
+            )
+            notifi.show()
+    ##
+    def handle_reject(self, box: Order_Box):
+        info = OrderInformation()
+        success = info.denied_order()
+        if success:
+            notifi= Notification(
+                pro_name="لغو سفارش",
+                message="سفارش موفقانه لغو شد، دلیل خود را در فیلد شرح دهید",
+                parent_frame= self.notification_frame,
+                icon_path= self.get_asset_path("MacOS Close.png")
+            )
+            notifi.show()
+            box.hide()
+            
+        else:
+            pass
+    ##
+    def remove_row(self, row: int, box: Order_Box):
+        if 0 <= row < box.table.rowCount():
+            id_item = box.table.item(row, 4)  # 👈 گرفتن آیدی از ستون مخفی
+            if id_item:
+                product_id = int(id_item.text())
+                info = OrderInformation()
+                success = info.reject_order(product_id)  # 👈 فقط همان ID خاص
+
+                if success:
+                    box.table.removeRow(row)
+                    print(f"✅ محصول با ID={product_id} حذف شد.")
+                else:
+                    print("❌ خطا در رد محصول.")
 
 
     # #images
