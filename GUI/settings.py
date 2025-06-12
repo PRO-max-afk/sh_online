@@ -1,10 +1,10 @@
-from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
+from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QToolButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase
 from PyQt6 import QtCore
 import jdatetime
-
+import os
 from decimal import Decimal
 import threading
 from PyQt6.QtWidgets import (
@@ -60,13 +60,11 @@ class Settings(QFrame):
         # لایه بالا
         top_layout = QHBoxLayout()
         self.label = QLabel("تنظیمات فروشگاه", self)
-        self.search_line = QLineEdit(self)
-        self.serach_btn = QPushButton("جستجو", self)
+
 
         ##
         self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-        self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.serach_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
         ##
         datetime_layout = QVBoxLayout()
         self.date_label = QLabel(self)
@@ -77,30 +75,31 @@ class Settings(QFrame):
 
         top_layout.addLayout(datetime_layout)
         top_layout.addStretch(1)
-        top_layout.addWidget(self.serach_btn)
-        top_layout.addWidget(self.search_line, 3)
         top_layout.addWidget(self.label, 1)
 
-        # دکمه‌ها
-        button_layout = QHBoxLayout()
-        button_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-        scroll_layout.addSpacing(20)
 
         # لایه جعبه‌ها
         self.box_layout = QGridLayout()
-        self.box_layout.setSpacing(10)
+        self.box_layout.setSpacing(20)
         scroll_layout.addLayout(self.box_layout)
         scroll_layout.addStretch()
 
         # افزودن ویجت‌ها به main_layout
         main_layout.addLayout(top_layout)
-        main_layout.addLayout(button_layout)
+        main_layout.addSpacing(50)
         scroll_area.setWidget(scroll_widget)
         scroll_area.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         main_layout.addWidget(scroll_area)
 
         self.setLayout(main_layout)
         self.setStyleSheet("background-color: #D9D9D9;")
+        ### buttons:
+        self.store_settings= QToolButton()
+        self.item_settings= QToolButton()
+        self.sale_settings= QToolButton()
+        self.user_settings= QToolButton()
+        self.finance_settings= QToolButton()
+        self.delivary_settings= QToolButton()
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
         self.notification_frame = QFrame(self)
@@ -122,51 +121,56 @@ class Settings(QFrame):
         ''')
 
     def field_UI(self):
-        self.search_line.setMinimumHeight(60)
-        self.search_line.setMaximumHeight(70)
-        self.search_line.setMaximumWidth(700)
-        self.search_line.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        #self.search_line.textChanged.connect(self.show_spinner_and_load_dataes)
-        self.search_line.setPlaceholderText("جستجو محصولات...")
-        self.search_line.setStyleSheet('''
-            font-size: 17px;
-            color: black;
-            font-family: B Nazanin;
-            font-weight: bold;
-            background-color: white;
-            border: 5px solid transparent;
-            border-radius: 30px;
-            padding: 5px;
-            margin-right: 50px;
-        ''')
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(25)
-        shadow.setXOffset(0)
-        shadow.setYOffset(5)
-        shadow.setColor(QColor(0, 0, 0, 70))
-        self.search_line.setGraphicsEffect(shadow)
-
+        pass
+   ##
     def button_UI(self):
-        self.serach_btn.setMinimumSize(100, 30)
-        self.serach_btn.setMaximumSize(140, 40)
-        #self.serach_btn.clicked.connect(self.show_spinner_and_load_dataes)
-        self.serach_btn.setStyleSheet('''
-            QPushButton {
-                background-color: #2251DB;
-                font-family: "B Nazanin";
-                font-size: 18px;
-                font-weight: bold;
-                border-radius: 10px;
-                text-align: center;
-                padding: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: #498bf5;  
-            }
-            QPushButton:pressed {
-                background-color: #2251DB;
-            }
-        ''')
+        # آیکون و متن‌ها
+        buttons_info = [
+            (self.store_settings, "grocery-store_16893316.png", "تنظیمات فروشگاه"),
+            (self.item_settings, "box.png", "تنظیمات محصولات"),
+            (self.sale_settings, "setting_5935006.png", "تنظیمات فروشات"),
+            (self.user_settings, "group_151943.png", "تنظیمات کاربران"),
+            (self.finance_settings, "settings_1657673.png", "تنظیمات مالی"),
+            (self.delivary_settings, "repair_18241257.png", "تنظیمات ارسال")
+            # می‌توانید دکمه‌های بیشتر هم اضافه کنید.
+        ]
+
+        buttons = []
+        for btn, icon_file, text in buttons_info:
+            icon = QIcon(self.get_asset_path(icon_file))
+            btn.setIcon(icon)
+            btn.setIconSize(QtCore.QSize(90, 90))  # بزرگ‌تر شد
+            btn.setText(text)
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+            btn.setMinimumSize(160, 160)
+            btn.setMaximumSize(200, 200)
+            btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            btn.setStyleSheet('''
+                QToolButton {
+                    background-color: #ffffff;
+                    border: 1px solid #dcdcdc;
+                    border-radius: 16px;
+                    padding: 15px;
+                    font-family: B Nazanin;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #333333;
+                }
+                QToolButton:hover {
+                    background-color: #f2f2f2;
+                }
+                QToolButton:pressed {
+                    background-color: white;
+                }
+            ''')
+            buttons.append(btn)
+
+        # اضافه کردن دکمه‌ها به `QGridLayout` به صورت سطری - ستونی
+        max_per_row = 4
+        for i, btn in enumerate(buttons):
+            row = i // max_per_row
+            col = i % max_per_row
+            self.box_layout.addWidget(btn, row, col)
     ##
     def set_today_date(self):
         today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")
@@ -182,7 +186,7 @@ class Settings(QFrame):
             margin-top: 5px;
             margin-left:20px
         ''')
-
+    ##
     def set_today_time(self):
         weekdays_fa = {
             'Saturday': 'شنبه',
@@ -207,3 +211,31 @@ class Settings(QFrame):
             color: #333;
             margin-left:30px;
         ''')
+    ##images
+    def get_asset_path(self, filename):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        image_path = os.path.join(project_root, "assets", filename)
+        if os.path.exists(image_path):
+            return image_path
+        else:
+            print(f"⚠ فایل یافت نشد: {image_path}")
+            return None
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass

@@ -22,26 +22,20 @@ from  ftplib import FTP
 from list_p import ProductListPopup
 
 
-class AddProduct(QDialog):
-    def __init__(self,inventory_page=None):
+class ProductDiscount(QDialog):
+    def __init__(self):
         super().__init__()
         self.setWindowTitle("📦 ثبت محصول جدید")
-        self.resize(929, 630)
-        self.setFixedSize(929, 630)  # جلوگیری از تغییر اندازه
+        self.resize(613, 492)
+        self.setFixedSize(613, 492)  # جلوگیری از تغییر اندازه
         self.setStyleSheet("background-color: #E8E6E6;")
-        self.inventory_page= inventory_page
         
 
         self.center_window()  # <-- وسط‌چین کردن
         # نمونه ویجت تستی
-        self.title_lb = QLabel("افزودن محصولات",self)
-        # 🔵 عکس پروفایل با کیفیت و کلیک‌پذیر
-        profile_image_path = self.get_asset_path("ChatGPT Image Apr 14, 2025, 04_02_55 PM.png")  # مسیر پیش‌فرض عکس
-        self.profile_widget = ProfileImage(profile_image_path, 70, self)
-        self.profile_widget.setGeometry(850,14,0,0)
-        self.date_lb= QLabel("",self)
+        self.title_lb = QLabel("ثبت تخفیف",self)
+
         
-        self.set_today_date()
         self.add_horizontal_line()
         ##
         self.bar_lb= QLabel("بارکد محصول:",self)
@@ -52,18 +46,7 @@ class AddProduct(QDialog):
         self.name_line= QLineEdit(self)
         self.name_line.setReadOnly(True)
         self.name_line.textChanged.connect(self.auto_search_name)
-
-        ##
-        self.quantity_lb= QLabel("موجودی فعلی:", self)
-        self.quantity_line= QLineEdit(self)
-        self.quantity_line.setReadOnly(True)
-
-        self.number_lb= QLabel("تعداد جدید محصول:", self)
-        self.number_line= QLineEdit(self)
-        ##
-        self.exp_name= QLabel("تاریخ انقضاء:", self)
-        self.exp_line= QLineEdit(self)
-        self.exp_line.setReadOnly(True)
+      
         ##
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(15)
@@ -72,21 +55,22 @@ class AddProduct(QDialog):
         self.jalali_calendar.setMaximumHeight(0)  # در ابتدا بسته باشد
         self.layout.addWidget(self.jalali_calendar)
         ##
-        self.buy_price= QLabel("قیمت خرید:",self)
+        self.buy_price= QLabel("فیصدی تخفیف :",self)
         self.buy_line= QLineEdit(self)
         ##
         self.sale_price= QLabel("قیمت فروش:", self)
         self.sale_line= QLineEdit(self)
+        self.sale_line.setReadOnly(True)
         ##
-        self.sale_big= QLabel("قیمت عمده:",self)
-        self.sale_big_line= QLineEdit(self)
+        self.exp_name= QLabel("مدت اعتبار:", self)
+        self.exp_line= QLineEdit(self)
+        self.exp_line.setReadOnly(True)
         ##
-        self.total_label= QLabel("مجموعه:",self)
+        self.total_label= QLabel("قیمت جدید:",self)
         self.total_line= QLabel("0.00",self)
         ### event
         self.buy_line.textEdited.connect(self.calculate_total)
-        self.number_line.textEdited.connect(self.calculate_total)
-        self.quantity_line.textChanged.connect(self.calculate_total)
+        self.sale_line.textChanged.connect(self.calculate_total)
 
         ##
         self.product_list= QPushButton(self)
@@ -98,7 +82,6 @@ class AddProduct(QDialog):
 
 
         ##
-        self.picture_btn= QPushButton(self)
         self.submit_btn= QPushButton(self)
         self.calendar_btn= QPushButton(self)
         ##
@@ -116,7 +99,7 @@ class AddProduct(QDialog):
             int((screen.height() - size.height()) / 2))
     ##
     def lable_UI(self):
-        self.title_lb.setGeometry(360,15,150,20)
+        self.title_lb.setGeometry(200,15,150,20)
         self.title_lb.setStyleSheet('''
             font-family: B Nazanin;
             font-size: 20px;
@@ -124,15 +107,7 @@ class AddProduct(QDialog):
             color: black;
         ''')
         ##
-        self.date_lb.setGeometry(17,42,120,18)
-        self.date_lb.setStyleSheet('''
-            font-family: B Nazanin;
-            font-size: 17px;
-            font-weight: bold;
-            color: black;
-        ''')
-        ##
-        self.bar_lb.setGeometry(776,115,115,20)
+        self.bar_lb.setGeometry(465,95,117,20)
         self.bar_lb.setStyleSheet('''
             font-family: B Nazanin;
             font-size: 16px;
@@ -140,29 +115,22 @@ class AddProduct(QDialog):
             color: black;
         ''')
         ##
-        self.barcode_img.setGeometry(860,157,30,30)
+        self.barcode_img.setGeometry(545,127,30,30)
         self.bar_pix= QPixmap(self.get_asset_path("Barcode.png"))
         self.barcode_img.setPixmap(self.bar_pix)
         self.barcode_img.setStyleSheet("background-color: transparent;")
         self.barcode_img.setFixedSize(30,30)
         ##
-        self.name_lb.setGeometry(470,115,120,20)
+        self.name_lb.setGeometry(135,100,120,20)
         self.name_lb.setStyleSheet('''
             font-family: B Nazanin;
             font-size: 16px;
             font-weight: bold;
             color: black;
         ''')
+    
         ##
-        self.quantity_lb.setGeometry(776,225,115,20)
-        self.quantity_lb.setStyleSheet('''
-            font-family: B Nazanin;
-            font-size: 16px;
-            font-weight: bold;
-            color: black;
-        ''')
-        ##
-        self.exp_name.setGeometry(776,320,120,20)
+        self.exp_name.setGeometry(465,287,120,20)
         self.exp_name.setStyleSheet('''
             font-family: B Nazanin;
             font-size: 16px;
@@ -170,7 +138,7 @@ class AddProduct(QDialog):
             color: black;
         ''')
         ##
-        self.buy_price.setGeometry(480,320,120,20)
+        self.buy_price.setGeometry(135,189,120,20)
         self.buy_price.setStyleSheet('''
             font-family: B Nazanin;
             font-size: 16px;
@@ -178,15 +146,7 @@ class AddProduct(QDialog):
             color: black;
         ''')
         ##
-        self.number_lb.setGeometry(475,225,120,20)
-        self.number_lb.setStyleSheet('''
-            font-family: B Nazanin;
-            font-size: 16px;
-            font-weight: bold;
-            color: black;
-        ''')
-        ##
-        self.sale_price.setGeometry(776,425,120,20)
+        self.sale_price.setGeometry(460,189,120,20)
         self.sale_price.setStyleSheet('''
             font-family: B Nazanin;
             font-size: 16px;
@@ -194,15 +154,7 @@ class AddProduct(QDialog):
             color: black;
             ''')
         ##
-        self.sale_big.setGeometry(480,425,120,20)
-        self.sale_big.setStyleSheet('''
-            font-family: B Nazanin;
-            font-size: 16px;
-            font-weight: bold;
-            color: black;
-            ''')
-        ##
-        self.total_label.setGeometry(152,577,60,20)
+        self.total_label.setGeometry(78,340,85,20)
         self.total_label.setStyleSheet('''
             font-family: B Nazanin;
             font-size: 16px;
@@ -210,9 +162,9 @@ class AddProduct(QDialog):
             color: black;
         ''')
         ##
-        self.total_line.setGeometry(90,573,70,30)
+        self.total_line.setGeometry(17,340,70,30)
         self.total_line.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Arial,"Roboto";
             font-size: 15px;
             font-weight: bold;
             color: black;
@@ -220,10 +172,10 @@ class AddProduct(QDialog):
         ''')
     ##
     def enties_UI(self):
-        self.bar_line.setGeometry(653, 150, 250, 45)
+        self.bar_line.setGeometry(340, 123, 250, 45)
         self.bar_line.setStyleSheet('''
             background-color: white;
-            font-family: Arial;
+            font-family: Arial,"Roboto";
             font-weight: bold;
             font-size: 15px;
             border: 1px solid #c2c2c2;
@@ -232,7 +184,7 @@ class AddProduct(QDialog):
             padding: 7px;
         ''')
         ##
-        self.name_line.setGeometry(355,150,250,45)
+        self.name_line.setGeometry(17,126,250,45)
         self.name_line.setStyleSheet('''
             background-color: white;
             font-family: B Nazanin;
@@ -244,35 +196,11 @@ class AddProduct(QDialog):
             padding: 7px;
         ''')
         ##
-        self.quantity_line.setGeometry(653,260,250,45)
-        self.quantity_line.setStyleSheet('''
-            background-color: white;
-            font-family: B Nazanin,"Mirza";
-            font-weight: bold;
-            font-size: 15px;
-            color: black;
-            border: 1px solid #c2c2c2;
-            border-radius: 7px;
-            padding: 7px;
-        ''')
-        ##
-        self.number_line.setGeometry(355,260,250,45)
-        self.number_line.setStyleSheet('''
-            background-color: white;
-            font-family: B Nazanin,"Mirza";
-            font-weight: bold;
-            font-size: 15px;
-            color: black;
-            border: 1px solid #c2c2c2;
-            border-radius: 7px;
-            padding: 7px;
-        ''')
-        ##
-        self.exp_line.setGeometry(653,350,250,45)
-        self.exp_line.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.exp_line.setGeometry(340,321,250,45)
+        self.exp_line.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.exp_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: "arial",Roboto;
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -281,10 +209,10 @@ class AddProduct(QDialog):
             padding: 7px;
         ''')
        ##
-        self.buy_line.setGeometry(355,350,250,45)
+        self.buy_line.setGeometry(17,223,250,45)
         self.buy_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: arial,"Roboto";
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -293,10 +221,10 @@ class AddProduct(QDialog):
             padding: 7px;
             ''')
         
-        self.sale_line.setGeometry(653,450,250,45)
+        self.sale_line.setGeometry(340,218,250,45)
         self.sale_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: arial,"Mirza";
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -304,26 +232,15 @@ class AddProduct(QDialog):
             border-radius: 7px;
             padding: 7px;
         ''')
-        ##
-        self.sale_big_line.setGeometry(355,450,250,45)
-        self.sale_big_line.setStyleSheet('''
-            background-color: white;
-            font-family: B Nazanin,"Mirza";
-            font-weight: bold;
-            font-size: 15px;
-            color: black;
-            border: 1px solid #c2c2c2;
-            border-radius: 7px;
-            padding: 7px;
-        ''')
+        
 
     ##
     def Button_UI(self):
-        self.submit_btn.setGeometry(445,571,358,45)
+        self.submit_btn.setGeometry(116,421,358,45)
         self.sub_icon= QIcon(self.get_asset_path("Bookmark.png"))
         self.submit_btn.setIcon(self.sub_icon)
         self.submit_btn.setIconSize(QtCore.QSize(36,36))
-        self.submit_btn.setText("ذخیره محصول")
+        self.submit_btn.setText("ثبت تخفیف")
         self.submit_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.submit_btn.clicked.connect(self.update_product)
         self.submit_btn.setStyleSheet('''
@@ -347,34 +264,9 @@ class AddProduct(QDialog):
                 background-color: #3EB516;
             }
         ''')
-        #self.submit_btn.clicked.connect(self.insert_product)
+     
         ##
-        self.picture_btn.setGeometry(40,230,120,36)
-        self.picture_icon= QIcon(self.get_asset_path("Percentage.png"))
-        self.picture_btn.setIcon(self.picture_icon)
-        self.picture_btn.setIconSize(QtCore.QSize(30,30))
-        self.picture_btn.clicked.connect(self.open_discount)
-        self.picture_btn.setText("  تخفیف")
-        self.picture_btn.setStyleSheet('''
-             QPushButton {
-                background-color: #2251DB;
-                font-family: "Mirza";
-                font-size: 18px;
-                font-weight: bold;
-                border-radius: 10px;
-                text-align: center;
-                padding: 5px;
-                padding-bottom: 10px;
-            }
-            QPushButton:hover {
-                background-color: #498bf5;  
-            }
-            QPushButton:pressed {
-                background-color: #2251DB;
-            }
-        ''')
-        ##
-        self.calendar_btn.setGeometry(660,357,30,30)
+        self.calendar_btn.setGeometry(545,327,30,30)
         self.cale_icon= QIcon(self.get_asset_path("calendar_8265298.png"))
         self.calendar_btn.setIcon(self.cale_icon)
         self.calendar_btn.setIconSize(QtCore.QSize(30,30))
@@ -394,7 +286,7 @@ class AddProduct(QDialog):
         ''')
         self.calendar_btn.clicked.connect(self.show_calendar)
         ##
-        self.product_list.setGeometry(360,157,30,30)
+        self.product_list.setGeometry(23,132,30,30)
         self.produt_icon= QIcon(self.get_asset_path("Product.png"))
         self.product_list.setIcon(self.produt_icon)
         self.product_list.setIconSize(QtCore.QSize(30,30))
@@ -413,14 +305,11 @@ class AddProduct(QDialog):
             }
         ''')
         ##
-    ##
-    def set_today_date(self):
-        today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")
-        self.date_lb.setText(f"تاریخ: {today_jalali}")
+
     ##line
     def add_horizontal_line(self):
         self.line = QFrame(self)
-        self.line.setGeometry(15, 90, 900, 1)  # مکان: زیر date_lb با عرض 900
+        self.line.setGeometry(15, 70, 590, 1)  # مکان: زیر date_lb با عرض 900
         self.line.setFrameShape(QFrame.Shape.HLine)
         self.line.setFrameShadow(QFrame.Shadow.Sunken)
         self.line.setStyleSheet("color: white; background-color: white;")
@@ -500,7 +389,7 @@ class AddProduct(QDialog):
             if self.bar_line.hasFocus():
                 self.search_barcode()
             elif any(line.hasFocus() for line in [
-                self.exp_line,self.number_line, self.buy_line, self.sale_line, self.sale_big_line
+                self.exp_line,self.buy_line, self.sale_line
             ]):
                 self.update_product()
 
@@ -509,8 +398,6 @@ class AddProduct(QDialog):
         text = self.name_line.text().strip()
         if text:  # اگر حتی یک حرف نوشته شده باشد
             self.search_name()
-
-
     ##upadte actions:
     def search_barcode(self):
         barcode= self.bar_line.text().strip()
@@ -528,9 +415,7 @@ class AddProduct(QDialog):
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
             cursor_sq.execute('''
-            select name,buy_price,
-            sale_price,big_sub,
-            expire_date,big_price
+            select name,sale_price
             From products WHERE  barcode=?''',(barcode,))
             result= cursor_sq.fetchone()
             
@@ -538,21 +423,9 @@ class AddProduct(QDialog):
                 self.name_line.clear()
                 self.name_line.insert(str(result[0]))
                 ##
-                self.buy_line.clear()
-                self.buy_line.insert(str(result[1]))
-                ##
                 self.sale_line.clear()
-                self.sale_line.insert(str(result[2]))
-                ##
-                self.sale_big_line.clear()
-                self.sale_big_line.insert(str(result[5]))
-                ##
-                self.quantity_line.clear()
-                self.quantity_line.insert(str(result[3]))
-                ##
-                self.exp_line.clear()
-                self.exp_line.insert(str(result[4]))
-                
+                self.sale_line.insert(str(result[1]))
+
         except pymysql.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
     
@@ -571,9 +444,7 @@ class AddProduct(QDialog):
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
             cursor_sq.execute('''
-            select barcode,buy_price,
-            sale_price,big_sub,
-            expire_date,big_price
+            select barcode,sale_price
             From products WHERE  name=?''',(name,))
             result= cursor_sq.fetchone()
             
@@ -581,20 +452,9 @@ class AddProduct(QDialog):
                 self.bar_line.clear()
                 self.bar_line.insert(str(result[0]))
                 ##
-                self.buy_line.clear()
-                self.buy_line.insert(str(result[1]))
-                ##
                 self.sale_line.clear()
-                self.sale_line.insert(str(result[2]))
-                ##
-                self.sale_big_line.clear()
-                self.sale_big_line.insert(str(result[5]))
-                ##
-                self.quantity_line.clear()
-                self.quantity_line.insert(str(result[3]))
-                ##
-                self.exp_line.clear()
-                self.exp_line.insert(str(result[4]))
+                self.sale_line.insert(str(result[1]))
+
 
         except pymysql.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
@@ -609,220 +469,97 @@ class AddProduct(QDialog):
         self.product_popup.hide()
     ##
     def calculate_total(self):
-        name = self.name_line.text()
-        old_number = self.quantity_line.text()
-        new_number = self.number_line.text()
-        bu_price = self.buy_line.text()
-
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
-        if not os.path.exists(db_path):
-            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
-            return
+        sale_price= self.sale_line.text()
+        discount_percent= self.buy_line.text()
 
         try:
-            old_quantity = float(old_number) if old_number.strip() else 0.0
-            new_quantity = float(new_number) if new_number.strip() else 0.0
-            buy_price = float(bu_price) if bu_price.strip() else 0.0
+            sale_price= float(sale_price) if sale_price.strip() else 0.0
+            discount_percent = float(discount_percent) if discount_percent.strip() else 0.0
+
+            total= sale_price - (sale_price * discount_percent / 100) 
+            self.total_line.setText(f'{total}')
         except ValueError:
             self.total_line.setText("0.00")
             return
          
-        try:
-            conn_sq = sqlite3.connect(db_path)
-            cursor_sq= conn_sq.cursor()
-            cursor_sq.execute('SELECT buy_price FROM products WHERE name= ? ', (name,))
-            price = cursor_sq.fetchone()
-            total_price = float(price[0]) if price and price[0] else 0.0
-            final_total = (total_price * old_quantity) + (buy_price * new_quantity)
-            self.total_line.setText(f'{final_total:.2f}')
-        except pymysql.Error as e:
-            MessageBox(f"{e}: خطا در دیتابیس", title="خطا", type="error")
+       
 
-    ##
     def update_product(self):
         barcode = self.bar_line.text().strip()
         name = self.name_line.text().strip()
-        quantity = self.quantity_line.text()
-        number = self.number_line.text().strip()
         expire_date = self.exp_line.text().strip()
-        buy_price = self.buy_line.text().strip()
+        discount_percent = self.buy_line.text().strip()
         sale_price = self.sale_line.text().strip()
-        big_sale = self.sale_big_line.text()
-        date = datetime.date.today().strftime("%Y/%m/%d")
+        
+        today_jalali = jdatetime.date.today()
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
 
-        # بررسی کامل اعتبارسنجی فیلدها
-        if not all([barcode, name, quantity, number, expire_date, buy_price, sale_price, big_sale]):
+        # اعتبارسنجی ورودی‌ها
+        if not all([barcode, name, expire_date, discount_percent, sale_price]):
             MessageBox("لطفاً تمام فیلدها را پر کنید.", title="⚠️ هشدار", type="warning").show()
             return
 
         db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
         if not os.path.exists(db_path):
-            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            MessageBox("فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
 
         try:
-            number = float(number) if number else 0
-            buy_price = float(buy_price) if buy_price else 0
+            # تبدیل expire_date به jdatetime.date
+            try:
+                year, month, day = map(int, expire_date.split("/"))
+                expire_jdate = jdatetime.date(year, month, day)
+            except ValueError:
+                MessageBox("تاریخ انقضا وارد شده معتبر نیست!", title="⚠️ خطا در تاریخ", type="warning").show()
+                return
 
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
 
-            # واکشی مقدار قبلی
+            cursor_sq.execute('SELECT quantity FROM products WHERE barcode=?', (barcode,))
+            qua = cursor_sq.fetchone()
+
+            if not qua:
+                MessageBox("محصولی با این بارکد یافت نشد.", title="❌ خطا", type="error").show()
+                return
+
+            quantity = qua[0]
+
+            sale_price = float(sale_price)
+            discount_percent = float(discount_percent)
+
+            total = sale_price - (sale_price * discount_percent / 100)
+            final_total = quantity * total
+
+            # محاسبه روزهای باقی‌مانده تا انقضا
+            expire_discount = (expire_jdate - today_jalali).days
+            print(f"{expire_discount} روز تا انقضا باقی مانده است.")
+
+            is_synced = 0
             cursor_sq.execute("""
-                SELECT big_sub, buy_price,big_quantity
-                FROM products 
-                WHERE name = ?
-            """, (name,))
-            row = cursor_sq.fetchone()
+                UPDATE products 
+                SET new_price = ?, discount_percent=?,total = ?, expire_discount = ?, is_synced = ?, update_at = ?
+                WHERE barcode = ?
+            """, (total,discount_percent, final_total, expire_discount, is_synced, date_ent, barcode))
 
-            if row:
-                old_quantity = float(row[0]) if row[0] else 0
-                old_price = float(row[1]) if row[1] else 0
-                bg_quantity= float(row[2]) if row[2] else 0
+            conn_sq.commit()
 
-                updated_quantity = old_quantity + number
+            MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()
+            print("✅ تغییرات در جدول products ثبت شد.")
 
-                if updated_quantity > 0:
-                    new_avg_price = ((old_price * old_quantity) + (buy_price * number)) / updated_quantity
-                else:
-                    new_avg_price = buy_price
-
-                total = ((old_price * old_quantity) + (buy_price * number))
-                ## مجموعه محصول
-                big_quantity= updated_quantity * bg_quantity
-                print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
-
-                self.calculate_total()
-
-                is_synced = 0
-                cursor_sq.execute("""
-                    UPDATE products 
-                    SET quantity = ?, buy_price = ?, update_date = ?, 
-                        new_quantity = ?, expire_date = ?, big_sub=?,
-                        sale_price = ?, big_price = ?, 
-                        total = ?, is_synced = ?,update_at=?
-                    WHERE name = ?
-                """, (
-                    big_quantity, new_avg_price, date, number,
-                    expire_date,updated_quantity, sale_price, big_sale,
-                    total, is_synced,date_ent, name
-                ))
-
-                conn_sq.commit()
-
-                # پیام موفقیت واضح
-                MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()
-                print("✅ تغییرات در جدول products ثبت شد.")
-                
-                self.name_line.clear()
-                self.bar_line.clear()
-                self.quantity_line.clear()
-                self.number_line.clear()
-                self.exp_line.clear()
-                self.buy_line.clear()
-                self.sale_line.clear()
-                self.sale_big_line.clear()
-                self.total_line.setText("0.00")
-            else:
-                MessageBox("محصولی با این نام یافت نشد!", title="❗ خطا", type="warning").show()
+            self.name_line.clear()
+            self.bar_line.clear()
+            self.exp_line.clear()
+            self.buy_line.clear()
+            self.sale_line.clear()
+            self.total_line.setText("0.00")
 
         except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در پایگاه داده", title="❌ خطا", type="error").show()
 
-    ##
-    def synced_to_server(self):
-        db_connect = self.get_db_config()
-        if not db_connect:
-            return
-
-        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
-        cursor_sq = conn_sq.cursor()
-
-        cursor_sq.execute('''SELECT barcode,
-                            buy_date, buy_price, sale_price, big_price,
-                            quantity, expire_date,new_price,discount_percent,expire_discount,big_sub, total, user_id,update_at
-                            FROM products WHERE is_synced = 0''')
-
-        unsynced_products = cursor_sq.fetchall()
-
-        try:
-            conn = pymysql.connect(
-                host=db_connect["host"],
-                user=db_connect["user"],
-                password=db_connect["password"],
-                database=db_connect["database"]
-            )
-            cursor = conn.cursor()
-
-            for product in unsynced_products:
-                (barcode, buy_date, buy_price,
-                sale_price, big_price, quantity, expire_date,new_price,discount_percent,expire_discount,big_sub,
-                total, user_id,update_at) = product
-
-                # بررسی وجود محصول
-                cursor.execute("SELECT COUNT(*) FROM inventories WHERE barcode = %s AND user_id = %s", (barcode, user_id))
-                exists = cursor.fetchone()[0]
-
-                if exists:
-                    # بروزرسانی
-                    cursor.execute('''
-                        UPDATE inventories SET
-                            quantity = %s,
-                            buy_price = %s,
-                            buy_date = %s,
-                            sell_price = %s,
-                            big_price = %s,
-                            expiration_dates = %s,
-                            new_price= %s,
-                            discount_percent = %s,
-                            expir_discount = %s,
-                            big_sub= %s,
-                            total = %s,
-                            updated_at = %s
-                        WHERE barcode = %s AND user_id = %s
-                    ''', (
-                        quantity, buy_price, buy_date,
-                        sale_price, big_price, expire_date,new_price,discount_percent,expire_discount,big_sub,
-                        total,update_at ,barcode, user_id
-                    ))
-                    print(f"✅ محصول {barcode} بروزرسانی شد")
-                else:
-                    print(f"⚠️ محصول {barcode} در سرور پیدا نشد")
-
-            conn.commit()
-
-
-            # بروزرسانی SQLite
-            cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
-            conn_sq.commit()
-
-        except Exception as e:
-            print("❌ خطا در همگام‌سازی:", e)
-
-        finally:
-            conn_sq.close()
-            if conn:
-                conn.close()
-    ##
-    def closeEvent(self, event):
-        if self.inventory_page:
-            self.inventory_page.show_first_spinner()
-            self.inventory_page.start_synced_to_thread()
-        event.accept()
-    ##
-    def open_discount(self):
-        from discount import ProductDiscount
-        discount= ProductDiscount()
-        discount.exec()
-
-
-
-
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = AddProduct()
+    window = ProductDiscount()
     window.show()
     sys.exit(app.exec())

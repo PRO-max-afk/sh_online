@@ -21,6 +21,7 @@ cursor.execute('''
             new_quantity REAL,
             update_date TEXT,
             discount_percent,
+            expire_discount TEXT,
             new_price REAL,
             store_name TEXT,
             total REAL,

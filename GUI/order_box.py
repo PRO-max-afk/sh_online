@@ -52,7 +52,7 @@ class OrderInformation(QThread):
                 cursor.execute("""
                     SELECT id,sale_number, customer_name, product_name, quantity, area, home_number, phone, product_unit
                     FROM orders
-                    WHERE approve=0  and user_id = %s
+                    WHERE approve=0 and denied=0 and user_id = %s
                 """, (id_user,))
                 results = cursor.fetchall()
                 ###
@@ -232,6 +232,7 @@ class OrderInformation(QThread):
                 return False
 
             id_user = res_id[0]
+            message= "محصول از طرف فروشگاه رد شد"
 
             # اتصال به MySQL
             conn = pymysql.connect(
@@ -250,7 +251,7 @@ class OrderInformation(QThread):
             result = cursor.fetchone()
 
             if result:
-                cursor.execute("UPDATE orders SET denied=1 WHERE id=%s", (product_id,))
+                cursor.execute("UPDATE orders SET message= %s, denied=1 WHERE id=%s", (message,product_id))
                 conn.commit()
                 print(f"⛔ رد سفارش با ID = {product_id}")
                 return True
@@ -267,8 +268,6 @@ class OrderInformation(QThread):
                 conn.close()
             except:
                 pass
-
-
 
     ##
     def get_db_config(self):
