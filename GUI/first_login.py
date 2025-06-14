@@ -409,39 +409,41 @@ class Main_login(QMainWindow):
         return os.path.join(base_path, relative_path)
     # دریافت اطلاعات دیتابیس از سرور
     def get_db_config(self):
+        import requests
+
+        url = "https://aryaict.com/connect.php"
+
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        cookies = {
+            'humans_21909': '1'
+        }
+
         try:
-            url = "https://aryaict.com/connect.php"  # URL فایل PHP
-            headers = {
-                'Accept': 'application/json',  # اعلام انتظار پاسخ به صورت JSON
-                'User-Agent': 'MyApp/1.0',  # اضافه کردن هدر User-Agent
-            }
-            response = requests.get(url, headers=headers, timeout=5)
-            response.raise_for_status()  # بررسی خطا در پاسخ
+            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
 
-            # بررسی اینکه پاسخ به صورت JSON است
+            if response.status_code != 200:
+                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
+                response.raise_for_status()
+
             if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست!")
+                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
 
-            # دریافت داده‌ها به‌صورت JSON
             data = response.json()
-
-            # بررسی وجود کلیدهای مورد نیاز
             required_keys = ("host", "user", "password", "database")
             if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است")
+                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
 
-            return data  # بازگشت دیکشنری حاوی اطلاعات دیتابیس
+            return data
 
-        except requests.Timeout:
-            print("⏳ اتصال به سرور زمان زیادی برد")
-        except requests.RequestException as e:
-            print(f"⚠️ خطای درخواست: {e}")
-            print(f"کد وضعیت: {response.status_code}")  # اضافه کردن کد وضعیت برای بررسی خطا
-            print(f"متن پاسخ: {response.text}")  # نمایش متن پاسخ برای بررسی بیشتر
-        except ValueError as e:
-            print(f"🚨 خطای JSON: {e}")
+        except Exception as e:
+            print("❌ خطا در دریافت کانفیگ:", e)
+            return None
 
-        return None
     ## 
     def user_login(self):
         username = self.username_input.line_edit.text()

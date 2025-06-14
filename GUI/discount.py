@@ -355,34 +355,38 @@ class ProductDiscount(QDialog):
     def get_db_config(self):
 
         url = "https://aryaict.com/connect.php"
+
         headers = {
             'Accept': 'application/json',
-            'User-Agent': 'MyApp/1.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        cookies = {
+            'humans_21909': '1'
         }
 
         try:
-            # ارسال درخواست با timeout کوتاه‌تر و تقسیم شده
-            response = requests.get(url, headers=headers, timeout=(20))  # (اتصال، دریافت)
-            response.raise_for_status()
+            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
+
+            if response.status_code != 200:
+                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
+                response.raise_for_status()
 
             if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست!")
+                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
 
             data = response.json()
             required_keys = ("host", "user", "password", "database")
             if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است")
+                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
 
             return data
 
-        except requests.Timeout:
-            print("⏳ زمان اتصال یا پاسخ‌گویی سرور بیش از حد طول کشید.")
-        except requests.RequestException as e:
-            print(f"⚠️ خطای ارتباطی: {e}")
-        except ValueError as e:
-            print(f"🚨 خطای پردازش پاسخ: {e}")
+        except Exception as e:
+            print("❌ خطا در دریافت کانفیگ:", e)
+            return None
 
-        return None
     ##
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
