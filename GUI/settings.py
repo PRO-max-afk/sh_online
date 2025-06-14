@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QToolButton,
+from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QToolButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
-from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
+from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal,QPoint,QPropertyAnimation,QEasingCurve
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase
 from PyQt6 import QtCore
 import jdatetime
@@ -12,7 +12,8 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
 
-class Settings(QFrame):
+
+class Settings(QMainWindow):
     def __init__(self):
         super().__init__()
         self.init_ui()
@@ -26,7 +27,12 @@ class Settings(QFrame):
 
 
     def init_ui(self):
-        main_layout = QVBoxLayout(self)
+        self.stack= QStackedWidget()
+        self.setCentralWidget(self.stack)
+       
+
+        self.settings_page = QWidget()
+        main_layout = QVBoxLayout(self.settings_page)
 
         # ScrollArea setup
         scroll_area = QScrollArea(self)
@@ -91,7 +97,6 @@ class Settings(QFrame):
         scroll_area.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         main_layout.addWidget(scroll_area)
 
-        self.setLayout(main_layout)
         self.setStyleSheet("background-color: #D9D9D9;")
         ### buttons:
         self.store_settings= QToolButton()
@@ -107,6 +112,8 @@ class Settings(QFrame):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_frame.raise_()
+        ##
+        self.stack.addWidget(self.settings_page)
 
     
     def label_UI(self):
@@ -124,6 +131,8 @@ class Settings(QFrame):
         pass
    ##
     def button_UI(self):
+        ##
+        self.user_settings.clicked.connect(self.user_page)
         # آیکون و متن‌ها
         buttons_info = [
             (self.store_settings, "grocery-store_16893316.png", "تنظیمات فروشگاه"),
@@ -239,3 +248,23 @@ class Settings(QFrame):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
+    
+    
+    ##
+    def user_page(self):
+        from user_se import UserSettings
+
+        self.user_settings = UserSettings()
+        self.stack.addWidget(self.user_settings)
+
+        # موقعیت اولیه: خارج از صفحه
+        self.user_settings.move(self.stack.width(), 0)
+        self.stack.setCurrentWidget(self.user_settings)
+
+        # انیمیشن ورود از راست
+        self.anim = QPropertyAnimation(self.user_settings, b"pos", self)
+        self.anim.setDuration(700)
+        self.anim.setStartValue(QPoint(self.stack.width(), 0))
+        self.anim.setEndValue(QPoint(0, 0))
+        self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.anim.start()
