@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import (QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
+from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,QThread,QEvent
+from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush
 from PyQt6 import QtCore
 import jdatetime
@@ -14,21 +14,24 @@ from switch import ToggleSwitch
 import os
 import sys
 
-class UserSettings(QFrame):
+class UserSettings(QMainWindow):
     def __init__(self):
         super().__init__()
         self.init_ui()
         self.label_UI()
         self.feild_UI()
-        self.set_today_date()
-        self.set_today_time()
         self.Button_UI()
 
         
 
 
     def init_ui(self):
-        main_layout = QVBoxLayout(self)
+        self.stack_widget= QStackedWidget()
+        self.setCentralWidget(self.stack_widget)
+        
+        self.user_settings= QWidget()
+
+        main_layout = QVBoxLayout(self.user_settings)
         # لایه بالا
         top_layout = QHBoxLayout()
         self.label = QLabel("تنظیمات کاربران", self)
@@ -36,10 +39,8 @@ class UserSettings(QFrame):
         self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
 
         datetime_layout = QVBoxLayout()
-        self.date_label = QLabel(self)
-        self.time_label = QLabel(self)
-        datetime_layout.addWidget(self.date_label)
-        datetime_layout.addWidget(self.time_label)
+        self.back_btn= QPushButton()
+        datetime_layout.addWidget(self.back_btn)
         datetime_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         top_layout.addLayout(datetime_layout)
@@ -92,9 +93,14 @@ class UserSettings(QFrame):
         ###
         user_layout.addLayout(last_layout)
         user_layout.addLayout(name_layout)
+        ##
+        tta_lbb= QLabel("")
+        tta_lbb.setFixedHeight(50)
 
         mn_us_lay.addLayout(tt_layout)
         mn_us_lay.addLayout(user_layout)
+        mn_us_lay.addWidget(tta_lbb)
+
 
         ###ٌ#
         password_frame = QFrame()
@@ -130,6 +136,8 @@ class UserSettings(QFrame):
         new_p_layout = QHBoxLayout()
         self.new_password = QLabel("رمز عبور جدید")
         self.new_p_line = QLineEdit()
+        self.new_p_line.setEchoMode(QLineEdit.EchoMode.Password)
+        #
         new_p_layout.addStretch(0)
         new_p_layout.addWidget(self.new_p_line)
         new_p_layout.addWidget(self.new_password)
@@ -139,6 +147,7 @@ class UserSettings(QFrame):
         confirm_layout = QHBoxLayout()
         self.confirm_password = QLabel("تایید رمزعبور")
         self.confirm_p_line = QLineEdit()
+        self.confirm_p_line.setEchoMode(QLineEdit.EchoMode.Password)
         confirm_layout.addStretch(0)
         confirm_layout.addWidget(self.confirm_p_line)
         confirm_layout.addWidget(self.confirm_password)
@@ -157,8 +166,6 @@ class UserSettings(QFrame):
         mn_lay.addLayout(password_layout)
         mn_lay.addWidget(tta_Lb)
         
-        
-
         ##
         list_frame= QFrame()
         list_frame.setStyleSheet("background-color: transparent; border-radius: 12px;")
@@ -184,49 +191,10 @@ class UserSettings(QFrame):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_frame.raise_()
+        ##
+        self.stack_widget.addWidget(self.user_settings)
     
-    ##
-    def set_today_date(self):
-        today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")
-        self.date_label.setText(f"تاریخ: {today_jalali}")
-        self.date_label.setMinimumHeight(30)
-        self.date_label.setMaximumHeight(70)
-        self.date_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.date_label.setStyleSheet('''
-            font-size: 18px;
-            font-family: Mirza;
-            font-weight: bold;
-            color: #333;
-            margin-top: 5px;
-            margin-left:20px
-        ''')
-    ##
-    def set_today_time(self):
-        weekdays_fa = {
-            'Saturday': 'شنبه',
-            'Sunday': 'یکشنبه',
-            'Monday': 'دوشنبه',
-            'Tuesday': 'سه‌ شنبه',
-            'Wednesday': 'چهارشنبه',
-            'Thursday': 'پنج ‌شنبه',
-            'Friday': 'جمعه',
-        }
-        weekday_en = jdatetime.date.today().togregorian().strftime("%A")
-        weekday_fa = weekdays_fa.get(weekday_en, 'نامشخص')
-
-        self.time_label.setText(f"امروز: {weekday_fa}")
-        self.time_label.setMinimumHeight(30)
-        self.time_label.setMaximumHeight(50)
-        self.time_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.time_label.setStyleSheet('''
-            font-size: 16px;
-            font-family: Mirza;
-            font-weight: bold;
-            color: #333;
-            margin-left:30px;
-        ''')
-
-    ##
+   ##
     def label_UI(self):
         self.label.setMinimumSize(120,20)
         self.label.setStyleSheet('''
@@ -236,98 +204,109 @@ class UserSettings(QFrame):
             font-family: Mirza;
         ''')
         ##
-        self.tite_label.setMinimumSize(90,5)
-        self.tite_label.setStyleSheet('''
+        for label in (self.name_label,self.last_name,self.old_label,self.new_password,self.confirm_password):
+            label.setMinimumSize(90,5)
+            label.setFixedHeight(40)
+            label.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
+            label.setStyleSheet('''
+            font-size: 16px;
+            font-weight: bold; 
+            color: black;
+            font-family: B Nazanin;
+        ''')
+        
+        for title in (self.titel_label,self.tite_label):
+            title.setMinimumSize(90,5)
+            title.setStyleSheet('''
             font-size: 18px;
             font-weight: bold; 
             color: black;
             font-family: B Nazanin;
         ''')
-        ##
-        self.name_label.setMinimumSize(90,5)
-        self.name_label.setFixedHeight(40)
-        self.name_label.setStyleSheet('''
-            font-size: 16px;
-            font-weight: bold; 
-            color: black;
-            font-family: B Nazanin;
-        ''')
-        ##
-        self.last_name.setMinimumSize(90,5)
-        self.last_name.setFixedHeight(40)
-        self.last_name.setStyleSheet('''
-            font-size: 16px;
-            font-weight: bold; 
-            color: black;
-            font-family: B Nazanin;
-        ''')
-        ##
-        self.titel_label.setMinimumSize(150,20)
-        self.titel_label.setStyleSheet('''
-            font-size: 18px;
-            font-weight: bold; 
-            color: black;
-            font-family: B Nazanin;
-        ''')
-        ##
-        self.old_label.setMinimumSize(90,5)
-        self.old_label.setFixedHeight(40)
-        self.old_label.setStyleSheet('''
-            font-size: 16px;
-            font-weight: bold; 
-            color: black;
-            font-family: B Nazanin;
-        ''')
-        ##
-        self.new_password.setMinimumSize(90,5)
-        self.new_password.setFixedHeight(40)
-        self.new_password.setStyleSheet('''
-            font-size: 16px;
-            font-weight: bold; 
-            color: black;
-            font-family: B Nazanin;
-        ''')
-        ##
-        self.confirm_password.setMinimumSize(90,5)
-        self.confirm_password.setFixedHeight(40)
-        self.confirm_password.setStyleSheet('''
-            font-size: 16px;
-            font-weight: bold; 
-            color: black;
-            font-family: B Nazanin;
-        ''')
+
     ##
     def Button_UI(self):
-        pass
+        back_icon= QIcon(self.get_asset_path("left.png"))
+        self.back_btn.setIcon(back_icon)
+        self.back_btn.setIconSize(QtCore.QSize(50,50))
+        self.back_btn.clicked.connect(self.back_settings)
+        self.back_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
+        self.back_btn.setStyleSheet('''
+        QPushButton{
+            background-color: transparent;
+            border-radius: 27px;
+            padding: 5px;
+                                    }
+        QPushButton:hover{
+            background-color: #f5f5f5;
+                                    }
+        QPushButton:pressed {
+                background-color: #d0d0d0;  /* خاکستری ملایم هنگام کلیک */
+            } 
+        ''')
+        
     ##
     def feild_UI(self):
         for input in (self.name_line,self.last_line,self.new_p_line,self.old_line,self.confirm_p_line):
             input.setFixedSize(200,40)
+            input.setPlaceholderText("Enter...")
             input.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
             input.setStyleSheet('''
+                QLineEdit {
                 background-color: white;
-                font-family: B Nazanin,"Arial";
+                font-family:  "Roboto","Arial";
                 font-weight: bold;
-                font-size: 15px;
+                font-size: 14px;
                 color: black;
                 border: 1px solid #c2c2c2;
                 border-radius: 5px;
                 padding: 5px;
+            }
+            QLineEdit::placeholder {
+                color: #e3e4e6;
+            }
         ''')
+        
+        # تنظیم ترتیب فوکوس به صورت راست به چپ
+        self.setTabOrder(self.name_line, self.last_line)
+        self.setTabOrder(self.last_line, self.old_line)
+        self.setTabOrder(self.old_line, self.new_p_line)
+        self.setTabOrder(self.new_p_line, self.confirm_p_line)
+        
+
+    ##images
+    def get_asset_path(self, filename):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        image_path = os.path.join(project_root, "assets", filename)
+        if os.path.exists(image_path):
+            return image_path
+        else:
+            print(f"⚠ فایل یافت نشد: {image_path}")
+            return None
+    ##
+    def back_settings(self):
+        from settings import Settings
+
+        self.settings= Settings()
+        self.stack_widget.addWidget(self.settings)
+
+        
+        self.stack_widget.setCurrentWidget(self.settings)
         ##
-        for input in (self.new_p_line,self.old_line,self.confirm_p_line):
-            input.setFixedSize(200,40)
-            input.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
-            input.setStyleSheet('''
-                background-color: white;
-                font-family: Arial,"Roboto";
-                font-weight: bold;
-                font-size: 15px;
-                color: black;
-                border: 1px solid #c2c2c2;
-                border-radius: 5px;
-                padding: 5px;
-        ''')
+        start_pos = QPoint(-self.width(), 0)
+        end_pos = QPoint(0, 0)
+        self.settings.move(start_pos)
+        ##
+        self.animate= QPropertyAnimation(self.settings, b"pos",self)
+        self.animate.setDuration(700)
+        self.animate.setStartValue(start_pos)
+        self.animate.setEndValue(end_pos)
+        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animate.start()
+    ##
+    def un_hide(self):
+        pass
+
 
 
 

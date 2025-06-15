@@ -67,3 +67,30 @@ cursor.execute('''
             keep_place TEXT
                );
 ''')
+
+cursor.execute('''
+CREATE TABLE if not exists fixeds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  barcode TEXT NOT NULL UNIQUE,
+  product_name TEXT NOT NULL,
+  categorie TEXT NOT NULL,
+  sub_categorie TEXT NOT NULL,
+  product_image TEXT,
+  weight TEXT,
+  production_date TEXT,
+  brand TEXT,
+  production_place TEXT,
+  product_state TEXT,
+  more_detail TEXT,
+  keep_place TEXT,
+  big_price REAL NOT NULL,
+  buy_price REAL,
+  sell_price REAL,
+  big_category TEXT NOT NULL,
+  sale_unit TEXT,
+  big_quantity INTEGER NOT NULL,
+  created_at TEXT,
+  updated_at TEXT
+);
+
+''')
