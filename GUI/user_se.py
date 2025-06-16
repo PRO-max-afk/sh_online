@@ -21,6 +21,7 @@ class UserSettings(QMainWindow):
         self.label_UI()
         self.feild_UI()
         self.Button_UI()
+        self.btn_mode= True
 
         
 
@@ -51,7 +52,7 @@ class UserSettings(QMainWindow):
         ###
         user_frame= QFrame()
         user_frame.setStyleSheet("background-color: white; border-radius: 12px;")
-        user_frame.setMaximumHeight(170)  # 👈 تنظیم ارتفاع فریم دقیق و جمع‌وجور
+
 
         shadow= QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(12)
@@ -62,12 +63,12 @@ class UserSettings(QMainWindow):
 
         ##
         mn_us_lay= QVBoxLayout(user_frame)
+        #
         user_layout = QHBoxLayout()
         ##
         tt_layout= QHBoxLayout()
         self.tite_label= QLabel("معلومات کاربر")
-        title_lab= QLabel("")
-        title_lab.setFixedHeight(50)
+        self.tite_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         tt_layout.addWidget(self.tite_label)
         tt_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
     
@@ -88,18 +89,51 @@ class UserSettings(QMainWindow):
         last_layout.addStretch(0)
         last_layout.addWidget(self.last_line)
         last_layout.addWidget(self.last_name)
+        ##
+        password= QHBoxLayout()
+        self.pass_na= QLabel("رمز عبور")
+        self.passwor_line= QLineEdit()
+        self.passwor_line.setEchoMode(QLineEdit.EchoMode.Password)
+        ##
+        self.hide_btn= QPushButton(self.passwor_line)
+        # موقعیت دکمه در گوشه راست QLineEdit
+        self.update_icon_position()
+        self.passwor_line.resizeEvent = self.resize_event_with_icon
+        ##
+
+        ##
+        password.addStretch(0)
+        password.addWidget(self.passwor_line)
+        password.addWidget(self.pass_na)
         
-       
-        ###
+        ##
+        ca_password= QHBoxLayout()
+        self.pass_nae= QLabel("تایید رمز عبور")
+        self.ca_passwor_line= QLineEdit()
+        self.ca_passwor_line.setEchoMode(QLineEdit.EchoMode.Password)
+        ca_password.addStretch(0)
+        ca_password.addWidget(self.ca_passwor_line)
+        ca_password.addWidget(self.pass_nae)
+        
+        ##
+        password_la= QHBoxLayout()
+        password_la.addLayout(ca_password)
+        password_la.addLayout(password)
+        ##
+        btn_layout= QHBoxLayout()
+        self.save_btn= QPushButton()
+        btn_layout.addWidget(self.save_btn)
+        btn_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        
+        ##
         user_layout.addLayout(last_layout)
         user_layout.addLayout(name_layout)
-        ##
-        tta_lbb= QLabel("")
-        tta_lbb.setFixedHeight(50)
-
+        ####
         mn_us_lay.addLayout(tt_layout)
         mn_us_lay.addLayout(user_layout)
-        mn_us_lay.addWidget(tta_lbb)
+        mn_us_lay.addLayout(password_la)
+        mn_us_lay.addLayout(btn_layout)
+        
 
 
         ###ٌ#
@@ -157,14 +191,9 @@ class UserSettings(QMainWindow):
         password_layout.addLayout(new_p_layout)
         password_layout.addLayout(old_layout)
         
-        ###
-        tta_Lb= QLabel("")
-        tta_Lb.setFixedHeight(50)
-        
         ##
         mn_lay.addLayout(titel_layout)
         mn_lay.addLayout(password_layout)
-        mn_lay.addWidget(tta_Lb)
         
         ##
         list_frame= QFrame()
@@ -204,7 +233,7 @@ class UserSettings(QMainWindow):
             font-family: Mirza;
         ''')
         ##
-        for label in (self.name_label,self.last_name,self.old_label,self.new_password,self.confirm_password):
+        for label in (self.name_label,self.last_name,self.old_label,self.new_password,self.confirm_password,self.pass_na,self.pass_nae):
             label.setMinimumSize(90,5)
             label.setFixedHeight(40)
             label.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
@@ -216,13 +245,16 @@ class UserSettings(QMainWindow):
         ''')
         
         for title in (self.titel_label,self.tite_label):
-            title.setMinimumSize(90,5)
+            title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             title.setStyleSheet('''
-            font-size: 18px;
-            font-weight: bold; 
-            color: black;
-            font-family: B Nazanin;
-        ''')
+                background-color: #4c5159;
+                font-size: 18px;
+                font-weight: bold; 
+                color: white;
+                font-family: B Nazanin;
+                padding: 8px;
+                border-radius: 5px;
+            ''')
 
     ##
     def Button_UI(self):
@@ -244,10 +276,42 @@ class UserSettings(QMainWindow):
                 background-color: #d0d0d0;  /* خاکستری ملایم هنگام کلیک */
             } 
         ''')
-        
+        ##
+        save_icon= QIcon(self.get_asset_path("Bookmark.png"))
+        self.save_btn.setIcon(save_icon)
+        self.save_btn.setIconSize(QtCore.QSize(30,30))
+        self.save_btn.setMaximumSize(110,40)
+        self.save_btn.setMinimumSize(100,20)
+        self.save_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
+        self.save_btn.setText("ایجاد کاربر")
+        self.save_btn.setStyleSheet('''
+        QPushButton{
+            background-color: #11BD36;
+            border-radius: 8px;
+            padding: 5px;
+            font-family: Mirza, "B Nazanin";
+            font-weight: bold; 
+            font-size: 16px;
+                                    }
+        QPushButton:hover{
+            background-color: #63ff8d;
+                                    }
+        QPushButton:Pressed{
+            background-color: #11BD36;
+                                    }
+        ''')
+        ##
+        self.hide_icon= QIcon(self.get_asset_path("Invisible.png"))
+        self.hide_btn.setIcon(self.hide_icon)
+        self.hide_btn.setIconSize(QtCore.QSize(25,25))
+        self.hide_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.hide_btn.clicked.connect(self.un_hide)
+        self.hide_btn.setStyleSheet('''
+        background-color: transparent;
+        ''')
     ##
     def feild_UI(self):
-        for input in (self.name_line,self.last_line,self.new_p_line,self.old_line,self.confirm_p_line):
+        for input in (self.name_line,self.last_line,self.new_p_line,self.old_line,self.confirm_p_line,self.passwor_line,self.ca_passwor_line):
             input.setFixedSize(200,40)
             input.setPlaceholderText("Enter...")
             input.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
@@ -269,7 +333,9 @@ class UserSettings(QMainWindow):
         
         # تنظیم ترتیب فوکوس به صورت راست به چپ
         self.setTabOrder(self.name_line, self.last_line)
-        self.setTabOrder(self.last_line, self.old_line)
+        self.setTabOrder(self.last_line,self.passwor_line)
+        self.setTabOrder(self.passwor_line, self.ca_passwor_line)
+        self.setTabOrder(self.ca_passwor_line,self.save_btn)
         self.setTabOrder(self.old_line, self.new_p_line)
         self.setTabOrder(self.new_p_line, self.confirm_p_line)
         
@@ -305,7 +371,27 @@ class UserSettings(QMainWindow):
         self.animate.start()
     ##
     def un_hide(self):
-        pass
+        if self.btn_mode:
+            self.hide_btn.setIcon(QIcon(self.get_asset_path("Eye.png")))
+            self.passwor_line.setEchoMode(QLineEdit.EchoMode.Normal)
+            self.ca_passwor_line.setEchoMode(QLineEdit.EchoMode.Normal)
+        else:
+            self.hide_btn.setIcon(QIcon(self.get_asset_path("Invisible.png")))
+            self.passwor_line.setEchoMode(QLineEdit.EchoMode.Password)
+            self.ca_passwor_line.setEchoMode(QLineEdit.EchoMode.Password)
+
+        self.btn_mode = not self.btn_mode
+
+    ##
+    def update_icon_position(self):
+        btn_size = self.hide_btn.sizeHint()
+        line_width = self.passwor_line.width()
+        self.hide_btn.move(line_width - btn_size.width() - 5, (self.passwor_line.height() - btn_size.height()) // 2)
+
+    ##
+    def resize_event_with_icon(self, event):
+        self.update_icon_position()
+        QLineEdit.resizeEvent(self.passwor_line, event)
 
 
 
