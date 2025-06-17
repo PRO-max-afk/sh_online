@@ -7,6 +7,7 @@ import jdatetime
 import sqlite3
 import pymysql
 import requests
+from notifi_box import Notification
 import threading
 import datetime
 from message_b import MessageBox
@@ -64,7 +65,7 @@ class UserSettings(QMainWindow):
         ##
         mn_us_lay= QVBoxLayout(user_frame)
         #
-        user_layout = QHBoxLayout()
+        all_layout= QGridLayout()
         ##
         tt_layout= QHBoxLayout()
         self.tite_label= QLabel("معلومات کاربر")
@@ -74,7 +75,7 @@ class UserSettings(QMainWindow):
     
         ##
         name_layout= QHBoxLayout()
-        self.name_label= QLabel("نام کاربر")
+        self.name_label= QLabel("نام استفاده کننده")
         self.name_line= QLineEdit()
         #
         name_layout.addStretch(0)
@@ -83,8 +84,16 @@ class UserSettings(QMainWindow):
         
         ##
         last_layout= QHBoxLayout()
-        self.last_name= QLabel("نام فامیلی کاربر")
+        self.last_name= QLabel("تخلص")
         self.last_line= QLineEdit()
+        ##
+        users_layout= QHBoxLayout()
+        self.user_label= QLabel("نام کاربری")
+        self.user_line= QLineEdit()
+        #
+        users_layout.addStretch(0)
+        users_layout.addWidget(self.user_line)
+        users_layout.addWidget(self.user_label)
         #
         last_layout.addStretch(0)
         last_layout.addWidget(self.last_line)
@@ -111,14 +120,15 @@ class UserSettings(QMainWindow):
         self.pass_nae= QLabel("تایید رمز عبور")
         self.ca_passwor_line= QLineEdit()
         self.ca_passwor_line.setEchoMode(QLineEdit.EchoMode.Password)
+        self.emty_lb= QLabel("")
         ca_password.addStretch(0)
         ca_password.addWidget(self.ca_passwor_line)
         ca_password.addWidget(self.pass_nae)
         
         ##
-        password_la= QHBoxLayout()
-        password_la.addLayout(ca_password)
-        password_la.addLayout(password)
+        #password_la= QHBoxLayout()
+        #password_la.addLayout(ca_password)
+        #password_la.addLayout(password)
         ##
         btn_layout= QHBoxLayout()
         self.save_btn= QPushButton()
@@ -126,12 +136,22 @@ class UserSettings(QMainWindow):
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         
         ##
-        user_layout.addLayout(last_layout)
-        user_layout.addLayout(name_layout)
+        #user_layout.addLayout(users_layout)
+        #user_layout.addLayout(last_layout)
+        #user_layout.addLayout(name_layout)
+        ##
+        all_layout.setSpacing(10)
+        all_layout.addLayout(users_layout,2,3)
+        all_layout.addLayout(last_layout,1,2)
+        all_layout.addLayout(name_layout,1,3)
+        all_layout.addLayout(ca_password,2,1)
+        all_layout.addLayout(password,2,2)
+        
         ####
         mn_us_lay.addLayout(tt_layout)
-        mn_us_lay.addLayout(user_layout)
-        mn_us_lay.addLayout(password_la)
+        #mn_us_lay.addLayout(user_layout)
+        #mn_us_lay.addLayout(password_la)
+        mn_us_lay.addLayout(all_layout)
         mn_us_lay.addLayout(btn_layout)
         
 
@@ -185,6 +205,13 @@ class UserSettings(QMainWindow):
         confirm_layout.addStretch(0)
         confirm_layout.addWidget(self.confirm_p_line)
         confirm_layout.addWidget(self.confirm_password)
+        ##
+        change_layout= QHBoxLayout()
+        self.change_btn= QPushButton()
+        change_layout.addWidget(self.change_btn)
+        change_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
+
         
         # اضافه‌کردن به چیدمان اصلی
         password_layout.addLayout(confirm_layout)
@@ -194,6 +221,7 @@ class UserSettings(QMainWindow):
         ##
         mn_lay.addLayout(titel_layout)
         mn_lay.addLayout(password_layout)
+        mn_lay.addLayout(change_layout)
         
         ##
         list_frame= QFrame()
@@ -215,7 +243,7 @@ class UserSettings(QMainWindow):
         self.setStyleSheet("background-color: #D9D9D9;")
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
-        self.notification_frame = QFrame(self)
+        self.notification_frame = QFrame(self.user_settings)
         self.notification_frame.setStyleSheet("background: transparent;")
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -233,7 +261,7 @@ class UserSettings(QMainWindow):
             font-family: Mirza;
         ''')
         ##
-        for label in (self.name_label,self.last_name,self.old_label,self.new_password,self.confirm_password,self.pass_na,self.pass_nae):
+        for label in (self.name_label,self.last_name,self.user_label,self.old_label,self.new_password,self.confirm_password,self.pass_na,self.pass_nae):
             label.setMinimumSize(90,5)
             label.setFixedHeight(40)
             label.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
@@ -283,6 +311,7 @@ class UserSettings(QMainWindow):
         self.save_btn.setMaximumSize(110,40)
         self.save_btn.setMinimumSize(100,20)
         self.save_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
+        self.save_btn.clicked.connect(self.add_user)
         self.save_btn.setText("ایجاد کاربر")
         self.save_btn.setStyleSheet('''
         QPushButton{
@@ -309,9 +338,34 @@ class UserSettings(QMainWindow):
         self.hide_btn.setStyleSheet('''
         background-color: transparent;
         ''')
+        ##
+        change_icon= QIcon(self.get_asset_path("change password.png"))
+        self.change_btn.setIcon(change_icon)
+        self.change_btn.setIconSize(QtCore.QSize(30,30))
+        self.change_btn.setMaximumSize(110,40)
+        self.change_btn.setMinimumSize(100,20)
+        self.change_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
+        self.change_btn.setText("تغییر پسورد")
+        self.change_btn.setStyleSheet('''
+        QPushButton{
+            background-color: #11BD36;
+            border-radius: 8px;
+            padding: 5px;
+            font-family: Mirza, "B Nazanin";
+            font-weight: bold; 
+            font-size: 16px;
+                                    }
+        QPushButton:hover{
+            background-color: #63ff8d;
+                                    }
+        QPushButton:Pressed{
+            background-color: #11BD36;
+                                    }
+        ''')
+
     ##
     def feild_UI(self):
-        for input in (self.name_line,self.last_line,self.new_p_line,self.old_line,self.confirm_p_line,self.passwor_line,self.ca_passwor_line):
+        for input in (self.name_line,self.last_line,self.user_line,self.new_p_line,self.old_line,self.confirm_p_line,self.passwor_line,self.ca_passwor_line):
             input.setFixedSize(200,40)
             input.setPlaceholderText("Enter...")
             input.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
@@ -333,12 +387,19 @@ class UserSettings(QMainWindow):
         
         # تنظیم ترتیب فوکوس به صورت راست به چپ
         self.setTabOrder(self.name_line, self.last_line)
-        self.setTabOrder(self.last_line,self.passwor_line)
+        self.setTabOrder(self.last_line,self.user_line)
+        self.setTabOrder(self.user_line,self.passwor_line)
         self.setTabOrder(self.passwor_line, self.ca_passwor_line)
         self.setTabOrder(self.ca_passwor_line,self.save_btn)
         self.setTabOrder(self.old_line, self.new_p_line)
         self.setTabOrder(self.new_p_line, self.confirm_p_line)
-        
+    ##
+    def keyPressEvent(self,event):
+        if event.key() in (Qt.Key.Key_Return,Qt.Key.Key_Enter):
+            if any(line.hasFocus() for line in [self.name_line,self.last_line,self.passwor_line,self.ca_passwor_line]):
+                self.add_user()
+            elif any( line.hasFocus() for line in [self.old_line,self.new_p_line,self.confirm_p_line]):
+                self.update_password()
 
     ##images
     def get_asset_path(self, filename):
@@ -393,6 +454,191 @@ class UserSettings(QMainWindow):
         self.update_icon_position()
         QLineEdit.resizeEvent(self.passwor_line, event)
 
+    ##
+    def add_user(self):
+        name = self.name_line.text()
+        last_name = self.last_line.text()
+        username = self.user_line.text()
+        passwrod = self.passwor_line.text()
+        confirm = self.ca_passwor_line.text()
 
+        # دریافت اطلاعات اتصال
+        data = self.get_db_config()
+
+        # بررسی خالی نبودن فیلدها
+        if not all([name, last_name, username, passwrod, confirm]):
+            MessageBox(text="برای ساخت کاربر باید تمامی فیلدهای لازم پر شود", title="هشدار", type="warning").show()
+            return
+
+        # بررسی تطابق رمز و تایید آن
+        if passwrod != confirm:
+            MessageBox(text="رمز عبور و تایید آن مطابقت ندارند", type="error", title="خطا").show()
+            return
+
+        if not data:
+            print("اتصال به سرور انجام نشد")
+            return
+        
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+        
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT id FROM users;")
+            res_id = cursor_sq.fetchone()
+            id_user = res_id[0]
+        except Exception as e:
+            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            return
+        try:
+            conn = pymysql.connect(
+                host=data["host"],
+                user=data["user"],
+                password=data["password"],
+                database=data["database"]
+            )
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO mobile_user(name, last_name, username, password,user_id) VALUES (%s,%s, %s, %s, %s)",
+                (name, last_name, username, passwrod,id_user)
+            )
+            cursor.execute(
+                "UPDATE mobile_user SET approve=1 WHERE username=%s",
+                (username,)
+            )
+            conn.commit()
+            self.name_line.clear()
+            self.last_line.clear()
+            self.user_line.clear()
+            self.passwor_line.clear()
+            self.ca_passwor_line.clear()
+
+            notif = Notification(
+                message="کاربر موفقانه ایجاد شد",
+                icon_path=self.get_asset_path("Check Mark.png"),
+                pro_name="!موفقانه",
+                parent_frame=self.notification_frame
+            )
+            notif.show()
+
+        except pymysql.Error as e:
+            print(f"{e}: خطا در اتصال به سرور")
+
+        
+
+    def update_password(self):
+        db_data = self.get_db_config()
+        old = self.old_line.text()
+        new = self.new_p_line.text()
+        confirm = self.confirm_p_line.text()
+
+        if not all([old, new, confirm]):
+            MessageBox(text="لطفاً برای تغییر پسورد اطلاعات پسورد خود را وارد کنید", type="warning", title="هشدار").show()
+            return
+
+        if not db_data:
+            print("خطا در اتصال به دیتابیس")
+            return
+
+        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT id FROM users;")
+            res_id = cursor_sq.fetchone()
+            if not res_id:
+                MessageBox(text="یوزر محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
+            id_user = res_id[0]
+        except Exception as e:
+            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn = pymysql.connect(
+                host=db_data["host"],
+                user=db_data["user"],
+                password=db_data["password"],
+                database=db_data["database"]
+            )
+            curosr = conn.cursor()
+            curosr.execute("SELECT password FROM mobile_user WHERE user_id = %s AND password = %s", (id_user, old))
+            result = curosr.fetchone()
+            old_pass= result[0]
+            if old_pass != old:
+                MessageBox(text="پسورد قدیمی اشتباه است", title="هشدار", type="warning").show()
+                return
+
+            if new != confirm:
+                MessageBox(text="پسورد جدید و تایید آن مطابقت ندارند", type="error", title="خطا").show()
+                self.new_p_line.setEchoMode(QLineEdit.EchoMode.Normal)
+                self.confirm_p_line.setEchoMode(QLineEdit.EchoMode.Normal)
+                return
+
+            # بروزرسانی پسورد
+            curosr.execute("UPDATE mobile_user SET password = %s WHERE user_id = %s and password=%s", (new, id_user,old))
+            conn.commit()
+
+            notif = Notification(
+                message="پسورد موفقانه تغییر کرد",
+                icon_path=self.get_asset_path("Check Mark.png"),
+                pro_name="!موفقانه",
+                parent_frame=self.notification_frame
+            )
+            notif.show()
+            
+
+            # پاک‌سازی فیلدها
+            self.old_line.clear()
+            self.new_p_line.clear()
+            self.confirm_p_line.clear()
+
+        except pymysql.Error as e:
+            print(f"{e}: خطا در دیتابیس")
+
+    
+    
+    def get_db_config(self):
+        url = "https://aryaict.com/connect.php"
+
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        cookies = {
+            'humans_21909': '1'
+        }
+
+        try:
+            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
+
+            if response.status_code != 200:
+                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
+                response.raise_for_status()
+
+            if "application/json" not in response.headers.get('Content-Type', ''):
+                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
+
+            data = response.json()
+            required_keys = ("host", "user", "password", "database")
+            if not all(k in data for k in required_keys):
+                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
+
+            return data
+
+        except Exception as e:
+            print("❌ خطا در دریافت کانفیگ:", e)
+            return None
+
+    ##
 
 
