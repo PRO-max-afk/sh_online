@@ -10,8 +10,8 @@ class FingerprintApp(QWidget):
         self.setWindowTitle("ZKTeco 9500 - اسکن اثر انگشت")
         self.setGeometry(300, 200, 400, 200)
         self.zkfp = None  # برای نگهداری DLL
-        self.devHandle = None  # هندل دستگاه
-
+        self.devHandle = None  # هندل دستگاه    
+        self.new=[]
         self.init_ui()
 
     def init_ui(self):
