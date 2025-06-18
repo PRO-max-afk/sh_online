@@ -1,9 +1,11 @@
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import Qt, QPropertyAnimation, QRectF, pyqtProperty
-from PyQt6.QtGui import QPainter, QColor, QBrush, QPen
+from PyQt6.QtCore import Qt, QPropertyAnimation, QRectF, pyqtProperty, pyqtSignal
+from PyQt6.QtGui import QPainter, QColor, QBrush
 
 
 class ToggleSwitch(QWidget):
+    toggled = pyqtSignal(bool)  # ✅ سیگنال برای وصل شدن به تابع بیرونی
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(60, 30)
@@ -20,6 +22,7 @@ class ToggleSwitch(QWidget):
         if self._checked != checked:
             self._checked = checked
             self.animate()
+            self.toggled.emit(self._checked)  # ✅ سیگنال زمانی‌که تغییر کرد
 
     def toggle(self):
         self.setChecked(not self._checked)

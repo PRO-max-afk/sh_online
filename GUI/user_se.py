@@ -3,13 +3,14 @@ from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout
 from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush
 from PyQt6 import QtCore
-import jdatetime
+from circle import CircularSpinner
 import sqlite3
 import pymysql
 import requests
 from notifi_box import Notification
+from user_info import UserFetchThread
 import threading
-import datetime
+from switch import ToggleSwitch
 from message_b import MessageBox
 from switch import ToggleSwitch
 import os
@@ -23,6 +24,8 @@ class UserSettings(QMainWindow):
         self.feild_UI()
         self.Button_UI()
         self.btn_mode= True
+        self.show_first_spinner()
+        #self.active_user()
 
         
 
@@ -32,8 +35,37 @@ class UserSettings(QMainWindow):
         self.setCentralWidget(self.stack_widget)
         
         self.user_settings= QWidget()
-
+    
         main_layout = QVBoxLayout(self.user_settings)
+        ### scroll
+        scroll_area= QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
+            
+        """)
+
+        scroll_widget = QWidget()
+        scroll_layout= QVBoxLayout(scroll_widget)
         # لایه بالا
         top_layout = QHBoxLayout()
         self.label = QLabel("تنظیمات کاربران", self)
@@ -159,7 +191,7 @@ class UserSettings(QMainWindow):
         ###ٌ#
         password_frame = QFrame()
         password_frame.setStyleSheet("background-color: white; border-radius: 12px;")
-        password_frame.setMaximumHeight(170)  # 👈 تنظیم ارتفاع فریم دقیق و جمع‌وجور
+       # password_frame.setMaximumHeight(170)  # 👈 تنظیم ارتفاع فریم دقیق و جمع‌وجور
 
         shadows = QGraphicsDropShadowEffect(self)
         shadows.setBlurRadius(12)
@@ -225,21 +257,77 @@ class UserSettings(QMainWindow):
         
         ##
         list_frame= QFrame()
-        list_frame.setStyleSheet("background-color: transparent; border-radius: 12px;")
-        
+        list_frame.setStyleSheet("background-color: white; border-radius: 12px;")
         ##
+        shad= QGraphicsDropShadowEffect(self)
+        shad.setBlurRadius(12)
+        shad.setXOffset(0)
+        shad.setYOffset(5)
+        shad.setColor(QColor(0,0,0,70))
+        list_frame.setGraphicsEffect(shad)
+        ##
+        self.mn_li_layout= QVBoxLayout(list_frame)
+        ##
+        t_li_layout= QHBoxLayout()
+        self.tt_titel= QLabel("معلومات کاربران موبایل")
+        self.tt_titel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        t_li_layout.addWidget(self.tt_titel)
+        t_li_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        ##
+        # جدول نمایش کاربران موبایل
+        self.mobile_user_table = QTableWidget()
+        self.mobile_user_table.setColumnCount(3)
+        self.mobile_user_table.setHorizontalHeaderLabels(["نام کاربر", "تخلص کاربر", "وضعیت"])
+        self.mobile_user_table.horizontalHeader().setStretchLastSection(True)
+        self.mobile_user_table.verticalHeader().setVisible(False)
+        self.mobile_user_table.setStyleSheet("""
+            QTableWidget {
+                border: none;
+                font-size: 14px;
+                color: black;
+                font-family: B Nazanin,Arial;
+                font-size: 14px;
+                font-weight: bold;
+                padding-top: 10px;
+                padding-bottom: 10px;
+            }
+            QHeaderView::section {
+                background-color: white;
+                color: black;
+                padding: 6px;
+                border: none;
+                border-bottom: 1px solid #888;
+                font-family: "B Nazanin", "Mirza";
+                font-size: 16px;
+                font-weight: bold;
+            }
+
+        """)
+        self.mobile_user_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.mobile_user_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self.mobile_user_table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.mobile_user_table.setShowGrid(False)
+
+        self.mn_li_layout.addLayout(t_li_layout)
+        self.mn_li_layout.addWidget(self.mobile_user_table)
+        ####
         middle_layout.addWidget(user_frame,1,1)
         middle_layout.setSpacing(10)
         middle_layout.addWidget(password_frame,2,1)
         middle_layout.setSpacing(10)
         middle_layout.addWidget(list_frame,3,1)
+        ##
+        scroll_layout.addLayout(middle_layout)
 
         
         # افزودن ویجت‌ها به main_layout
         main_layout.addLayout(top_layout)
-        main_layout.addLayout(middle_layout)
+        scroll_area.setWidget(scroll_widget)
+        scroll_area.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        main_layout.addLayout(scroll_layout)
+        main_layout.addWidget(scroll_area)
 
-        self.setLayout(main_layout)
+        #self.setLayout(main_layout)
         self.setStyleSheet("background-color: #D9D9D9;")
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
@@ -272,7 +360,7 @@ class UserSettings(QMainWindow):
             font-family: B Nazanin;
         ''')
         
-        for title in (self.titel_label,self.tite_label):
+        for title in (self.titel_label,self.tite_label,self.tt_titel):
             title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             title.setStyleSheet('''
                 background-color: #4c5159;
@@ -309,7 +397,7 @@ class UserSettings(QMainWindow):
         self.save_btn.setIcon(save_icon)
         self.save_btn.setIconSize(QtCore.QSize(30,30))
         self.save_btn.setMaximumSize(110,40)
-        self.save_btn.setMinimumSize(100,20)
+        self.save_btn.setMinimumSize(100,35)
         self.save_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
         self.save_btn.clicked.connect(self.add_user)
         self.save_btn.setText("ایجاد کاربر")
@@ -343,7 +431,7 @@ class UserSettings(QMainWindow):
         self.change_btn.setIcon(change_icon)
         self.change_btn.setIconSize(QtCore.QSize(30,30))
         self.change_btn.setMaximumSize(110,40)
-        self.change_btn.setMinimumSize(100,20)
+        self.change_btn.setMinimumSize(100,35)
         self.change_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
         self.change_btn.setText("تغییر پسورد")
         self.change_btn.setStyleSheet('''
@@ -372,7 +460,7 @@ class UserSettings(QMainWindow):
             input.setStyleSheet('''
                 QLineEdit {
                 background-color: white;
-                font-family:  "Roboto","Arial";
+                font-family:Roboto,"B Nazanin";
                 font-weight: bold;
                 font-size: 14px;
                 color: black;
@@ -501,34 +589,54 @@ class UserSettings(QMainWindow):
                 database=data["database"]
             )
             cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO mobile_user(name, last_name, username, password,user_id) VALUES (%s,%s, %s, %s, %s)",
-                (name, last_name, username, passwrod,id_user)
-            )
-            cursor.execute(
-                "UPDATE mobile_user SET approve=1 WHERE username=%s",
-                (username,)
-            )
-            conn.commit()
-            self.name_line.clear()
-            self.last_line.clear()
-            self.user_line.clear()
-            self.passwor_line.clear()
-            self.ca_passwor_line.clear()
+            cursor.execute("SELECT limit_reach From user_s where id=%s",(id_user,))
+            reach=cursor.fetchone()
+            limit_reach= reach[0]
+            cursor.execute("select count(*) from mobile_user where user_id= %s",(id_user,))
+            row=cursor.fetchone()
+            row_number= row[0]
+            print(f"{limit_reach}: limit")
+            print(f'{row_number}: number')
+            
+            if limit_reach > row_number :
+                cursor.execute(
+                    "INSERT INTO mobile_user(name, last_name, username, password,user_id) VALUES (%s,%s, %s, %s, %s)",
+                    (name, last_name, username, passwrod,id_user)
+                )
+                cursor.execute(
+                    "UPDATE mobile_user SET approve=1 WHERE username=%s",
+                    (username,)
+                )
+                conn.commit()
+                self.name_line.clear()
+                self.last_line.clear()
+                self.user_line.clear()
+                self.passwor_line.clear()
+                self.ca_passwor_line.clear()
 
-            notif = Notification(
-                message="کاربر موفقانه ایجاد شد",
-                icon_path=self.get_asset_path("Check Mark.png"),
-                pro_name="!موفقانه",
-                parent_frame=self.notification_frame
-            )
-            notif.show()
+                notif = Notification(
+                    message="کاربر موفقانه ایجاد شد",
+                    icon_path=self.get_asset_path("Check Mark.png"),
+                    pro_name="موفقانه!",
+                    parent_frame=self.notification_frame
+                )
+                notif.show()
+            else:
+                notifs= Notification(
+                    message="اجازه ساخت یوزر موبایل ندارید، باید پلان خود را Upgrade کنید",
+                    icon_path=self.get_asset_path("alarm.png"),
+                    pro_name="متاسفانه!",
+                    parent_frame=self.notification_frame)
+                notifs.show()
+                self.name_line.clear()
+                self.last_line.clear()
+                self.user_line.clear()
+                self.passwor_line.clear()
+                self.ca_passwor_line.clear()
 
         except pymysql.Error as e:
             print(f"{e}: خطا در اتصال به سرور")
-
-        
-
+    ##
     def update_password(self):
         db_data = self.get_db_config()
         old = self.old_line.text()
@@ -602,9 +710,7 @@ class UserSettings(QMainWindow):
 
         except pymysql.Error as e:
             print(f"{e}: خطا در دیتابیس")
-
-    
-    
+    ##
     def get_db_config(self):
         url = "https://aryaict.com/connect.php"
 
@@ -640,5 +746,92 @@ class UserSettings(QMainWindow):
             return None
 
     ##
+    def show_first_spinner(self):
+        self.show_spinner_and_load_data()
+    ##
+    def show_spinner_and_load_data(self):
+        # نمایش spinner
+        self.spinner_wrapper = QWidget()  # ذخیره به عنوان یک ویژگی برای دسترسی بعدی
+        spinner_layout = QVBoxLayout(self.spinner_wrapper)
+        spinner_layout.setContentsMargins(0, 100, 0, 100)
+        spinner_layout.addStretch()
+
+        self.spinner = CircularSpinner(self)
+        spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        spinner_layout.addStretch()
+
+        self.mn_li_layout.addWidget(self.spinner_wrapper)
+
+        # شروع بارگذاری داده‌ها
+        QTimer.singleShot(100, self.active_users)
+
+    ##
+    def active_users(self):
+        self.user_thread = UserFetchThread()
+        self.user_thread.data_ready.connect(self.load_users)
+        self.user_thread.error.connect(lambda msg: MessageBox(text=msg, title="❌ خطا", type="error").show())
+        self.user_thread.start()
+
+    ##
+    def load_users(self, user_list):
+        # حذف spinner بعد از دریافت داده‌ها
+        if hasattr(self, "spinner_wrapper"):
+            self.spinner_wrapper.setParent(None)
+            del self.spinner_wrapper
+
+        self.mobile_user_table.setRowCount(len(user_list))
+
+        for i, row in enumerate(user_list):
+            user_id, username, name, last_name, approve, denied = row
+
+            self.mobile_user_table.setItem(i, 0, QTableWidgetItem(name))
+            self.mobile_user_table.setItem(i, 1, QTableWidgetItem(last_name))
+            self.mobile_user_table.setRowHeight(i, 32)  # به‌جای 32، عدد دلخواه
+
+            switch = ToggleSwitch()
+            switch.setChecked(True if approve == 1 else False)
+
+            def make_handler(uid, uname, switch_obj):
+                def handle_switch_toggled(state):
+                    db_info = self.get_db_config()
+                    try:
+                        conn = pymysql.connect(
+                            host=db_info["host"],
+                            user=db_info["user"],
+                            password=db_info["password"],
+                            database=db_info["database"]
+                        )
+                        cursor = conn.cursor()
+                        if state:
+                            cursor.execute("UPDATE mobile_user SET approve=1, denied=0 WHERE id=%s AND username=%s", (uid, uname))
+                            msg = "کاربر فعال شد"
+                            icon = "Check Mark.png"
+                        else:
+                            cursor.execute("UPDATE mobile_user SET approve=0, denied=1 WHERE id=%s AND username=%s", (uid, uname))
+                            msg = "کاربر غیر فعال شد"
+                            icon = "alarm.png"
+
+                        conn.commit()
+                        conn.close()
+
+                        notif = Notification(
+                            message=msg,
+                            icon_path=self.get_asset_path(icon),
+                            pro_name="وضعیت!",
+                            parent_frame=self.notification_frame
+                        )
+                        notif.show()
+                    except Exception as ex:
+                        print(f"خطا در آپدیت وضعیت: {ex}")
+                return handle_switch_toggled
+
+            switch.toggled.connect(make_handler(user_id, username, switch))
+
+            cell_widget = QWidget()
+            layout = QHBoxLayout(cell_widget)
+            layout.addWidget(switch)
+            layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.setContentsMargins(0, 0, 0, 0)
+            self.mobile_user_table.setCellWidget(i, 2, cell_widget)
 
 
