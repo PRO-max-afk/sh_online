@@ -107,9 +107,9 @@ class ProductBox(QWidget):
 
 
         if image_path and os.path.exists(image_path):
-            pixmap = QPixmap(image_path).scaled(120, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            pixmap = QPixmap(image_path).scaled(120, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         else:
-            pixmap = QPixmap("default.png").scaled(120, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            pixmap = QPixmap("default.png").scaled(120, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
         
         self.image_label.setPixmap(pixmap)
