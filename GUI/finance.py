@@ -22,6 +22,7 @@ class Money(QMainWindow):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
+        self.load_all_fonts()
 
         
 

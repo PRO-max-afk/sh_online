@@ -29,6 +29,7 @@ class ProductDiscount(QDialog):
         self.resize(613, 492)
         self.setFixedSize(613, 492)  # جلوگیری از تغییر اندازه
         self.setStyleSheet("background-color: #E8E6E6;")
+        self.load_all_fonts()
         
 
         self.center_window()  # <-- وسط‌چین کردن

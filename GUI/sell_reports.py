@@ -1,11 +1,15 @@
 from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QToolButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtGui import QPainter,QFont,QColor,QFontDatabase,QIcon
-from PyQt6.QtCore import Qt, QDate,QPoint,QPropertyAnimation,QEasingCurve
-from PyQt6.QtCharts import QChart, QChartView, QBarSet, QBarSeries, QBarCategoryAxis, QValueAxis
+from PyQt6.QtCore import Qt, QDate,QPoint,QPropertyAnimation,QEasingCurve,QTimer
+from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
 from PyQt6 import QtCore
 import os
 import jdatetime
+from month_ca import MonthSelectorDialog
+from sale_thread import SaleThread
+from circle import CircularSpinner
+
 
 
 class SalesDashboard(QMainWindow):
@@ -15,12 +19,15 @@ class SalesDashboard(QMainWindow):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.setStyleSheet("background-color: #D9D9D9;")
         
-        self.tab_buttons = []  # لیستی برای نگهداری دکمه‌ها
+        self.tab_buttons = []  # لیستی برای نگهداری دکمه‌هاپ
+        self.val_labels= {} 
         self.in_UI()
         self.label_UI()
         self.button_UI()
         self.set_today_date()
         self.set_today_time()
+        self.show_first_spinner()
+        self.load_all_fonts()
     
     
     def in_UI(self):
@@ -29,7 +36,7 @@ class SalesDashboard(QMainWindow):
         ##
         self.sell_r_page= QWidget()
 
-        main_layout = QVBoxLayout(self.sell_r_page)
+        self.main_layout = QVBoxLayout(self.sell_r_page)
         
         # لایه بالا
         top_layout = QHBoxLayout()
@@ -60,26 +67,33 @@ class SalesDashboard(QMainWindow):
         
 
         # --- تب‌ها: روزی، هفته، ماهانه
+        middle_layout= QHBoxLayout()
         tab_frame = QFrame()
         tab_frame.setStyleSheet("background-color: #c7c9c8; border-radius: 10px;")
         tabs_layout = QHBoxLayout(tab_frame)
         tab_frame.setFixedSize(500, 50)
-         # --- باکس‌های آماری
+        ##
+        self.calendar_btn= QPushButton()
+        middle_layout.addWidget(self.calendar_btn,alignment=Qt.AlignmentFlag.AlignRight)
+        middle_layout.addStretch(1)
+        middle_layout.addWidget(tab_frame,alignment=Qt.AlignmentFlag.AlignHCenter)
+        middle_layout.addStretch(1)
+        
+        # --- باکس‌های آماری
         stats_layout = QHBoxLayout()
         stats = [
-            ("فروشات حضوری", "300"),
-            ("فروشات آنلاین", "90,000,000 IRR"),
-            ("فروشات مبایل", "8,000,000 IRR"),
-            ("مجموعه فروشات", "81,000,000 IRR"),
-            ("فایده کلی", "22,000,000 IRR"),
-        ]
-        for title, value in stats:
+            ("فروشات حضوری", "offline"),
+            ("فروشات آنلاین", "online"),
+            ("فروشات مبایل", "mobile"),
+            ("مجموعه فروشات", "total"), 
+            ("فایده کلی", "profit") ]
+        for title, key in stats:
             box = QFrame()
             box.setStyleSheet("""
                 QFrame {
                     background: white;
                     border-radius: 10px;
-                    color:black;
+                    color: black;
                     font-family: B Nazanin;
                     font-weight: bold;
                     padding: 5px;
@@ -89,31 +103,33 @@ class SalesDashboard(QMainWindow):
                     margin: 4px;
                 }
             """)
+
             box_layout = QVBoxLayout(box)
-            top_title= QLabel(title)
-            top_title.setStyleSheet('''
+
+            # عنوان
+            top_title = QLabel(title)
+            top_title.setStyleSheet("""
                 color: black;
-                font-family: Mirza,"B Nazanin";
+                font-family: Mirza, 'B Nazanin';
                 font-size: 15px;
                 font-weight: bold;
-            ''')
+            """)
             top_title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             box_layout.addWidget(top_title)
-            val_label = QLabel(value)
-            val_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-            val_label.setStyleSheet("font-weight: bold; font-size: 14px; font-family: arial;")
-            box_layout.addWidget(val_label)
-            stats_layout.addWidget(box)
-            ###shadow
-            shadow= QGraphicsDropShadowEffect(self)
-            shadow.setBlurRadius(10)
-            shadow.setXOffset(0)
-            shadow.setYOffset(5)
-            shadow.setColor(QColor(0, 0, 0, 70))
-            box.setGraphicsEffect(shadow)
 
-            
-        
+            # مقدار
+            val_label = QLabel("")
+            val_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            val_label.setStyleSheet("""
+                font-weight: bold;
+                font-size: 14px;
+                font-family: Arial;
+            """)
+            box_layout.addWidget(val_label)
+
+            # ذخیره label با کلید مشخص
+            self.val_labels[key] = val_label
+            stats_layout.addWidget(box)
         ###
         self.day_btn= QPushButton()
         self.month_btn= QPushButton()
@@ -170,19 +186,25 @@ class SalesDashboard(QMainWindow):
         self.chart_container.addWidget(self.day_frame)  # فقط فریم پیش‌فرض
 
         # --- افزودن به لایه اصلی
-        main_layout.addLayout(top_layout)
-        main_layout.addWidget(tab_frame, alignment=Qt.AlignmentFlag.AlignHCenter)
-        main_layout.addLayout(stats_layout)
-        main_layout.addLayout(self.chart_container)  # اینجا فقط یک فریم داخل آن هست
-        main_layout.addLayout(self.chart_containers)
-        main_layout.addLayout(self.chart_containeres)
+        self.run_layout= QVBoxLayout()
+        self.run_layout.addLayout(stats_layout)
+        self.run_layout.addLayout(self.chart_container)  # اینجا فقط یک فریم داخل آن هست
+        self.run_layout.addLayout(self.chart_containers)
+        self.run_layout.addLayout(self.chart_containeres)
+        
+        ###main layout
+        self.main_layout.addLayout(top_layout)
+        self.main_layout.addLayout(middle_layout)
+        #self.main_layout.addLayout(self.run_layout)
 
+    
+        ###
         self.stack_widget.addWidget(self.sell_r_page)
 
 
         # --- نمودار QChartView
-        chart_view = self.create_bar_chart_month()
-        chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.month_chart_view = self.create_bar_chart_month()
+        self.month_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         ##
         week_chart= self.create_bar_chart_week()
         week_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -190,7 +212,7 @@ class SalesDashboard(QMainWindow):
         day_chart= self.create_bar_chart_day()
         day_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         ###
-        self.month_layout.addWidget(chart_view)
+        self.month_layout.addWidget(self.month_chart_view)
         self.week_layout.addWidget(week_chart)
         self.day_layout.addWidget(day_chart)
         ###
@@ -207,27 +229,49 @@ class SalesDashboard(QMainWindow):
             margin-top: 5px;
         ''')
     ##
-    def create_bar_chart_month(self):
-        from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
-        from PyQt6.QtGui import QColor, QPainter, QFont
-        from PyQt6.QtCore import Qt
+    def show_calendar(self):
+        self.calendar_popup = MonthSelectorDialog(self)
+        pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomLeft())
+        self.calendar_popup.show_with_animation(pos)
+    ##
+    def update_month_chart(self, monthly_totals,total_sale_value: float):
+        # اطمینان از اینکه ورودی یک لیست است
+        if not isinstance(monthly_totals, list):
+            print("❌ خطا: مقدار ورودی برای چارت باید لیست باشد")
+            return
 
-        months = ["حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله", "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"]
-        values = [8000000, 10000000, 14000000, 20000000, 35000000,
-                50000000, 42000000, 25000000, 1200000, 3000000, 55000000, 6000000]
+        # حذف چارت قبلی
+        if self.month_chart_view:
+            self.month_layout.removeWidget(self.month_chart_view)
+            self.month_chart_view.deleteLater()
 
-        # فقط یک BarSet می‌سازیم
+        # ساخت چارت جدید
+        self.month_chart_view = self.create_bar_chart_month(monthly_totals,total_sale_value)
+        self.month_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.month_layout.addWidget(self.month_chart_view)
+
+    ##
+    def create_bar_chart_month(self, monthly_totals: list[float] = None,total_sale_value: float=0):
+
+        months = ["حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله",
+                "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"]
+
+        # اگر آرگومان داده نشد، با صفر پر شود
+        if monthly_totals is None:
+            monthly_totals = [0] * 12
+        elif len(monthly_totals) < 12:
+            monthly_totals += [0] * (12 - len(monthly_totals))
+
+        # 🔸 ساخت مجموعه داده‌ها
         bar_set = QBarSet("فروش ماهانه")
-        bar_set.append(values)
-
-        # 🔸 رنگ اصلی را تعیین می‌کنیم (مثلاً خاکستری)
+        bar_set.append(monthly_totals)
         bar_set.setColor(QColor("#11f55d"))
         bar_set.setLabelFont(QFont("B Nazanin", 11))
         bar_set.setLabelBrush(QColor("black"))
 
         series = QBarSeries()
         series.append(bar_set)
-        series.setBarWidth(0.6)  # 🔸 تراز و عرض مناسب
+        series.setBarWidth(0.6)
 
         chart = QChart()
         chart.addSeries(series)
@@ -242,7 +286,7 @@ class SalesDashboard(QMainWindow):
         series.attachAxis(axis_x)
 
         axis_y = QValueAxis()
-        axis_y.setRange(0, max(values) + 5000000)
+        axis_y.setRange(0, total_sale_value if total_sale_value else 0)
         axis_y.setLabelFormat("%d")
         axis_y.setLabelsFont(QFont("Arial", 10))
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
@@ -252,12 +296,9 @@ class SalesDashboard(QMainWindow):
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
         return chart_view
 
+
     ##
     def create_bar_chart_week(self):
-        from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
-        from PyQt6.QtGui import QColor, QPainter, QFont
-        from PyQt6.QtCore import Qt
-
         months = ["شنبه", "یکشنبه", "دوشنبه", "سه شنبه", "چهارشنبه", "جمعه"]
         values = [8000000, 10000000, 14000000, 20000000, 35000000,
                 50000000, 42000000]
@@ -402,6 +443,25 @@ class SalesDashboard(QMainWindow):
         self.day_btn.setText("روز")
         self.month_btn.setText("ماه")
         self.week_btn.setText("هفته")
+        ##
+        self.cale_icon= QIcon(self.get_asset_path("calendar_8265298.png"))
+        self.calendar_btn.setIcon(self.cale_icon)
+        self.calendar_btn.setIconSize(QtCore.QSize(35,35))
+        self.calendar_btn.setStyleSheet('''
+            QPushButton {
+                background-color: transparent;
+                border: 1px solid transparent;
+                padding: 5px;
+                border-radius: 12px; /* گردی برای همه حالت‌ها */
+            }
+            QPushButton:hover {
+                background-color: #f5f5f5;
+            }
+            QPushButton:pressed {
+                background-color: #d0d0d0;  /* خاکستری ملایم هنگام کلیک */
+            }
+        ''')
+        self.calendar_btn.clicked.connect(self.show_calendar)
     ##
     def handle_tab_click(self, clicked_btn):
         # استایل دکمه‌ها
@@ -453,7 +513,76 @@ class SalesDashboard(QMainWindow):
         self.animate.setEndValue(end_pos)
         self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animate.start()
+    ## new thread
+    def show_first_spinner(self):
+        self.hide_run_layout_widgets()  # ← اول مخفی کن
+        self.show_spinner_and_load_data()
     ##
+    def show_spinner_and_load_data(self):
+        # ویجت کاور شامل همه چیز
+        self.run_layout_widget = QWidget()
+        self.main_layout.addWidget(self.run_layout_widget)
+
+        # لایه اصلی کاور
+        wrapper_layout = QVBoxLayout(self.run_layout_widget)
+
+        # فقط spinner ابتدا نمایش داده شود
+        self.spinner_wrapper = QWidget()
+        spinner_layout = QVBoxLayout(self.spinner_wrapper)
+        spinner_layout.setContentsMargins(0, 100, 0, 100)
+        spinner_layout.addStretch()
+
+        self.spinner = CircularSpinner(self)
+        spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        spinner_layout.addStretch()
+
+        wrapper_layout.addWidget(self.spinner_wrapper)
+
+        # ایجاد run_layout اما فعلاً اضافه نمی‌شود
+        self.run_layout_holder = QWidget()
+        self.run_layout_holder.setVisible(False)
+        self.run_layout_holder.setLayout(self.run_layout)
+
+        wrapper_layout.addWidget(self.run_layout_holder)
+
+        # شروع بارگذاری
+        QTimer.singleShot(100, self.start_thread)
+
+
+    def start_thread(self):
+        self.sale_thread = SaleThread()
+        self.sale_thread.ofline_sale.connect(self.ofline_sale)
+        self.sale_thread.monthly_sale.connect(self.update_month_chart)  # ← اتصال جدید
+        self.sale_thread.total_sale.connect(self.total_value)
+        self.sale_thread.online_sale.connect(self.online_sale)
+        self.sale_thread.finished.connect(self.on_data_loaded)  # ← اتصال جدید
+        self.sale_thread.start()
+
+    ##
+    def on_data_loaded(self):
+        self.spinner_wrapper.deleteLater()
+        self.run_layout_holder.setVisible(True)
+
+
+    ##
+    def ofline_sale(self,value):
+        self.val_labels["offline"].setText(f"{value} افغانی")
+    ##
+    def online_sale(self,value):
+        self.val_labels["online"].setText(f'{value} افغانی')
+    ##
+    def total_value(self,total_sale_value):
+        self.val_labels["total"].setText(f'{total_sale_value} افغانی')
+
+    ##
+    def hide_run_layout_widgets(self):
+        for i in range(self.run_layout.count()):
+            item = self.run_layout.itemAt(i)
+            widget = item.widget()
+            if widget:
+                widget.setVisible(False)
+
+
     
     ##images
     def get_asset_path(self, filename):

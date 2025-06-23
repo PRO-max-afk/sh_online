@@ -20,6 +20,7 @@ class mainwindow(QWidget):
         self.setStyleSheet("background-color:#D9D9D9;")
         self.notifications = []
         self.orders= []
+        self.load_all_fonts()
         
         self.panel_width = 90
         panel_x = screen.width() - self.panel_width  # قرار دادن پنل در سمت راست

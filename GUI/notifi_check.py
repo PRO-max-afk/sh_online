@@ -8,7 +8,6 @@ from PyQt6.QtCore import QThread, pyqtSignal
 import pymysql
 import sqlite3
 import datetime
-from datetime import date
 import time
 import os
 import requests

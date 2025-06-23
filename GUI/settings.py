@@ -22,6 +22,7 @@ class Settings(QMainWindow):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
+        self.load_all_fonts()
 
         
 
@@ -244,6 +245,7 @@ class Settings(QMainWindow):
                 font_id = QFontDatabase.addApplicationFont(font_path)
                 if font_id == -1:
                     print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                
                 else:
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:

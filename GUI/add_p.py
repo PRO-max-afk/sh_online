@@ -30,6 +30,7 @@ class AddProduct(QDialog):
         self.setFixedSize(929, 630)  # جلوگیری از تغییر اندازه
         self.setStyleSheet("background-color: #E8E6E6;")
         self.inventory_page= inventory_page
+        self.load_all_fonts()
         
 
         self.center_window()  # <-- وسط‌چین کردن
