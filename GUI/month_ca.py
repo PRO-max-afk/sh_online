@@ -1,11 +1,11 @@
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QComboBox
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QFont
-import jdatetime  # اضافه‌شده برای استفاده در کل کلاس
+import jdatetime
 
 
 class MonthSelectorDialog(QDialog):
-    def __init__(self, main_window):
+    def __init__(self, main_window, default_jyear=None, default_jmonth=None):
         super().__init__(main_window)
         self.main_window = main_window
 
@@ -32,10 +32,15 @@ class MonthSelectorDialog(QDialog):
         ]
         self.month_combo.addItems(self.month_names)
 
-        # 🔸 تنظیم ماه فعلی شمسی به عنوان پیش‌فرض
-        current_jdate = jdatetime.date.today()
-        self.current_month = current_jdate.month
-        self.current_year = current_jdate.year
+        # 🔸 تنظیم سال و ماه شمسی اولیه
+        if default_jyear is not None and default_jmonth is not None:
+            self.current_year = default_jyear
+            self.current_month = default_jmonth
+        else:
+            today = jdatetime.date.today()
+            self.current_year = today.year
+            self.current_month = today.month
+
         self.month_combo.setCurrentIndex(self.current_month - 1)
         self.month_combo.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.month_combo.setStyleSheet('''
@@ -92,8 +97,9 @@ class MonthSelectorDialog(QDialog):
             }
         ''')
 
-        self.month_combo.currentIndexChanged.connect(self.month_selected)
         layout.addWidget(self.month_combo)
+
+        self.month_combo.currentIndexChanged.connect(self.month_selected)
 
     def show_with_animation(self, pos):
         self.move(pos)
@@ -116,7 +122,15 @@ class MonthSelectorDialog(QDialog):
         self.fade_anim.start()
 
     def month_selected(self, index):
-        selected_month = index + 1
-        formatted = f"{self.current_year}/{selected_month:02d}"
-        #self.main_window.set_selected_date(formatted)
+        self.current_month = index + 1  # ← بروزرسانی انتخاب فعلی
+        formatted = f"{self.current_year}/{self.current_month:02d}"
+        self.main_window.set_selected_month_data(formatted)
         self.hide_with_animation()
+
+    def set_selected_month(self, jyear: int, jmonth: int):
+        self.current_year = jyear
+        self.current_month = jmonth
+        # قطع سیگنال برای جلوگیری از اجرای month_selected هنگام تنظیم دستی
+        self.month_combo.blockSignals(True)
+        self.month_combo.setCurrentIndex(jmonth - 1)
+        self.month_combo.blockSignals(False)

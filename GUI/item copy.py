@@ -16,7 +16,7 @@ class ChangeItems(QWidget):
             title_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
             back_button = QPushButton()
-            back_button.setIcon(QIcon('images/back.png'))
+            back_button.setIcon(QIcon('assets/back.png'))
             back_button.setIconSize(QSize(60, 60))
             back_button.setFixedSize(70, 70)
             back_button.setStyleSheet("""

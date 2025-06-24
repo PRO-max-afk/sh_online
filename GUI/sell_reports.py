@@ -1,12 +1,11 @@
 from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QToolButton,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
+    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout,QComboBox)
 from PyQt6.QtGui import QPainter,QFont,QColor,QFontDatabase,QIcon
 from PyQt6.QtCore import Qt, QDate,QPoint,QPropertyAnimation,QEasingCurve,QTimer
 from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
 from PyQt6 import QtCore
 import os
 import jdatetime
-from month_ca import MonthSelectorDialog
 from sale_thread import SaleThread
 from circle import CircularSpinner
 
@@ -21,6 +20,7 @@ class SalesDashboard(QMainWindow):
         
         self.tab_buttons = []  # لیستی برای نگهداری دکمه‌هاپ
         self.val_labels= {} 
+        self.selected_month= None
         self.in_UI()
         self.label_UI()
         self.button_UI()
@@ -73,14 +73,29 @@ class SalesDashboard(QMainWindow):
         tabs_layout = QHBoxLayout(tab_frame)
         tab_frame.setFixedSize(500, 50)
         ##
-        self.calendar_btn= QPushButton()
-        middle_layout.addWidget(self.calendar_btn,alignment=Qt.AlignmentFlag.AlignRight)
+        self.month_combo = QComboBox()
+        middle_layout.addWidget(self.month_combo,alignment=Qt.AlignmentFlag.AlignRight)
         middle_layout.addStretch(1)
         middle_layout.addWidget(tab_frame,alignment=Qt.AlignmentFlag.AlignHCenter)
         middle_layout.addStretch(1)
         
+        ##### frames
+
+        
+        # --- تعریف فریم‌ها و لایه‌ها
+        self.day_frame = QFrame()
+        self.day_layout = QVBoxLayout(self.day_frame)
+        #self.day_layout.addWidget(self.create_bar_chart())
+
+        self.week_frame = QFrame()
+        self.week_layout = QVBoxLayout(self.week_frame)
+        #self.week_layout.addWidget(self.create_bar_chart())
+
+        self.month_frame = QFrame()
+        self.month_layout = QVBoxLayout(self.month_frame)
+        
         # --- باکس‌های آماری
-        stats_layout = QHBoxLayout()
+        stats_layout = QHBoxLayout(self.month_frame)
         stats = [
             ("فروشات حضوری", "offline"),
             ("فروشات آنلاین", "online"),
@@ -105,6 +120,13 @@ class SalesDashboard(QMainWindow):
             """)
 
             box_layout = QVBoxLayout(box)
+            shadow= QGraphicsDropShadowEffect(self)
+            
+            shadow.setBlurRadius(12)
+            shadow.setXOffset(0)
+            shadow.setYOffset(5)
+            shadow.setColor(QColor(0,0,0,70))
+            box.setGraphicsEffect(shadow)
 
             # عنوان
             top_title = QLabel(title)
@@ -130,21 +152,12 @@ class SalesDashboard(QMainWindow):
             # ذخیره label با کلید مشخص
             self.val_labels[key] = val_label
             stats_layout.addWidget(box)
+        
         ###
         self.day_btn= QPushButton()
         self.month_btn= QPushButton()
         self.week_btn= QPushButton()
-       # --- تعریف فریم‌ها و لایه‌ها
-        self.day_frame = QFrame()
-        self.day_layout = QVBoxLayout(self.day_frame)
-        #self.day_layout.addWidget(self.create_bar_chart())
-
-        self.week_frame = QFrame()
-        self.week_layout = QVBoxLayout(self.week_frame)
-        #self.week_layout.addWidget(self.create_bar_chart())
-
-        self.month_frame = QFrame()
-        self.month_layout = QVBoxLayout(self.month_frame)
+       
 
         # --- نگاشت دکمه‌ها به فریم‌ها
         self.tab_buttons = []
@@ -177,17 +190,19 @@ class SalesDashboard(QMainWindow):
        
         # --- لایه برای فریم فعال (فقط یکی در لحظه داخل آن خواهد بود)
         self.chart_container = QVBoxLayout()
+        self.chart_container.addLayout(stats_layout)
         self.chart_container.addWidget(self.month_frame)  # فقط فریم پیش‌فرض
+        
         # --- لایه برای فریم فعال (فقط یکی در لحظه داخل آن خواهد بود)
         self.chart_containers = QVBoxLayout()
-        self.chart_container.addWidget(self.week_frame)  # فقط فریم پیش‌فرض# --- لایه بر
+        self.chart_containers.addWidget(self.week_frame)  # فقط فریم پیش‌فرض# --- لایه بر
 
         self.chart_containeres = QVBoxLayout()
-        self.chart_container.addWidget(self.day_frame)  # فقط فریم پیش‌فرض
+        self.chart_containeres.addWidget(self.day_frame)  # فقط فریم پیش‌فرض
 
         # --- افزودن به لایه اصلی
         self.run_layout= QVBoxLayout()
-        self.run_layout.addLayout(stats_layout)
+        #self.run_layout.addLayout(stats_layout)
         self.run_layout.addLayout(self.chart_container)  # اینجا فقط یک فریم داخل آن هست
         self.run_layout.addLayout(self.chart_containers)
         self.run_layout.addLayout(self.chart_containeres)
@@ -228,11 +243,6 @@ class SalesDashboard(QMainWindow):
             font-family: Mirza;
             margin-top: 5px;
         ''')
-    ##
-    def show_calendar(self):
-        self.calendar_popup = MonthSelectorDialog(self)
-        pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomLeft())
-        self.calendar_popup.show_with_animation(pos)
     ##
     def update_month_chart(self, monthly_totals,total_sale_value: float):
         # اطمینان از اینکه ورودی یک لیست است
@@ -444,24 +454,76 @@ class SalesDashboard(QMainWindow):
         self.month_btn.setText("ماه")
         self.week_btn.setText("هفته")
         ##
-        self.cale_icon= QIcon(self.get_asset_path("calendar_8265298.png"))
-        self.calendar_btn.setIcon(self.cale_icon)
-        self.calendar_btn.setIconSize(QtCore.QSize(35,35))
-        self.calendar_btn.setStyleSheet('''
-            QPushButton {
-                background-color: transparent;
-                border: 1px solid transparent;
-                padding: 5px;
-                border-radius: 12px; /* گردی برای همه حالت‌ها */
+        self.month_combo.setFixedWidth(150)
+        self.month_combo.setStyleSheet('''
+            QComboBox {
+                background-color: white;
+                font-family: "B Nazanin";
+                font-size: 15px;
+                font-weight: bold;
+                color: #000;
+                border: 1px solid #bfbfbf;
+                border-radius: 8px;
+                text-align: right;
+                padding: 6px 10px 6px 30px; /* فضای کافی برای فلش در سمت چپ */
+                padding-left: 70px;
             }
-            QPushButton:hover {
-                background-color: #f5f5f5;
+
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top left; /* انتقال فلش به چپ */
+                width: 30px;
+                border: none;
             }
-            QPushButton:pressed {
-                background-color: #d0d0d0;  /* خاکستری ملایم هنگام کلیک */
+
+            QComboBox::down-arrow {
+                image: url(assets/Down Button.png);
+                width: 20px;
+                height: 20px;
+            }
+
+            QComboBox QAbstractItemView {
+                background-color: white;  /* پس‌زمینه سفید */
+                color: black;             /* متن سیاه */
+                text-align: left;        /* تراز متن به راست */
+                font-family: "B Nazanin";
+                font-size: 15px;
+                border: 1px solid #bfbfbf;
+                border-radius: 8px;
+                selection-background-color: #f0f0f0;  /* رنگ انتخاب آیتم */
+            }
+             QScrollArea {
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
             }
         ''')
-        self.calendar_btn.clicked.connect(self.show_calendar)
+
+        # اضافه کردن ماه‌های شمسی
+        self.months_jalali = ["حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله",
+                            "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"]
+        self.month_combo.addItems(self.months_jalali)
+       ##
+       # تنظیم مقدار پیش‌فرض به ماه جاری
+        today = jdatetime.date.today()
+        self.month_combo.setCurrentIndex(today.month - 1)
+        self.month_combo.currentIndexChanged.connect(self.handle_month_change)
+       
     ##
     def handle_tab_click(self, clicked_btn):
         # استایل دکمه‌ها
@@ -519,48 +581,72 @@ class SalesDashboard(QMainWindow):
         self.show_spinner_and_load_data()
     ##
     def show_spinner_and_load_data(self):
-        # ویجت کاور شامل همه چیز
-        self.run_layout_widget = QWidget()
-        self.main_layout.addWidget(self.run_layout_widget)
+        if not hasattr(self, "run_layout_widget"):
+            # فقط یک‌بار ایجاد شود
+            self.run_layout_widget = QWidget()
+            self.main_layout.addWidget(self.run_layout_widget)
 
-        # لایه اصلی کاور
-        wrapper_layout = QVBoxLayout(self.run_layout_widget)
+            # لایه اصلی کاور
+            self.wrapper_layout = QVBoxLayout(self.run_layout_widget)
 
-        # فقط spinner ابتدا نمایش داده شود
-        self.spinner_wrapper = QWidget()
-        spinner_layout = QVBoxLayout(self.spinner_wrapper)
-        spinner_layout.setContentsMargins(0, 100, 0, 100)
-        spinner_layout.addStretch()
+            # ویجت spinner
+            self.spinner_wrapper = QWidget()
+            spinner_layout = QVBoxLayout(self.spinner_wrapper)
+            spinner_layout.setContentsMargins(0, 100, 0, 100)
+            spinner_layout.addStretch()
 
-        self.spinner = CircularSpinner(self)
-        spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
-        spinner_layout.addStretch()
+            self.spinner = CircularSpinner(self)
+            spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+            spinner_layout.addStretch()
 
-        wrapper_layout.addWidget(self.spinner_wrapper)
+            self.wrapper_layout.addWidget(self.spinner_wrapper)
 
-        # ایجاد run_layout اما فعلاً اضافه نمی‌شود
-        self.run_layout_holder = QWidget()
-        self.run_layout_holder.setVisible(False)
-        self.run_layout_holder.setLayout(self.run_layout)
+            # محتوای اصلی برنامه (ابتدا پنهان)
+            self.run_layout_holder = QWidget()
+            self.run_layout_holder.setVisible(False)
+            self.run_layout_holder.setLayout(self.run_layout)
+            self.wrapper_layout.addWidget(self.run_layout_holder)
+        else:
+            # اگر spinner حذف شده بود (بعد از بارگذاری)، دوباره بساز
+            if self.spinner_wrapper is None or self.spinner_wrapper.isHidden():
+                self.spinner_wrapper = QWidget()
+                spinner_layout = QVBoxLayout(self.spinner_wrapper)
+                spinner_layout.setContentsMargins(0, 100, 0, 100)
+                spinner_layout.addStretch()
 
-        wrapper_layout.addWidget(self.run_layout_holder)
+                self.spinner = CircularSpinner(self)
+                spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+                spinner_layout.addStretch()
 
-        # شروع بارگذاری
-        QTimer.singleShot(100, self.start_thread)
+                self.wrapper_layout.insertWidget(0, self.spinner_wrapper)
 
+            self.spinner_wrapper.setVisible(True)
+            self.run_layout_holder.setVisible(False)
 
-    def start_thread(self):
-        self.sale_thread = SaleThread()
+        # 👇 مقدار انتخاب‌شده را بده به ترد
+        QTimer.singleShot(100, lambda: self.start_thread(self.selected_month))
+
+    ##
+    def start_thread(self, year_month: str = None):
+        if year_month is None:
+            jdate = jdatetime.date.today()
+            year_month = f"{jdate.year}/{jdate.month:02d}"
+
+        self.sale_thread = SaleThread(selected_month=year_month)
         self.sale_thread.ofline_sale.connect(self.ofline_sale)
-        self.sale_thread.monthly_sale.connect(self.update_month_chart)  # ← اتصال جدید
+        self.sale_thread.monthly_sale.connect(self.update_month_chart)
         self.sale_thread.total_sale.connect(self.total_value)
         self.sale_thread.online_sale.connect(self.online_sale)
-        self.sale_thread.finished.connect(self.on_data_loaded)  # ← اتصال جدید
+        self.sale_thread.monthly_sa.connect(self.update_monthly_boxes)
+        self.sale_thread.finished.connect(self.on_data_loaded)
         self.sale_thread.start()
+
 
     ##
     def on_data_loaded(self):
-        self.spinner_wrapper.deleteLater()
+        if self.spinner_wrapper:
+            self.spinner_wrapper.deleteLater()
+            self.spinner_wrapper = None  # ← برای بررسی بعدی
         self.run_layout_holder.setVisible(True)
 
 
@@ -581,6 +667,31 @@ class SalesDashboard(QMainWindow):
             widget = item.widget()
             if widget:
                 widget.setVisible(False)
+    ##
+    def update_monthly_boxes(self, stats: dict):
+        for key, value in stats.items():
+            if key in self.val_labels:
+                self.val_labels[key].setText(f"{value:,.0f}")
+    ##
+    def set_selected_month_data(self, year_month: str):
+        if self.selected_month != year_month:
+            self.selected_month = year_month
+            self.start_thread(year_month)
+            self.show_first_spinner()
+        else:   
+            # ماه قبلاً انتخاب شده، ولی می‌خواهیم دوباره لود کنیم (مثلاً بعد از انتخاب مجدد)
+            self.start_thread(year_month)
+            self.show_first_spinner()
+        ##
+    def handle_month_change(self, index):
+        # گرفتن سال جاری جلالی
+        current_year = jdatetime.date.today().year
+        month_number = index + 1
+        formatted_month = f"{current_year}/{month_number:02d}"
+        self.set_selected_month_data(formatted_month)
+
+
+
 
 
     
