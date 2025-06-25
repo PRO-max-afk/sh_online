@@ -614,6 +614,7 @@ class AddProduct(QDialog):
         self.product_popup.hide()
     ##
     def calculate_total(self):
+        barcode= self.bar_line.text()
         name = self.name_line.text()
         old_number = self.quantity_line.text()
         new_number = self.number_line.text()
@@ -635,7 +636,7 @@ class AddProduct(QDialog):
         try:
             conn_sq = sqlite3.connect(db_path)
             cursor_sq= conn_sq.cursor()
-            cursor_sq.execute('SELECT buy_price FROM products WHERE name= ? ', (name,))
+            cursor_sq.execute('SELECT buy_price FROM products WHERE name= ? ', (barcode,))
             price = cursor_sq.fetchone()
             total_price = float(price[0]) if price and price[0] else 0.0
             final_total = (total_price * old_quantity) + (buy_price * new_quantity)
@@ -678,7 +679,7 @@ class AddProduct(QDialog):
                 SELECT big_sub, buy_price,big_quantity
                 FROM products 
                 WHERE name = ?
-            """, (name,))
+            """, (barcode,))
             row = cursor_sq.fetchone()
 
             if row:

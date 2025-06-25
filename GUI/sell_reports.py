@@ -20,7 +20,11 @@ class SalesDashboard(QMainWindow):
         
         self.tab_buttons = []  # لیستی برای نگهداری دکمه‌هاپ
         self.val_labels= {} 
+        self.val_labelse= {}
+        self.val_labelses= {}
         self.selected_month= None
+        self.selected_week=None
+        self.selected_day=None
         self.in_UI()
         self.label_UI()
         self.button_UI()
@@ -152,7 +156,124 @@ class SalesDashboard(QMainWindow):
             # ذخیره label با کلید مشخص
             self.val_labels[key] = val_label
             stats_layout.addWidget(box)
-        
+        ###
+        # --- باکس‌های آماری
+        stats_layout_w = QHBoxLayout(self.month_frame)
+        statse = [
+            ("فروشات حضوری", "offlines"),
+            ("فروشات آنلاین", "onlines"),
+            ("فروشات مبایل", "mobiles"),
+            ("مجموعه فروشات", "totals"), 
+            ("فایده کلی", "profits") ]
+        for title, key in statse:
+            box = QFrame()
+            box.setStyleSheet("""
+                QFrame {
+                    background: white;
+                    border-radius: 10px;
+                    color: black;
+                    font-family: B Nazanin;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+                QLabel {
+                    font-size: 14px;
+                    margin: 4px;
+                }
+            """)
+
+            box_layout = QVBoxLayout(box)
+            shadow= QGraphicsDropShadowEffect(self)
+            
+            shadow.setBlurRadius(12)
+            shadow.setXOffset(0)
+            shadow.setYOffset(5)
+            shadow.setColor(QColor(0,0,0,70))
+            box.setGraphicsEffect(shadow)
+
+            # عنوان
+            top_title = QLabel(title)
+            top_title.setStyleSheet("""
+                color: black;
+                font-family: Mirza, 'B Nazanin';
+                font-size: 15px;
+                font-weight: bold;
+            """)
+            top_title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            box_layout.addWidget(top_title)
+
+            # مقدار
+            val_labels = QLabel("")
+            val_labels.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            val_labels.setStyleSheet("""
+                font-weight: bold;
+                font-size: 14px;
+                font-family: Arial;
+            """)
+            box_layout.addWidget(val_labels)
+
+            # ذخیره label با کلید مشخص
+            self.val_labelse[key] = val_labels
+            stats_layout_w.addWidget(box)
+        ###
+         # --- باکس‌های آماری
+        stats_layout_d = QHBoxLayout(self.month_frame)
+        statses = [
+            ("فروشات حضوری", "offliness"),
+            ("فروشات آنلاین", "onliness"),
+            ("فروشات مبایل", "mobiless"),
+            ("مجموعه فروشات", "totalss"), 
+            ("فایده کلی", "profitss") ]
+        for title, key in statses:
+            box = QFrame()
+            box.setStyleSheet("""
+                QFrame {
+                    background: white;
+                    border-radius: 10px;
+                    color: black;
+                    font-family: B Nazanin;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+                QLabel {
+                    font-size: 14px;
+                    margin: 4px;
+                }
+            """)
+
+            box_layout = QVBoxLayout(box)
+            shadow= QGraphicsDropShadowEffect(self)
+            
+            shadow.setBlurRadius(12)
+            shadow.setXOffset(0)
+            shadow.setYOffset(5)
+            shadow.setColor(QColor(0,0,0,70))
+            box.setGraphicsEffect(shadow)
+
+            # عنوان
+            top_title = QLabel(title)
+            top_title.setStyleSheet("""
+                color: black;
+                font-family: Mirza, 'B Nazanin';
+                font-size: 15px;
+                font-weight: bold;
+            """)
+            top_title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            box_layout.addWidget(top_title)
+
+            # مقدار
+            val_labelss = QLabel("")
+            val_labelss.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            val_labelss.setStyleSheet("""
+                font-weight: bold;
+                font-size: 14px;
+                font-family: Arial;
+            """)
+            box_layout.addWidget(val_labelss)
+
+            # ذخیره label با کلید مشخص
+            self.val_labelses[key] = val_labelss
+            stats_layout_d.addWidget(box)
         ###
         self.day_btn= QPushButton()
         self.month_btn= QPushButton()
@@ -190,14 +311,16 @@ class SalesDashboard(QMainWindow):
        
         # --- لایه برای فریم فعال (فقط یکی در لحظه داخل آن خواهد بود)
         self.chart_container = QVBoxLayout()
-        self.chart_container.addLayout(stats_layout)
-        self.chart_container.addWidget(self.month_frame)  # فقط فریم پیش‌فرض
+        self.month_layout.addLayout(stats_layout)  # فقط به ماه اضافه شود
+        self.chart_container.addWidget(self.month_frame)
         
         # --- لایه برای فریم فعال (فقط یکی در لحظه داخل آن خواهد بود)
         self.chart_containers = QVBoxLayout()
+        self.week_layout.addLayout(stats_layout_w)
         self.chart_containers.addWidget(self.week_frame)  # فقط فریم پیش‌فرض# --- لایه بر
 
         self.chart_containeres = QVBoxLayout()
+        self.day_layout.addLayout(stats_layout_d)
         self.chart_containeres.addWidget(self.day_frame)  # فقط فریم پیش‌فرض
 
         # --- افزودن به لایه اصلی
@@ -221,15 +344,15 @@ class SalesDashboard(QMainWindow):
         self.month_chart_view = self.create_bar_chart_month()
         self.month_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         ##
-        week_chart= self.create_bar_chart_week()
-        week_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.week_chart_view= self.create_bar_chart_week()
+        self.week_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         ##
-        day_chart= self.create_bar_chart_day()
-        day_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.day_chart= self.create_bar_chart_day()
+        self.day_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         ###
         self.month_layout.addWidget(self.month_chart_view)
-        self.week_layout.addWidget(week_chart)
-        self.day_layout.addWidget(day_chart)
+        self.week_layout.addWidget(self.week_chart_view)
+        self.day_layout.addWidget(self.day_chart)
         ###
         self.stack_widget.addWidget(self.sell_r_page)
 
@@ -308,93 +431,136 @@ class SalesDashboard(QMainWindow):
 
 
     ##
-    def create_bar_chart_week(self):
-        months = ["شنبه", "یکشنبه", "دوشنبه", "سه شنبه", "چهارشنبه", "جمعه"]
-        values = [8000000, 10000000, 14000000, 20000000, 35000000,
-                50000000, 42000000]
+    def update_week_chart(self, week_sale,total_sale_week: float):
+        # اطمینان از اینکه ورودی یک لیست است
+        if not isinstance(week_sale, list):
+            print("❌ خطا: مقدار ورودی برای چارت باید لیست باشد")
+            return
 
-        # فقط یک BarSet می‌سازیم
+        # حذف چارت قبلی
+        if self.week_chart_view:
+            self.week_layout.removeWidget(self.week_chart_view)
+            self.week_chart_view.deleteLater()
+
+        # ساخت چارت جدید
+        self.week_chart_view = self.create_bar_chart_week(week_sale,total_sale_week)
+        self.week_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.week_layout.addWidget(self.week_chart_view)
+
+    ##
+    def create_bar_chart_week(self, weekly_sales: list[float] = None, total_week_value: float = 0):
+        # اگر هیچ داده‌ای داده نشده، مقدار پیش‌فرض
+        if weekly_sales is None:
+            weekly_sales = [0] * 4  # فرض: حداکثر 4 هفته اخیر
+
+        # ساخت لیبل‌های هفته‌ها (هفته ۱، هفته ۲، ...)
+        week_labels = [f"هفته {i + 1}" for i in range(len(weekly_sales))]
+
+        # 🔹 ساخت BarSet
         bar_set = QBarSet("فروش هفته وار")
-        bar_set.append(values)
-
-        # 🔸 رنگ اصلی را تعیین می‌کنیم (مثلاً خاکستری)
+        bar_set.append(weekly_sales)
         bar_set.setColor(QColor("#11f55d"))
         bar_set.setLabelFont(QFont("B Nazanin", 11))
         bar_set.setLabelBrush(QColor("black"))
 
+        # 🔹 سری داده‌ها
         series = QBarSeries()
         series.append(bar_set)
-        series.setBarWidth(0.6)  # 🔸 تراز و عرض مناسب
+        series.setBarWidth(0.6)
 
+        # 🔹 چارت اصلی
         chart = QChart()
         chart.addSeries(series)
         chart.setTitle("گزارش فروش هفته وار")
         chart.setTitleFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
 
+        # 🔹 محور X (لیبل هفته‌ها)
         axis_x = QBarCategoryAxis()
-        axis_x.append(months)
+        axis_x.append(week_labels)
         axis_x.setLabelsFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
 
+        # 🔹 محور Y (مقدار فروش)
         axis_y = QValueAxis()
-        axis_y.setRange(0, max(values) + 5000000)
+        axis_y.setRange(0, total_week_value if total_week_value else max(weekly_sales + [0]))
         axis_y.setLabelFormat("%d")
         axis_y.setLabelsFont(QFont("Arial", 10))
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 
+        # 🔹 نهایی: QChartView
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
         return chart_view
 
+ ##
+    def update_day_chart(self, day_sale,total_sale_day: float):
+        # اطمینان از اینکه ورودی یک لیست است
+        if not isinstance(day_sale, list):
+            print("❌ خطا: مقدار ورودی برای چارت باید لیست باشد")
+            return
+
+        # حذف چارت قبلی
+        if self.day_chart:
+            self.day_layout.removeWidget(self.day_chart)
+            self.day_chart.deleteLater()
+
+        # ساخت چارت جدید
+        self.day_chart = self.create_bar_chart_day(day_sale,total_sale_day)
+        self.week_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.day_layout.addWidget(self.day_chart)
+
     ##
-    def create_bar_chart_day(self):
-        from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
-        from PyQt6.QtGui import QColor, QPainter, QFont
-        from PyQt6.QtCore import Qt
+    def create_bar_chart_day(self, daily_sales: list[float] = None, total_day_value: float = 0):
+        # اگر هیچ داده‌ای داده نشده، مقدار پیش‌فرض ۷ روز هفته
+        if daily_sales is None:
+            daily_sales = [0] * 7
 
-        months = ["فروشات حضوری", "فروشات آنلاین", "فروشات مبایل"]
-        values = [8000000, 10000000, 14000000]
+        # لیبل‌های روزهای هفته شمسی (به ترتیب استاندارد جلالی)
+        day_labels = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
 
-        # فقط یک BarSet می‌سازیم
+        # 🔹 ساخت BarSet
         bar_set = QBarSet("فروش روزانه")
-        bar_set.append(values)
-
-        # 🔸 رنگ اصلی را تعیین می‌کنیم (مثلاً خاکستری)
+        bar_set.append(daily_sales)
         bar_set.setColor(QColor("#11f55d"))
         bar_set.setLabelFont(QFont("B Nazanin", 11))
         bar_set.setLabelBrush(QColor("black"))
 
+        # 🔹 سری داده‌ها
         series = QBarSeries()
         series.append(bar_set)
-        series.setBarWidth(0.6)  # 🔸 تراز و عرض مناسب
+        series.setBarWidth(0.6)
 
+        # 🔹 چارت اصلی
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("گزارشات فروش روزانه")
+        chart.setTitle("گزارش فروش روزانه")
         chart.setTitleFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
 
+        # 🔹 محور X (روزهای هفته)
         axis_x = QBarCategoryAxis()
-        axis_x.append(months)
+        axis_x.append(day_labels)
         axis_x.setLabelsFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
 
+        # 🔹 محور Y (مقدار فروش)
         axis_y = QValueAxis()
-        axis_y.setRange(0, max(values) + 5000000)
+        axis_y.setRange(0, total_day_value if total_day_value else max(daily_sales + [0]))
         axis_y.setLabelFormat("%d")
         axis_y.setLabelsFont(QFont("Arial", 10))
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 
+        # 🔹 نهایی: QChartView
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
         return chart_view
 
-    ##
+  ##
     def set_today_date(self):
         today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")
         self.date_label.setText(f"تاریخ: {today_jalali}")
@@ -466,7 +632,7 @@ class SalesDashboard(QMainWindow):
                 border-radius: 8px;
                 text-align: right;
                 padding: 6px 10px 6px 30px; /* فضای کافی برای فلش در سمت چپ */
-                padding-left: 70px;
+                padding-left: 50px;
             }
 
             QComboBox::drop-down {
@@ -524,7 +690,7 @@ class SalesDashboard(QMainWindow):
         self.month_combo.setCurrentIndex(today.month - 1)
         self.month_combo.currentIndexChanged.connect(self.handle_month_change)
        
-    ##
+    ###
     def handle_tab_click(self, clicked_btn):
         # استایل دکمه‌ها
         for btn in self.tab_buttons:
@@ -554,6 +720,22 @@ class SalesDashboard(QMainWindow):
         # نمایش فقط فریم مربوطه
         for btn, frame in self.tab_frames.items():
             frame.setVisible(btn == clicked_btn)
+        
+        ## setting month,week names
+        self.month_combo.clear()
+        if clicked_btn== self.month_btn:
+            # ماه‌های شمسی
+            months = [
+                "حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله",
+                "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"
+            ]
+            self.month_combo.addItems(months)
+        elif clicked_btn== self.week_btn:
+            week= ["هفته اول","هفته دوم","هفته سوم"," هفته چهارم"]
+            self.month_combo.addItems(week)
+        elif clicked_btn == self.day_btn:
+            day= ["شنبه","یکشنبه","دوشنبه","سه شنبه","چهارشنبه","پنجشنبه","جمعه"]
+            self.month_combo.addItems(day)
 
     ##
     def back_settings(self):
@@ -627,20 +809,39 @@ class SalesDashboard(QMainWindow):
         QTimer.singleShot(100, lambda: self.start_thread(self.selected_month))
 
     ##
-    def start_thread(self, year_month: str = None):
+    def start_thread(self, year_month: str = None, week_label: str = None,selected_day: str= None):
         if year_month is None:
             jdate = jdatetime.date.today()
             year_month = f"{jdate.year}/{jdate.month:02d}"
 
-        self.sale_thread = SaleThread(selected_month=year_month)
+        # جلوگیری از راه‌اندازی مجدد ترد اگر همان ماه انتخاب شده است
+        if hasattr(self, 'sale_thread') and self.sale_thread.isRunning():
+            if self.selected_month == year_month:
+                print("ℹ️ Thread already running for this month")
+                return
+            else:
+                print("🔄 Stopping previous thread")
+                self.sale_thread.quit()
+                self.sale_thread.wait()
+
+        self.selected_month = year_month  # مقداردهی به متغیر
+        print(f"▶ Starting thread for: {year_month}")
+
+        self.sale_thread = SaleThread(selected_month=year_month, selected_week=week_label,selected_day=selected_day)
         self.sale_thread.ofline_sale.connect(self.ofline_sale)
         self.sale_thread.monthly_sale.connect(self.update_month_chart)
         self.sale_thread.total_sale.connect(self.total_value)
         self.sale_thread.online_sale.connect(self.online_sale)
         self.sale_thread.monthly_sa.connect(self.update_monthly_boxes)
+        ##week
+        self.sale_thread.weekly_sale.connect(self.update_week_chart)
+        self.sale_thread.weekly_sa.connect(self.weekly_boxes)
+        ##day
+        self.sale_thread.daily_sale.connect(self.update_day_chart)
+        self.sale_thread.daily_sa.connect(self.daily_boxes)
+
         self.sale_thread.finished.connect(self.on_data_loaded)
         self.sale_thread.start()
-
 
     ##
     def on_data_loaded(self):
@@ -673,28 +874,84 @@ class SalesDashboard(QMainWindow):
             if key in self.val_labels:
                 self.val_labels[key].setText(f"{value:,.0f}")
     ##
+    def weekly_boxes(self, states: dict):
+        for key , value in states.items():
+            if key in self.val_labelse:
+                self.val_labelse[key].setText(f"{value:,.0f}")
+    ##
+    def daily_boxes(self, statess: dict):
+        for key , value in statess.items():
+            if key in self.val_labelses:
+                self.val_labelses[key].setText(f"{value:,.0f}")
+
+    ##
     def set_selected_month_data(self, year_month: str):
         if self.selected_month != year_month:
             self.selected_month = year_month
             self.start_thread(year_month)
             self.show_first_spinner()
-        else:   
-            # ماه قبلاً انتخاب شده، ولی می‌خواهیم دوباره لود کنیم (مثلاً بعد از انتخاب مجدد)
-            self.start_thread(year_month)
+        else:
+            # ماه تکراری، ولی دوباره لود شود → قبل از اجرای thread بررسی شود
+            if not hasattr(self, 'sale_thread') or not self.sale_thread.isRunning():
+                self.start_thread(year_month)
+                self.show_first_spinner()
+
+    ##
+    def set_selected_week_data(self, year_month: str, week_label: str):
+        # week_label مثلاً "هفته 2"
+        if self.selected_month != year_month or self.selected_week != week_label:
+            self.selected_month = year_month
+            self.selected_week = week_label
+            self.start_thread(year_month, week_label)
             self.show_first_spinner()
-        ##
+        else:
+            if not hasattr(self, 'sale_thread') or not self.sale_thread.isRunning():
+                self.start_thread(year_month, week_label)
+                self.show_first_spinner()
+    ##
+    def set_selected_day_data(self, year_month: str, day_label: str):
+        # day_label مثال: "شنبه" یا "دوشنبه"
+        if self.selected_month != year_month or self.selected_day != day_label:
+            self.selected_month = year_month
+            self.selected_day = day_label
+            self.start_thread(year_month, selected_day=day_label)
+            self.show_first_spinner()
+        else:
+            if not hasattr(self, 'sale_thread') or not self.sale_thread.isRunning():
+                self.start_thread(year_month, selected_day=day_label)
+                self.show_first_spinner()
+
+    ##
     def handle_month_change(self, index):
-        # گرفتن سال جاری جلالی
-        current_year = jdatetime.date.today().year
-        month_number = index + 1
-        formatted_month = f"{current_year}/{month_number:02d}"
-        self.set_selected_month_data(formatted_month)
+        today = jdatetime.date.today()
+        current_year = today.year
+        current_month = today.month
+        current_day = today.day
+        selected_text = self.month_combo.itemText(index)
+
+        if self.month_btn.styleSheet().find("background-color: white") != -1:
+            # 🔹 انتخاب ماهانه
+            month_number = index + 1
+            formatted_month = f"{current_year}/{month_number:02d}"
+            print(f"📆 انتخاب ماهانه: {formatted_month}")
+            self.set_selected_month_data(formatted_month)
+
+        elif self.week_btn.styleSheet().find("background-color: white") != -1:
+            # 🔹 انتخاب هفته‌ای
+            formatted_month = f"{current_year}/{current_month:02d}"
+            week_number = index + 1
+            week_label = f"هفته {week_number}"
+            print(f"📅 انتخاب هفته‌ای: {formatted_month} - {week_label}")
+            self.set_selected_week_data(formatted_month, week_label)
+
+        elif self.day_btn.styleSheet().find("background-color: white") != -1:
+            # 🔹 انتخاب روزانه
+            formatted_month = f"{current_year}/{current_month:02d}"
+            day_label = selected_text.strip()
+            print(f"📅 انتخاب روزانه: {formatted_month} - {day_label}")
+            self.set_selected_day_data(formatted_month, day_label)
 
 
-
-
-
-    
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
