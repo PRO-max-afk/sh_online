@@ -536,7 +536,11 @@ class WidgetManager(QWidget):
             # اگر قبلاً مقدار گرفته شده، دوباره نگیر
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -589,7 +593,11 @@ class WidgetManager(QWidget):
         cursor_sq= None
 
         # خواندن شناسه کاربر از دیتابیس محلی
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -674,7 +682,11 @@ class WidgetManager(QWidget):
         total_price = self.total_price_input.text()
         is_switch_on = self.switch.isChecked()
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -805,7 +817,11 @@ class WidgetManager(QWidget):
             MessageBox("هیچ محصولی به فاکتور اضافه نشده است", title="خطا", type="warning").show()
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -1137,7 +1153,10 @@ class WidgetManager(QWidget):
                 self.calculate_total_price(self.table.item(row, 1))
 
                 # واکشی barcode از دیتابیس براساس نام و قیمت (در صورت نیاز می‌توان دقیق‌تر کرد)
-                db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                # رفتن یک سطح بالاتر از پوشه GUI
+                root_dir = os.path.dirname(base_dir)
+                db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
                 barcode = None
 
                 try:
@@ -1224,7 +1243,11 @@ class WidgetManager(QWidget):
     def load_today_invoices(self):
         self.invoice_list.clear()  # پاک‌سازی لیست فاکتورها
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -1287,7 +1310,11 @@ class WidgetManager(QWidget):
         if result != QMessageBox.StandardButton.Yes:
             return  # لغو عملیات حذف
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return

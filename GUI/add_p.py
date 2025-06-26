@@ -524,7 +524,11 @@ class AddProduct(QDialog):
         conn_sq=None
         cursor_sq= None
         # خواندن شناسه کاربر از دیتابیس محلی
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -566,7 +570,13 @@ class AddProduct(QDialog):
         name= self.name_line.text().strip()
         if not name: 
             MessageBox("لطفاً نام محصول را وارد کنید",title="یادآوری",type="warning")
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            return
+        ###
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -620,7 +630,11 @@ class AddProduct(QDialog):
         new_number = self.number_line.text()
         bu_price = self.buy_line.text()
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -662,7 +676,11 @@ class AddProduct(QDialog):
             MessageBox("لطفاً تمام فیلدها را پر کنید.", title="⚠️ هشدار", type="warning").show()
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return

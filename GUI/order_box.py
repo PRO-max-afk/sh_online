@@ -4,6 +4,7 @@ import sqlite3
 import time
 import os
 import requests
+from message_b import MessageBox
 
 class OrderInformation(QThread):
     new_order_info = pyqtSignal(list)  # لیستی از دیکشنری‌ها شامل اطلاعات محصولات
@@ -23,9 +24,13 @@ class OrderInformation(QThread):
                 time.sleep(5)
                 continue
 
-            db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
             if not os.path.exists(db_path):
-                print("⚠️ مسیر دیتابیس لوکال یافت نشد.")
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
                 return
 
             try:
@@ -132,9 +137,13 @@ class OrderInformation(QThread):
             if not db_check:
                 return False
             
-            db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
             if not os.path.exists(db_path):
-                print("⚠️ مسیر دیتابیس لوکال یافت نشد.")
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
                 return False
 
             conn_sq = sqlite3.connect(db_path)
@@ -174,9 +183,13 @@ class OrderInformation(QThread):
             if not db_check:
                 return False
             
-            db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
             if not os.path.exists(db_path):
-                print("⚠️ مسیر دیتابیس لوکال یافت نشد.")
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
                 return False
 
             conn_sq = sqlite3.connect(db_path)
@@ -216,9 +229,13 @@ class OrderInformation(QThread):
                 return False
 
             # بررسی وجود دیتابیس آفلاین
-            db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
             if not os.path.exists(db_path):
-                print("⚠️ مسیر دیتابیس لوکال یافت نشد.")
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
                 return False
 
             # اتصال به SQLite برای گرفتن user_id

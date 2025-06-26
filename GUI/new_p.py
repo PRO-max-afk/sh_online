@@ -793,7 +793,11 @@ class ProductForm(QDialog):
             MessageBox(text="لطفاً تمامی فیلدها را پر کنید", title="هشدار", type="warning").show()
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -1015,8 +1019,16 @@ class ProductForm(QDialog):
         db_connect = self.get_db_config()
         if not db_connect:
             return
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
 
-        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        conn_sq = sqlite3.connect(db_path)
         cursor_sq = conn_sq.cursor()
 
         cursor_sq.execute('''SELECT invent_id, barcode, name, category, sub_category,

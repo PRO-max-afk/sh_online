@@ -6,6 +6,7 @@ from datetime import date
 import time
 import os
 import requests
+from message_b import MessageBox
 
 class ExpirationNotifier(QThread):
     new_expired_info = pyqtSignal(list)  # لیستی از دیکشنری‌ها شامل اطلاعات محصولات
@@ -23,9 +24,13 @@ class ExpirationNotifier(QThread):
                 time.sleep(5)
                 continue
 
-            db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
             if not os.path.exists(db_path):
-                print("⚠️ مسیر دیتابیس لوکال یافت نشد.")
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
                 return
 
             try:

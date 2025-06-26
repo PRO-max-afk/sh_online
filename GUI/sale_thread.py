@@ -9,9 +9,10 @@ import sqlite3
 import jdatetime
 from datetime import datetime
 import datetime
-import time
+from message_b import MessageBox
 import os
 import requests
+
 
 class SaleThread(QThread):
     online_sale = pyqtSignal(float)
@@ -45,9 +46,13 @@ class SaleThread(QThread):
         if not db_data:
             print("server errors😣")
             return
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
-            print("مسیر پایگاه‌داده لوکال پیدا نشد")
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
         try:
             conn_sq= sqlite3.connect(db_path)
@@ -209,9 +214,13 @@ class SaleThread(QThread):
             print("server errors😣")
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
-            print("مسیر پایگاه‌داده لوکال پیدا نشد")
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
 
         try:
@@ -334,9 +343,13 @@ class SaleThread(QThread):
             print("server errors😣")
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
-            print("مسیر پایگاه‌داده لوکال پیدا نشد")
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
 
         try:
