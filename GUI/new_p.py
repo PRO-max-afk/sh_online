@@ -38,9 +38,8 @@ class ProductForm(QDialog):
         self.load_all_fonts()
         # نمونه ویجت تستی
         self.title_lb = QLabel("ثبت محصولات جدید",self)
-        # 🔵 عکس پروفایل با کیفیت و کلیک‌پذیر
-        profile_image_path = self.get_asset_path("ChatGPT Image Apr 14, 2025, 04_02_55 PM.png")  # مسیر پیش‌فرض عکس
-        self.profile_widget = ProfileImage(profile_image_path, 70, self)
+        ###
+        self.profile_widget = ProfileImage( 70, self)
         self.profile_widget.setGeometry(850,14,0,0)
         self.date_lb= QLabel("",self)
         

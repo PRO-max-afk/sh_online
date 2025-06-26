@@ -37,8 +37,7 @@ class AddProduct(QDialog):
         # نمونه ویجت تستی
         self.title_lb = QLabel("افزودن محصولات",self)
         # 🔵 عکس پروفایل با کیفیت و کلیک‌پذیر
-        profile_image_path = self.get_asset_path("ChatGPT Image Apr 14, 2025, 04_02_55 PM.png")  # مسیر پیش‌فرض عکس
-        self.profile_widget = ProfileImage(profile_image_path, 70, self)
+        self.profile_widget = ProfileImage( 70, self)
         self.profile_widget.setGeometry(850,14,0,0)
         self.date_lb= QLabel("",self)
         
@@ -759,8 +758,16 @@ class AddProduct(QDialog):
         db_connect = self.get_db_config()
         if not db_connect:
             return
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
 
-        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        conn_sq = sqlite3.connect(db_path)
         cursor_sq = conn_sq.cursor()
 
         cursor_sq.execute('''SELECT barcode,

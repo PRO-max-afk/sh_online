@@ -37,3 +37,9 @@ cursor.execute('''
 Create TABLE IF NOT EXISTS order_number(
             order_id INTEGER );
 ''')
+
+cursor.execute('''
+Create TABLE IF NOT EXISTS logo(
+            image text,
+               store_name text );
+''')
