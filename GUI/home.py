@@ -863,14 +863,14 @@ class WidgetManager(QWidget):
                 if float(quantity) > product_quantity:
                     MessageBox(f"موجودی محصول {name} کافی نیست", title="ناموفق", type="warning").show()
                     continue
-
+                is_synced=0
                 cursor.execute('''
                     INSERT INTO sale_factor (barcode, product_name, factor_number, sale_price, sale_date, quantity,
                         product_type, sale_type, discount, total, created_at, user_id, is_synced)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     barcode, name, factor_number, unit_price, date, quantity, s_type, sale_type,
-                    discount_val, final_total, date_ent, id_user, 0
+                    discount_val, final_total, date_ent, id_user, is_synced
                 ))
 
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
@@ -1225,7 +1225,7 @@ class WidgetManager(QWidget):
                         product_name, barcode, factor_number, sale_date, sale_price,
                         quantity, product_type, sale_type, discount, total, user_id, created_at
                     ))
-                print(f"✅ محصول {barcode} افزوده شد")
+                print(f"✅ item {barcode}  added")
                 ## update products
                 cursor_sq.execute("UPDATE products SET is_synced=0 where barcode=?",(barcode,))
 
