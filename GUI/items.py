@@ -6,7 +6,9 @@ import sys
 class ChangeItems(QWidget):
     def __init__(self):
          super().__init__()
+         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
          self.ini_UI()
+         
          
     def ini_UI(self):
             self.setStyleSheet("background-color: #d9d9d9;")
@@ -39,7 +41,7 @@ class ChangeItems(QWidget):
             """)
 
             frame1_layout = QVBoxLayout(frame1)
-            frame1_layout.setContentsMargins(20, 2, 20, 15)
+            frame1_layout.setContentsMargins(0, 0, 0, 0)
             frame1_layout.setSpacing(5)
 
             frame1_title = QLabel("تغییر محصولات")
@@ -48,7 +50,7 @@ class ChangeItems(QWidget):
 
             search_input = QLineEdit()
             search_input.setPlaceholderText("جستجوی محصولات ...")
-            search_input.setFixedSize(200, 28)
+            search_input.setFixedSize(200, 40)
             search_input.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
             search_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
@@ -111,7 +113,6 @@ class ChangeItems(QWidget):
             frame1_layout.addWidget(frame1_title)
             frame1_layout.addWidget(search_input, alignment=Qt.AlignmentFlag.AlignLeft)
             frame1_layout.addWidget(spacer)
-            #frame1_layout.addLayout(field_layout, alignment = Qt.AlignmentFlag.AlignHCenter)
             frame1_layout.addStretch()
 
             main_layout.addLayout(top_bar_layout)
