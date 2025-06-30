@@ -6,7 +6,6 @@ from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategory
 from PyQt6 import QtCore
 import os
 import jdatetime
-from sale_thread import SaleThread
 from year_thread import YearThread
 from circle import CircularSpinner
 
@@ -21,6 +20,7 @@ class Dashboard(QMainWindow):
     
         self.selected_year= None
         self.val_labels= {}
+        self.year_thread =  None
         self.in_UI()
         self.label_UI()
         self.button_UI()
@@ -67,8 +67,8 @@ class Dashboard(QMainWindow):
         # --- تب‌ها: روزی، هفته، ماهانه
         middle_layout= QHBoxLayout()
         ##
-        self.month_combo = QComboBox()
-        middle_layout.addWidget(self.month_combo,alignment=Qt.AlignmentFlag.AlignRight)
+        self.year_combo = QComboBox()
+        middle_layout.addWidget(self.year_combo,alignment=Qt.AlignmentFlag.AlignRight)
         middle_layout.addStretch(1)
         
         # --- باکس‌های آماری
@@ -210,8 +210,8 @@ class Dashboard(QMainWindow):
     ##
     def button_UI(self):
         ##
-        self.month_combo.setFixedWidth(150)
-        self.month_combo.setStyleSheet('''
+        self.year_combo.setFixedWidth(150)
+        self.year_combo.setStyleSheet('''
             QComboBox {
                 background-color: white;
                 font-family: "B Nazanin";
@@ -222,7 +222,7 @@ class Dashboard(QMainWindow):
                 border-radius: 8px;
                 text-align: right;
                 padding: 6px 10px 6px 30px; /* فضای کافی برای فلش در سمت چپ */
-                padding-left: 50px;
+                padding-left: 45px;
             }
 
             QComboBox::drop-down {
@@ -269,17 +269,6 @@ class Dashboard(QMainWindow):
                 background: #666;
             }
         ''')
-
-        # اضافه کردن ماه‌های شمسی
-        self.months_jalali = ["حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله",
-                            "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"]
-        self.month_combo.addItems(self.months_jalali)
-       ##
-       # تنظیم مقدار پیش‌فرض به ماه جاری
-        today = jdatetime.date.today()
-        self.month_combo.setCurrentIndex(today.month - 1)
-        #self.month_combo.currentIndexChanged.connect(self.handle_month_change)
-       
     
     ## new thread
     def show_first_spinner(self):
@@ -332,47 +321,27 @@ class Dashboard(QMainWindow):
         # 👇 مقدار انتخاب‌شده را بده به ترد
         QTimer.singleShot(100, lambda: self.box_thread())
 
-    ##
-    def start_thread(self, year_month: str = None):
-        if year_month is None:
-            jdate = jdatetime.date.today()
-            year_month = f"{jdate.year}/{jdate.month:02d}"
+    
+    def box_thread(self, selected_year: str = None):
+        if selected_year is None:
+            selected_year = getattr(self, "selected_year", None)
 
-        # جلوگیری از راه‌اندازی مجدد ترد اگر همان ماه انتخاب شده است
-        if hasattr(self, 'sale_thread') and self.sale_thread.isRunning():
-            if self.selected_month == year_month:
-                print("ℹ️ Thread already running for this month")
-                return
-            else:
-                print("🔄 Stopping previous thread")
-                self.sale_thread.quit()
-                self.sale_thread.wait()
+        if self.year_thread and self.year_thread.isRunning():
+            self.year_thread.quit()
+            self.year_thread.wait()
 
-        self.selected_month = year_month  # مقداردهی به متغیر
-        print(f"▶ Starting thread for: {year_month}")
-
-        self.sale_thread = SaleThread(selected_month=year_month)
-        self.sale_thread.ofline_sale.connect(self.ofline_sale)
-        self.sale_thread.monthly_sale.connect(self.update_month_chart)
-        self.sale_thread.total_sale.connect(self.total_value)
-        self.sale_thread.online_sale.connect(self.online_sale)
-        self.sale_thread.monthly_sa.connect(self.update_monthly_boxes)
-        ##week
-        self.sale_thread.weekly_sale.connect(self.update_week_chart)
-        self.sale_thread.weekly_sa.connect(self.weekly_boxes)
-        ##day
-        self.sale_thread.daily_sale.connect(self.update_day_chart)
-        self.sale_thread.daily_sa.connect(self.daily_boxes)
-
-        self.sale_thread.finished.connect(self.on_data_loaded)
-        self.sale_thread.start()
-    ##
-    def box_thread(self):
-        self.year_thread= YearThread()
+        self.year_thread = YearThread(selected_year=selected_year)
         self.year_thread.full_info.connect(self.update_boxes_thread)
         self.year_thread.chart_data.connect(self.update_bar_chart)
+        self.year_thread.year_info.connect(self.update_boxes_thread)
+        self.year_thread.year_chart.connect(self.update_bar_chart)
+        self.year_thread.year_data.connect(self.this_year)
+        self.year_thread.finished.connect(self.on_data_loaded)
         self.year_thread.finished.connect(self.on_data_loaded)
         self.year_thread.start()
+        
+
+
     ##
     def on_data_loaded(self):
         if self.spinner_wrapper:
@@ -383,20 +352,24 @@ class Dashboard(QMainWindow):
 
     ##
     def update_bar_chart(self, total):
-        # اطمینان از اینکه ورودی یک لیست است
         if not isinstance(total, list):
             print("❌ خطا: مقدار ورودی برای چارت باید لیست باشد")
             return
 
-        # حذف چارت قبلی
-        if self.chart_veiw:
-            self.run_layout.removeWidget(self.chart_veiw)
-            self.chart_veiw.deleteLater()
+        # حذف چارت قبلی اگر وجود داشته باشد و معتبر باشد
+        try:
+            if hasattr(self, "chart_veiw") and self.chart_veiw is not None:
+                self.run_layout.removeWidget(self.chart_veiw)
+                self.chart_veiw.deleteLater()
+                self.chart_veiw = None  # بعد از حذف، مقداردهی به None
+        except RuntimeError:
+            print("⛔ چارت قبلی قبلاً حذف شده است")
 
         # ساخت چارت جدید
-        self.bar_chart_view = self.create_bar_chart_year(total)
-        self.bar_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.run_layout.addWidget(self.bar_chart_view)
+        self.chart_veiw = self.create_bar_chart_year(total)
+        self.chart_veiw.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.run_layout.addWidget(self.chart_veiw)
+
 
     ##
     def create_bar_chart_year(self, total: list[float]= None):
@@ -444,7 +417,72 @@ class Dashboard(QMainWindow):
 
         return chart_view
 
+  ##
+    def update_bar_chart_year(self, total):
+        if not isinstance(total, list):
+            print("❌ خطا: مقدار ورودی برای چارت سال باید لیست باشد")
+            return
 
+        if self.chart_veiw:
+            self.run_layout.removeWidget(self.chart_veiw)
+            self.chart_veiw.deleteLater()
+
+        # عنوان سال در چارت اضافه شود
+        year_label = f"سال {self.selected_year}" if hasattr(self, "selected_year") else "سال مشخص نیست"
+        self.bar_chart_view = self.create_bar_chart_year(total, title=f"گزارش سالانه فروشگاه ({year_label})")
+        self.bar_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.run_layout.addWidget(self.bar_chart_view)
+    ##
+    def create_bar_chart_year(self, total: list[float] = None, title: str = "گزارش سالانه فروشگاه"):
+        if total is None:
+            total = [0, 0, 0, 0, 0, 0, 0]
+
+        name_labels = ["کل خریداری", "کل فروشات", "مفاد خالص", "مجموعه برداشت", "مجموعه قرض ها", "سرمایه فعلی", "پول نقد"]
+        colors = ["#ff5733", "#33c1ff", "#9b59b6", "#f1c40f", "#e67e22", "#2ecc71", "#e84393"]
+
+        series = QBarSeries()
+        for i in range(len(total)):
+            bar_set = QBarSet(name_labels[i])
+            bar_set << total[i]
+            bar_set.setColor(QColor(colors[i]))
+            bar_set.setLabelFont(QFont("B Nazanin", 11))
+            bar_set.setLabelBrush(QColor("black"))
+            series.append(bar_set)
+
+        series.setBarWidth(0.6)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle(title)
+        chart.setTitleFont(QFont("B Nazanin", 15, QFont.Weight.Bold))
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append([""])
+        axis_x.setLabelsFont(QFont("B Nazanin", 12))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(axis_x)
+
+        axis_y = QValueAxis()
+        axis_y.setRange(0, max(total))
+        axis_y.setLabelFormat("%d")
+        axis_y.setLabelsFont(QFont("Arial", 10))
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_y)
+
+        chart.legend().setVisible(True)
+        chart.legend().setFont(QFont("B Nazanin", 11))
+
+        chart_view = QChartView(chart)
+        chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        return chart_view
+    ##
+    def on_year_selected(self, selected_year):
+        if selected_year:
+            print(f"📅 سال انتخاب‌شده: {selected_year}")
+            self.selected_year = selected_year  # ذخیره سال انتخاب‌شده
+            self.show_first_spinner()
 
   ##
 
@@ -460,6 +498,58 @@ class Dashboard(QMainWindow):
             if key in self.val_labels:
                 self.val_labels[key].setText(f"{value:,.0f}")
    
+    ##
+    def update_boxes_year(self, stats: dict):
+        for key, value in stats.items():
+            if key in self.val_labels:
+                self.val_labels[key].setText(f"{value:,.0f} (سالیانه)")
+
+    ##
+    def this_year(self, year_selected: str | list):
+        self.year_combo.blockSignals(True)  # جلوگیری از سیگنال‌دهی هنگام پر کردن
+        self.year_combo.clear()
+
+        # گزینه پیش‌فرض برای انتخاب سال
+        self.year_combo.addItem("انتخاب سال")
+
+        # گزینه "همه گزارشات" برای بارگذاری داده کامل
+        self.year_combo.addItem("همه گزارشات")
+
+        if isinstance(year_selected, list):
+            for y in sorted(year_selected):
+                self.year_combo.addItem(y)
+            self.selected_year = None
+            self.year_combo.setCurrentIndex(0)  # حالت پیش‌فرض "انتخاب سال"
+        else:
+            self.year_combo.addItem(year_selected)
+            self.selected_year = None
+            self.year_combo.setCurrentIndex(0)  # هنوز انتخاب نشده، "انتخاب سال"
+
+        self.year_combo.blockSignals(False)
+        print(f"سال(ها) {year_selected} به year_combo افزوده شد.")
+
+        # اتصال سیگنال تغییر انتخاب (اگر قبلاً متصل نیست)
+        if not self.year_combo.signalsBlocked():
+            self.year_combo.currentIndexChanged.connect(self.on_year_changed)
+
+    def on_year_changed(self, index):
+        text = self.year_combo.currentText()
+
+        # جلوگیری از اجرا همزمان
+        if self.year_thread and self.year_thread.isRunning():
+            self.year_thread.quit()
+            self.year_thread.wait()
+
+        if text == "همه گزارشات":
+            self.selected_year = None
+            print("🔄 بارگذاری همه گزارشات (full_data)")
+        else:
+            self.selected_year = text
+            print(f"📅 بارگذاری اطلاعات سال {self.selected_year}")
+
+        QTimer.singleShot(50, self.show_first_spinner)  # نمایش spinner پیش از بارگذاری
+
+
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
