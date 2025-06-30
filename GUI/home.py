@@ -1389,7 +1389,7 @@ class WidgetManager(QWidget):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
-    ##
+   ##
     def load_today_invoices(self):
         self.invoice_list.clear()  # پاک‌سازی لیست فاکتورها
 
