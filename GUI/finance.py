@@ -139,6 +139,7 @@ class Money(QMainWindow):
         ##
         self.sell_reports.clicked.connect(self.page_sell)
         self.harvest_reports.clicked.connect(self.page_harvest)
+        self.barrow_reports.clicked.connect(self.page_barrow)
         # آیکون و متن‌ها
         buttons_info = [
             (self.sell_reports, "sale-report_11357276.png", "گزارش فروش"),
@@ -259,7 +260,22 @@ class Money(QMainWindow):
         self.animate.setEndValue(QPoint(0,0))
         self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animate.start()
-            
+    ##
+    def page_barrow(self):
+        from barrow import Barrow
+        self.barrow_page= Barrow()
+        self.stack.addWidget(self.barrow_page)
+        
+        ## out of page
+        self.barrow_page.move(self.stack.width(),0)
+        self.stack.setCurrentWidget(self.barrow_page)
+        ##
+        self.animate= QPropertyAnimation(self.barrow_page, b'pos',self)
+        self.animate.setDuration(700)
+        self.animate.setStartValue(QPoint(self.stack.width(),0))
+        self.animate.setEndValue(QPoint(0,0))
+        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animate.start()
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

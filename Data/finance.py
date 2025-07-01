@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS  barrow(
                amount REAL NOT NULL,
                date TEXT NOT NULL,
                type TEXT NOT NULL,
+               description TEXT,
                user_id INTEGER,
                is_synced INTEGER DEFAULT 0
                );

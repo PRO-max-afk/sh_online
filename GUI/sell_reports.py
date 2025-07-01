@@ -495,30 +495,30 @@ class SalesDashboard(QMainWindow):
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
         return chart_view
 
- ##
-    def update_day_chart(self, day_sale,total_sale_day: float):
-        # اطمینان از اینکه ورودی یک لیست است
+    ##
+    def update_day_chart(self, day_sale, total_sale_day: float):
         if not isinstance(day_sale, list):
             print("❌ خطا: مقدار ورودی برای چارت باید لیست باشد")
             return
 
-        # حذف چارت قبلی
         if self.day_chart:
             self.day_layout.removeWidget(self.day_chart)
             self.day_chart.deleteLater()
 
-        # ساخت چارت جدید
-        self.day_chart = self.create_bar_chart_day(day_sale,total_sale_day)
-        self.week_chart_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        # استفاده از selected_day
+        selected_day_name = self.selected_day or "روز نامشخص"
+        self.day_chart = self.create_bar_chart_day(day_sale, total_sale_day, selected_day_name)
+        self.day_chart.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.day_layout.addWidget(self.day_chart)
 
+
     ##
-    def create_bar_chart_day(self, daily_sales: list[float] = None, total_day_value: float = 0):
+    def create_bar_chart_day(self, daily_sales: list[float] = None, total_day_value: float = 0, selected_day_label: str = ""):
         # اگر هیچ داده‌ای داده نشده، مقدار پیش‌فرض ۷ روز هفته
         if daily_sales is None:
             daily_sales = [0] * 7
 
-        # لیبل‌های روزهای هفته شمسی (به ترتیب استاندارد جلالی)
+        # لیبل‌های روزهای هفته شمسی
         day_labels = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
 
         # 🔹 ساخت BarSet
@@ -536,7 +536,13 @@ class SalesDashboard(QMainWindow):
         # 🔹 چارت اصلی
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("گزارش فروش روزانه")
+
+        # استفاده از selected_day_label برای عنوان چارت
+        title_text = "گزارش فروش روزانه"
+        if selected_day_label:
+            title_text += f" ({selected_day_label})"
+
+        chart.setTitle(title_text)
         chart.setTitleFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
 
@@ -559,6 +565,7 @@ class SalesDashboard(QMainWindow):
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
         return chart_view
+
 
   ##
     def set_today_date(self):
@@ -951,7 +958,7 @@ class SalesDashboard(QMainWindow):
             print(f"📅 انتخاب روزانه: {formatted_month} - {day_label}")
             self.set_selected_day_data(formatted_month, day_label)
 
-
+    
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -24,7 +24,7 @@ class BlackTextDelegate(QStyledItemDelegate):
         palette.setColor(QPalette.ColorRole.Text, QColor("black"))
         editor.setPalette(palette)
         return editor
-class Harvest(QMainWindow):
+class Barrow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.in_UI()
@@ -33,19 +33,17 @@ class Harvest(QMainWindow):
         self.Button_UI()
         self.table_UI()
         self.load_all_fonts()
-        self.synced_auto_timer()
-        self.select_info()
     
     def in_UI(self):
-        self.stack_harvest= QStackedWidget()
-        self.setCentralWidget(self.stack_harvest)
-        self.harvest_page= QWidget()
+        self.stack_barrow= QStackedWidget()
+        self.setCentralWidget(self.stack_barrow)
+        self.barrow_page= QWidget()
 
-        main_layout= QVBoxLayout(self.harvest_page)
+        main_layout= QVBoxLayout(self.barrow_page)
         
         top_layout= QHBoxLayout()
 
-        self.top_label= QLabel("گزارشات برداشت")
+        self.top_label= QLabel("گزارشات قرض")
         
         back_layout= QHBoxLayout()
         self.back_btn= QPushButton()
@@ -62,7 +60,7 @@ class Harvest(QMainWindow):
         self.top_table_ly= QHBoxLayout()
         
         ### widgets for table_frame
-        self.title_lb= QLabel("آخرین برداشت ها")
+        self.title_lb= QLabel("آخرین اطلاعات قرض")
         self.har_table= QTableWidget()
         self.top_table_ly.addWidget(self.title_lb)
         ### adding to the frame
@@ -76,7 +74,7 @@ class Harvest(QMainWindow):
         
         title_from_ly= QHBoxLayout()
         ##
-        self.title_from= QLabel("ثبت برداشت")
+        self.title_from= QLabel("ثبت قرض")
         title_from_ly.addWidget(self.title_from)
         ###forms
         self.form_layout= QVBoxLayout()
@@ -85,10 +83,10 @@ class Harvest(QMainWindow):
         self.name_line.setPlaceholderText("نام شخص")
         ##amount
         self.money_line= QLineEdit()
-        self.money_line.setPlaceholderText("مقدار برداشت")
+        self.money_line.setPlaceholderText("مقدار قرض")
         ##date
         self.date_line= QLineEdit()
-        self.date_line.setPlaceholderText("تاریخ برداشت")
+        self.date_line.setPlaceholderText("تاریخ قرض")
         self.date_line.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.date_line.setReadOnly(True)
         ##
@@ -96,7 +94,7 @@ class Harvest(QMainWindow):
         self.descprit_text.setPlaceholderText("....توضیحات بیشتر")
         ##
         self.save_btn= QPushButton()
-
+        ##
         self.form.addLayout(title_from_ly)
         self.form.addLayout(self.form_layout)
         self.form.addWidget(self.save_btn)
@@ -121,7 +119,7 @@ class Harvest(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addLayout(middle_layout, 3)
         main_layout.addWidget(table_frame,2)
-        self.stack_harvest.addWidget(self.harvest_page)
+        self.stack_barrow.addWidget(self.barrow_page)
         
     ###  
     def label_UI(self):
@@ -167,6 +165,7 @@ class Harvest(QMainWindow):
         self.form_layout.addWidget(self.descprit_text)
         ##
         self.descprit_text.setMaximumHeight(150)
+        #self.descprit_text.setMaximumHeight(20)
         self.descprit_text.setStyleSheet('''
                     color: black;
                     font-size: 16px;
@@ -221,7 +220,7 @@ class Harvest(QMainWindow):
         ''')
         self.calendar_btn.clicked.connect(self.show_calendar)
         ##
-        self.save_btn.setText("ثبت برداشت")
+        self.save_btn.setText("ثبت قرض")
         self.save_btn.setStyleSheet('''
             QPushButton {
                     background-color: #1be314;
@@ -240,25 +239,24 @@ class Harvest(QMainWindow):
                     background-color: #1be314;
                 }
     ''')
-        ##
     ###
     def table_UI(self):
-        self.har_table.setColumnCount(4)
-        self.har_table.setHorizontalHeaderLabels(["نام شخص", "مقدار برداشت","تاریخ","توضیحات"])
+        self.har_table.setColumnCount(5)
+        self.har_table.setHorizontalHeaderLabels(["نام شخص", "مقدار قرض","نوعیت قرض","تاریخ","توضیحات"])
         self.har_table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.har_table.verticalHeader().setVisible(False)
         self.har_table.setGridStyle(Qt.PenStyle.SolidLine)
         self.har_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.har_table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         # تنظیمات Head Section (ریسپانسیو ستون‌ها)
         header = self.har_table.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
-        #header.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        header.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         # حالت ریسپانسیو برای ستون‌ها:
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # نام شخص
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # مقدار برداشت
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # تاریخ
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)           # توضیحات → کشیده‌تر
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # نوعیت قرض
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)           # توضیحات → کشیده‌تر
 
         # اعمال استایل
         self.har_table.setStyleSheet("""
@@ -314,8 +312,8 @@ class Harvest(QMainWindow):
     def open_reports(self):
         from finance import Money
         self.finace= Money()
-        self.stack_harvest.addWidget(self.finace)
-        self.stack_harvest.setCurrentWidget(self.finace)
+        self.stack_barrow.addWidget(self.finace)
+        self.stack_barrow.setCurrentWidget(self.finace)
         
         ##animation:
         start_pos= QPoint(-self.width(),0)
@@ -330,9 +328,9 @@ class Harvest(QMainWindow):
         animation.start()
     ##
     def create_bar_chart(self):
-        total = [5000, 2000, 500004, 2334243, 321000,21312000, 70000]  # یا هر مقدار پیش‌فرض دلخواه
-        name_labels = ["کل خریداری", "کل فروشات", "مفاد خالص", "مجموعه برداشت", "مجموعه قرض ها", "سرمایه فعلی", "پول نقد"]
-        colors = ["#ff5733", "#33c1ff", "#9b59b6", "#f1c40f", "#e67e22", "#2ecc71", "#e84393"]
+        total = [5000, 2000, 500004, 2334243, 321000]  # یا هر مقدار پیش‌فرض دلخواه
+        name_labels = ["مقدار طلب", "", "مقدار برده گی", "مقدار رسیده گی", "پول نقد"]
+        colors = ["#ff5733", "#33c1ff", "#9b59b6", "#f1c40f", "#e67e22"]
 
         series = QBarSeries()
 
@@ -348,7 +346,7 @@ class Harvest(QMainWindow):
 
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("نمودار برداشت فروشگاه")
+        chart.setTitle("نمودار اطلاعات قرض")
         chart.setTitleFont(QFont("B Nazanin", 15, QFont.Weight.Bold))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
 
@@ -372,193 +370,8 @@ class Harvest(QMainWindow):
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         return chart_view
-    ###
-    def keyPressEvent(self, event):
-        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            if any(line.hasFocus() for line in [
-                self.name_line,self.money_line, self.date_line]):
-                self.save_harvest()
-    
 
-    ##
-    def save_harvest(self):
-        name = self.name_line.text()
-        amount = str(self.money_line.text())
-        date = self.date_line.text()
-        description = self.descprit_text.toPlainText()
-
-        if not name or not amount or not date:
-            MessageBox(text="لطفاً اطلاعات مورد نیاز برای ثبت برداشت را پر کنید", type="warning", title="هشدار").show()
-            return
-
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        root_dir = os.path.dirname(base_dir)
-        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
-
-        if not os.path.exists(db_path):
-            print(f"{db_path}: not db path found!")
-            return
-
-        try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-
-            cursor.execute("SELECT id FROM users")
-            rest = cursor.fetchone()
-            if not rest:
-                print("no user id found!")
-                return
-            id_user = rest[0]
-
-            is_synced = 0
-            cursor.execute("""
-                INSERT INTO harvest(name, amount, date, description, user_id, is_synced) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (name, amount, date, description, id_user, is_synced))
-            conn.commit()
-
-            # ✅ نمایش ردیف جدید در جدول harvest_table
-            row_position = self.har_table.rowCount()
-            self.har_table.insertRow(row_position)
-            self.har_table.setItem(row_position, 0, QTableWidgetItem(self._make_cell(name)))
-            self.har_table.setItem(row_position, 1, QTableWidgetItem(self._make_cell(str(amount))))
-            self.har_table.setItem(row_position, 2, QTableWidgetItem(self._make_cell(date)))
-            self.har_table.setItem(row_position, 3, QTableWidgetItem(self._make_cell(description)))
-
-            # پاک کردن فیلدها
-            self.name_line.clear()
-            self.money_line.clear()
-            self.date_line.clear()
-            self.descprit_text.clear()
-
-            MessageBox(text="برداشت موفقانه ثبت شد✅", title="موفقانه", type="info").show()
-
-        except sqlite3.Error as e:
-            print(f'{e}: db error offline')
-        finally:
-            conn.close()
-
-    ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
-    ##
-    def synced_harvest_to_server(self):
-        data= self.get_db_config()
-        if not data:
-            print("no connection to the server to send info")
-            return
-        base_dir= os.path.dirname(os.path.abspath(__file__))
-        root_dir= os.path.dirname(base_dir)
-        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
-        if not db_path:
-            print("no offline connection!")
-            return
-        conn_sq= sqlite3.connect(db_path)
-        cursor_sq= conn_sq.cursor()
-        cursor_sq.execute('''
-        SELECT name,amount,date,description,user_id FROM harvest WHERE is_synced= 0
-        ''')
-        un_synced= cursor_sq.fetchall()
-        try:
-            conn= pymysql.connect(
-                host= data["host"],
-                user= data["user"],
-                password= data["password"],
-                database= data["database"]
-            )
-            cursor= conn.cursor()
-            for row in un_synced:
-                (name,amount,date,description,user_id)= row
-
-                cursor.execute("INSERT INTO harvest (name,amount,date,description,user_id) VALUES(%s,%s,%s,%s,%s)",
-                               (name,amount,date,description,user_id))
-                print("info harvest successfully entered to server ✅")
-                conn.commit()
-
-                cursor_sq.execute('UPDATE harvest set is_synced = 1 WHERE is_synced=0')
-                conn_sq.commit()
-        except pymysql.Error as e:
-            print(f"{e} : online db error") 
-        finally: 
-            if conn_sq:
-                conn_sq.close()
-    ###
-    def _make_cell(self, text):
-        item = QTableWidgetItem(text)
-        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        item.setForeground(Qt.GlobalColor.black)
-        return item
-    ##
-    def select_info(self):
-        self.har_table.setRowCount(0)
-        self.har_table.setShowGrid(True)
-        base_dir= os.path.dirname(os.path.abspath(__file__))
-        root_dir= os.path.dirname(base_dir)
-        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
-        if not os.path.exists(db_path):
-            print(f'{db_path}: not found in select action')
-            return
-        try:
-            conn= sqlite3.connect(db_path)
-            cursor= conn.cursor()
-            cursor.execute('''
-            SELECT name,amount,date,description
-            FROM harvest WHERE is_synced=1
-            ORDER BY  h_id DESC LIMIT 5;
-            ''')
-            result= cursor.fetchall()
-            if result:
-                for name,amount,date,description in result:
-                    row= self.har_table.rowCount()
-                    self.har_table.insertRow(row)
-                    self.har_table.setItem(row,0,QTableWidgetItem(self._make_cell(name)))
-                    self.har_table.setItem(row,1, QTableWidgetItem(self._make_cell(str(amount))))
-                    self.har_table.setItem(row, 2, QTableWidgetItem(self._make_cell(date)))
-                    self.har_table.setItem(row,3,QTableWidgetItem(self._make_cell(description)))
-
-                    print(result)
-
-        except sqlite3.Error as e:
-            print(f"{e}: error in select db")
-    ##
-    def synced_auto_timer(self):
-        self.synced_timer= QTimer(self)
-        self.synced_timer.timeout.connect(self.synced_harvest_to_server)
-        self.synced_timer.start(30 *1000)
-    ##
+  ##
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         image_path = os.path.join(project_root, "assets", filename)
