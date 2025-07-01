@@ -146,7 +146,7 @@ class SettingsPage(QWidget):
         frame2_hlayout.addStretch()
 
         barcode_icon = QLabel()
-        barcode_icon.setPixmap(QPixmap('images/Barcode.png').scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio))
+        barcode_icon.setPixmap(QPixmap('assets/Barcode.png').scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio))
 
         frame2_hlayout.addWidget(barcode_icon)
     
