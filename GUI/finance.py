@@ -22,6 +22,7 @@ class Money(QMainWindow):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
+        self.load_all_fonts()
 
         
 
@@ -87,9 +88,6 @@ class Money(QMainWindow):
         top_layout.addStretch(1)
         top_layout.addLayout(title_label) 
         
-        
-    
-
 
         # لایه جعبه‌ها
         self.box_layout = QGridLayout()
@@ -140,6 +138,7 @@ class Money(QMainWindow):
     def button_UI(self):
         ##
         self.sell_reports.clicked.connect(self.page_sell)
+        self.harvest_reports.clicked.connect(self.page_harvest)
         # آیکون و متن‌ها
         buttons_info = [
             (self.sell_reports, "sale-report_11357276.png", "گزارش فروش"),
@@ -244,7 +243,23 @@ class Money(QMainWindow):
         self.animate.setEndValue(QPoint(0,0))
         self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animate.start()
+    ##
+    def page_harvest(self):
+        from harvest import Harvest
+        self.harvetst_page= Harvest()
+        self.stack.addWidget(self.harvetst_page)
         
+        ## out of page
+        self.harvetst_page.move(self.stack.width(),0)
+        self.stack.setCurrentWidget(self.harvetst_page)
+        ##
+        self.animate= QPropertyAnimation(self.harvetst_page, b'pos',self)
+        self.animate.setDuration(700)
+        self.animate.setStartValue(QPoint(self.stack.width(),0))
+        self.animate.setEndValue(QPoint(0,0))
+        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animate.start()
+            
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

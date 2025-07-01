@@ -12,6 +12,7 @@ import jdatetime
 import time
 import os
 import requests
+from message_b import MessageBox
 
 class NotificationQuantity(QThread):
     new_message = pyqtSignal(str, str)  # ارسال همزمان product_name و message
@@ -30,9 +31,13 @@ class NotificationQuantity(QThread):
                 time.sleep(5)
                 continue
 
-            db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
             if not os.path.exists(db_path):
-                print("مسیر پایگاه‌داده لوکال پیدا نشد")
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
                 return
 
             try:

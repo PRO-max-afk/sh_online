@@ -3,6 +3,7 @@ import os
 import sqlite3 
 import pymysql
 import requests
+from message_b import MessageBox
 
 class UserFetchThread(QThread):
     data_ready = pyqtSignal(list)  # لیستی از کاربران را ارسال می‌کند
@@ -14,15 +15,19 @@ class UserFetchThread(QThread):
     def run(self):
         try:
             db_info = self.get_db_config()
-            db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+            if not os.path.exists(db_path):
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
 
             if not db_info:
                 print("اتصال به سرور موجود نیست")
                 return
 
-            if not os.path.exists(db_path):
-                print("خطا در پیدا کردن مسیر آفلاین")
-                return
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
             cursor_sq.execute("SELECT id FROM users;")

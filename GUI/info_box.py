@@ -8,6 +8,7 @@ class ProductBox(QWidget):
         super().__init__(parent)
         self.setMinimumSize(270, 360)
         self.setStyleSheet("background-color: transparent;")
+        self.load_all_fonts()
 
         self.frame = QFrame(self)
         self.frame.setGeometry(10, 10, 270, 340)
@@ -113,3 +114,23 @@ class ProductBox(QWidget):
 
         
         self.image_label.setPixmap(pixmap)
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+    ##

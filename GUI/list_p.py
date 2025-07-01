@@ -1,11 +1,15 @@
 from PyQt6.QtWidgets import QFrame, QListWidget, QLineEdit, QVBoxLayout
 from PyQt6.QtCore import Qt, QPropertyAnimation, QRect
+from PyQt6.QtGui import QFontDatabase
+from message_b import MessageBox
 import sqlite3
+import os
 
 class ProductListPopup(QFrame):
     def __init__(self, parent=None):
         super().__init__(None, Qt.WindowType.Popup)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Popup)
+        self.load_all_fonts()
         self.setStyleSheet("""
             QFrame {
                 background-color: white;
@@ -30,7 +34,14 @@ class ProductListPopup(QFrame):
         """)
         self.setFixedWidth(220)
 
-        self.db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        self.db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(self.db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
         self.all_items = []
 
         self.layout = QVBoxLayout(self)
@@ -98,3 +109,24 @@ class ProductListPopup(QFrame):
         self.list_widget.addItems(filtered)
         target_height = 50 + len(filtered) * 28
         self.setFixedHeight(min(300, target_height))
+    ##
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+    ##

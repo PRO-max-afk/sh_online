@@ -20,6 +20,7 @@ class mainwindow(QWidget):
         self.setStyleSheet("background-color:#D9D9D9;")
         self.notifications = []
         self.orders= []
+        self.load_all_fonts()
         
         self.panel_width = 90
         panel_x = screen.width() - self.panel_width  # قرار دادن پنل در سمت راست
@@ -160,14 +161,10 @@ class mainwindow(QWidget):
         panel_layout.setSpacing(20)  # 🔹 فاصله بین دکمه‌ها
 
         # 🔵 عکس پروفایل با کیفیت و کلیک‌پذیر
-        profile_image_path = self.get_asset_path("ChatGPT Image Apr 14, 2025, 04_02_55 PM.png")  # مسیر پیش‌فرض عکس
-        self.profile_widget = ProfileImage(profile_image_path, 70, self)
+        self.profile_widget = ProfileImage(size=70, parent=self)
         panel_layout.insertWidget(0, self.profile_widget, alignment=Qt.AlignmentFlag.AlignHCenter)
 
 
-
-        #panel_layout.addWidget(self.btn1)
-        #panel_layout.addWidget(self.btn2)
         panel_layout.addStretch()
         self.side_panel.setLayout(panel_layout)
 

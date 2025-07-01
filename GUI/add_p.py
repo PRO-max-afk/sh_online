@@ -30,14 +30,14 @@ class AddProduct(QDialog):
         self.setFixedSize(929, 630)  # جلوگیری از تغییر اندازه
         self.setStyleSheet("background-color: #E8E6E6;")
         self.inventory_page= inventory_page
+        self.load_all_fonts()
         
 
         self.center_window()  # <-- وسط‌چین کردن
         # نمونه ویجت تستی
         self.title_lb = QLabel("افزودن محصولات",self)
         # 🔵 عکس پروفایل با کیفیت و کلیک‌پذیر
-        profile_image_path = self.get_asset_path("ChatGPT Image Apr 14, 2025, 04_02_55 PM.png")  # مسیر پیش‌فرض عکس
-        self.profile_widget = ProfileImage(profile_image_path, 70, self)
+        self.profile_widget = ProfileImage( 70, self)
         self.profile_widget.setGeometry(850,14,0,0)
         self.date_lb= QLabel("",self)
         
@@ -523,7 +523,11 @@ class AddProduct(QDialog):
         conn_sq=None
         cursor_sq= None
         # خواندن شناسه کاربر از دیتابیس محلی
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -565,7 +569,13 @@ class AddProduct(QDialog):
         name= self.name_line.text().strip()
         if not name: 
             MessageBox("لطفاً نام محصول را وارد کنید",title="یادآوری",type="warning")
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+            return
+        ###
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -613,12 +623,17 @@ class AddProduct(QDialog):
         self.product_popup.hide()
     ##
     def calculate_total(self):
+        barcode= self.bar_line.text()
         name = self.name_line.text()
         old_number = self.quantity_line.text()
         new_number = self.number_line.text()
         bu_price = self.buy_line.text()
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -634,7 +649,7 @@ class AddProduct(QDialog):
         try:
             conn_sq = sqlite3.connect(db_path)
             cursor_sq= conn_sq.cursor()
-            cursor_sq.execute('SELECT buy_price FROM products WHERE name= ? ', (name,))
+            cursor_sq.execute('SELECT buy_price FROM products WHERE name= ? ', (barcode,))
             price = cursor_sq.fetchone()
             total_price = float(price[0]) if price and price[0] else 0.0
             final_total = (total_price * old_quantity) + (buy_price * new_quantity)
@@ -660,7 +675,11 @@ class AddProduct(QDialog):
             MessageBox("لطفاً تمام فیلدها را پر کنید.", title="⚠️ هشدار", type="warning").show()
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -677,7 +696,7 @@ class AddProduct(QDialog):
                 SELECT big_sub, buy_price,big_quantity
                 FROM products 
                 WHERE name = ?
-            """, (name,))
+            """, (barcode,))
             row = cursor_sq.fetchone()
 
             if row:
@@ -739,8 +758,16 @@ class AddProduct(QDialog):
         db_connect = self.get_db_config()
         if not db_connect:
             return
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
 
-        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        conn_sq = sqlite3.connect(db_path)
         cursor_sq = conn_sq.cursor()
 
         cursor_sq.execute('''SELECT barcode,

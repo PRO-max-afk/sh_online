@@ -77,9 +77,18 @@ class DataLoaderThread(QThread):
                 database=self.db_data["database"]
             )
             cursor = conn.cursor()
+            ###db address
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+            if not os.path.exists(db_path):
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
 
             # اتصال به SQLite برای دریافت user_id
-            conn_sq = sqlite3.connect('Data\\sh_online.db')
+            conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
             cursor_sq.execute('SELECT id FROM users LIMIT 1')
             user_row = cursor_sq.fetchone()
@@ -146,7 +155,15 @@ class DataLoaderThread(QThread):
 
     ##
     def store_in_local_db(self, product_list):
-        conn = sqlite3.connect("Data\\sh_online.db")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         for product in product_list:
@@ -224,7 +241,15 @@ class DataLoaderThread(QThread):
     ##
     def load_from_local_db(self):
         try:
-            conn = sqlite3.connect("Data\\sh_online.db")
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+            if not os.path.exists(db_path):
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT id FROM users LIMIT 1")
             row = cursor.fetchone()
@@ -297,7 +322,15 @@ class SearchThread(QThread):
     ##
     def run(self):
         try:
-            conn = sqlite3.connect('Data\\sh_online.db')
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+            if not os.path.exists(db_path):
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             ##
             cursor.execute("select id from users LIMIT 1")
@@ -895,7 +928,15 @@ class Inventory(QFrame):
     ##
     def data_full_loaded(self):
         try:
-            conn = sqlite3.connect('Data\\sh_online.db')
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+            if not os.path.exists(db_path):
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT id FROM users LIMIT 1")
             c_row = cursor.fetchone()

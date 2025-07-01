@@ -22,6 +22,7 @@ from inventory import Inventory
 from settings import Settings
 from PyQt6.QtWidgets import QStyledItemDelegate
 from PyQt6.QtGui import QColor, QPalette
+from functools import partial
 
 class BlackTextDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -38,6 +39,7 @@ class WidgetManager(QWidget):
         self.parent = parent
         self.stack = QStackedWidget(parent)
         self.frames = {}
+        self.denied_buttons= []
 
         self.frame2 = None
         self.das_frame = None
@@ -60,6 +62,7 @@ class WidgetManager(QWidget):
         self.added_products = []  # هر آیتم: دیکشنری حاوی اطلاعات محصول
         self.temp_loaded_invoice = []
         self.load_today_invoices()
+        self.load_all_fonts()
 
 
 
@@ -115,11 +118,11 @@ class WidgetManager(QWidget):
         self.ta_lb= QLabel("")
         self.ta_lb.setAlignment( Qt.AlignmentFlag.AlignRight)
         ##
-        self.delete_btn= QPushButton()
+        self.save_btns= QPushButton()
         ##
         self.clear_btn= QPushButton()
         ##
-        self.top_layout.addWidget(self.delete_btn)
+        self.top_layout.addWidget(self.save_btns)
         self.top_layout.addSpacing(230)
         self.top_layout.addWidget(self.table_title)
         self.top_layout.addStretch(1)
@@ -145,8 +148,8 @@ class WidgetManager(QWidget):
         self.factor_layout.addWidget(self.factor_number)
         self.factor_layout.addWidget(self.factor_lb) 
         ##
-        self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["نام محصول", "قیمت","تعداد", "واحد", "تخفیف","قیمت کل"])
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(["نام محصول", "قیمت","تعداد", "واحد", "تخفیف","قیمت کل","عملیات"])
         self.table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         self.table.verticalHeader().setVisible(False)  # عدم نمایش شماره ردیف
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -459,16 +462,16 @@ class WidgetManager(QWidget):
                 }
     ''')
         ##
-        delete_icon= QIcon(self.get_asset_path("trash.png"))
-        self.delete_btn.setIcon(delete_icon)
-        self.delete_btn.setIconSize(QtCore.QSize(25,25))
-        self.delete_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.delete_btn.clicked.connect(self.delete_product)
-        self.delete_btn.setText("حذف محصول")
-        self.delete_btn.setStyleSheet('''
+        save_icon= QIcon(self.get_asset_path("save-icon.png"))
+        self.save_btns.setIcon(save_icon)
+        self.save_btns.setIconSize(QtCore.QSize(30,30))
+        self.save_btns.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.save_btns.clicked.connect(self.save_prouducts)
+        self.save_btns.setText("ذخیره محصول  ")
+        self.save_btns.setStyleSheet('''
             QPushButton{
                 background-color: white;
-                color: red;
+                color: black;
                 font-family: B Nazanin;
                 font-weight: bold;
                 font-size: 14px;
@@ -479,7 +482,7 @@ class WidgetManager(QWidget):
             text-decoration: underline;
                                       }
         QPushButton:pressed{
-            color: red;
+            color: blue;
                                       }
         ''')
         ##
@@ -535,7 +538,11 @@ class WidgetManager(QWidget):
             # اگر قبلاً مقدار گرفته شده، دوباره نگیر
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -588,7 +595,11 @@ class WidgetManager(QWidget):
         cursor_sq= None
 
         # خواندن شناسه کاربر از دیتابیس محلی
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -673,7 +684,11 @@ class WidgetManager(QWidget):
         total_price = self.total_price_input.text()
         is_switch_on = self.switch.isChecked()
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -708,7 +723,6 @@ class WidgetManager(QWidget):
                 if quantity > float(stock_quantity):
                     MessageBox(f"موجودی محصول {name} کافی نیست", title="ناموفق", type="warning").show()
                     return
-
                 # بررسی تکراری بودن محصول:
                 for i, product in enumerate(self.added_products):
                     if product['barcode'] == barcode and product['s_type'] == s_type:
@@ -720,7 +734,7 @@ class WidgetManager(QWidget):
                         product['quantity'] = total_quantity
                         product['raw_qty'] += qty
                         product['total'] += float(total_price)
-
+                    
                         self.table.setItem(i, 2, self._make_cell(str(product['raw_qty'])))
                         self.table.setItem(i, 5, self._make_cell(str(product['total'])))
 
@@ -737,13 +751,33 @@ class WidgetManager(QWidget):
                 # اگر تکراری نبود، سطر جدید اضافه شود
                 row = self.table.rowCount()
                 self.table.insertRow(row)
+                ####
+                # دکمه حذف
+                denied_btn = QPushButton()
+                denied_icon = QIcon(self.get_asset_path("MacOS Close.png"))
+                denied_btn.setIcon(denied_icon)
+                denied_btn.setIconSize(QtCore.QSize(25, 25))
+                denied_btn.setStyleSheet('''
+                    QPushButton {
+                        background-color: transparent;
+                        border: none;
+                    }
+                ''')
 
+                # اتصال دکمه به تابع حذف ردیف مخصوص خود
+                denied_btn.clicked.connect(self.delete_product)
+
+                # ذخیره در لیست دکمه‌ها
+                self.denied_buttons.append(denied_btn)
+
+                # درج اطلاعات در جدول
                 self.table.setItem(row, 0, self._make_cell(name))
                 self.table.setItem(row, 1, self._make_cell(str(unit_price)))
                 self.table.setItem(row, 2, self._make_cell(str(qty)))
                 self.table.setItem(row, 3, self._make_cell(s_type))
                 self.table.setItem(row, 4, self._make_cell(str(discount)))
                 self.table.setItem(row, 5, self._make_cell(total_price))
+                self.table.setCellWidget(row, 6, denied_btn)
 
                 self.added_products.append({
                     "barcode": barcode,
@@ -772,6 +806,117 @@ class WidgetManager(QWidget):
                 MessageBox(text=f"{e}: خطا در دیتابیس", title="ناموفق", type="error").show()
             finally:
                 conn.close()
+    ##
+    def save_prouducts(self):
+        items = self.added_products if self.added_products else self.temp_loaded_invoice
+
+        if not items:
+            MessageBox("هیچ محصولی به فاکتور اضافه نشده است", title="خطا", type="warning").show()
+            return
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        barcode = self.barocde
+        factor_number = self.factor_value
+        date = datetime.date.today().strftime("%Y/%m/%d")
+        date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
+
+        invoice_key = f"فاکتور {factor_number}"
+        self.invoices[invoice_key] = self.added_products
+
+        # حذف آیتم تکراری
+        for i in range(self.invoice_list.count()):
+            if self.invoice_list.item(i).text() == invoice_key:
+                self.invoice_list.takeItem(i)
+                break
+        self.invoice_list.addItem(invoice_key)
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT id FROM users;")
+            res_id = cursor.fetchone()
+            id_user = res_id[0] if res_id else None
+
+            for product in items:
+                barcode = product['barcode']
+                name = product['name']
+                unit_price = product['unit_price']
+                quantity = product['quantity']       # برای ذخیره در دیتابیس
+                s_type = product['s_type']
+                sale_type = product['sale_type']
+                discount_val = product['discount']
+                final_total = product['total']
+
+                cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
+                product_quantity_row = cursor.fetchone()
+                product_quantity = product_quantity_row[0] if product_quantity_row else 0
+
+                if float(quantity) > product_quantity:
+                    MessageBox(f"موجودی محصول {name} کافی نیست", title="ناموفق", type="warning").show()
+                    continue
+                is_synced=0
+                cursor.execute('''
+                    INSERT INTO sale_factor (barcode, product_name, factor_number, sale_price, sale_date, quantity,
+                        product_type, sale_type, discount, total, created_at, user_id, is_synced)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    barcode, name, factor_number, unit_price, date, quantity, s_type, sale_type,
+                    discount_val, final_total, date_ent, id_user, is_synced
+                ))
+
+            cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
+            conn.commit()
+            MessageBox(text="اطلاعات موفقانه ذخیره شد✅",title="موفقانه",type="info").show()
+
+            # بازخوانی فاکتورهای امروز برای نمایش
+            cursor.execute("""
+                SELECT factor_number FROM sale_factor
+                WHERE sale_date = ?
+                GROUP BY factor_number
+                ORDER BY factor_number DESC
+            """, (date,))
+            today_factors = cursor.fetchall()
+
+            for f in today_factors:
+                factor_num = f[0]
+                invoice_key = f"فاکتور {factor_num}"
+
+                cursor.execute("""
+                    SELECT product_name, sale_price, quantity, product_type, discount, total
+                    FROM sale_factor
+                    WHERE factor_number = ?
+                """, (factor_num,))
+                rows = cursor.fetchall()
+                self.invoices[invoice_key] = rows
+
+                if not any(self.invoice_list.item(i).text() == invoice_key for i in range(self.invoice_list.count())):
+                    self.invoice_list.addItem(invoice_key)
+
+            conn.close()
+
+            self.factor_value = None
+            self.set_factor_number()
+            self.factor_number.setText(f"{self.factor_value}")
+            items = self.added_products.copy()
+            self.added_products.clear()
+            self.temp_loaded_invoice.clear()
+            self.table.setRowCount(0)
+            self.table.setShowGrid(False)
+
+
+        except sqlite3.Error as e:
+            print(f"{e}: خطا در پایگاه داده")
+            MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
+            return
 
 
     ##
@@ -804,7 +949,11 @@ class WidgetManager(QWidget):
             MessageBox("هیچ محصولی به فاکتور اضافه نشده است", title="خطا", type="warning").show()
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -1076,7 +1225,7 @@ class WidgetManager(QWidget):
                         product_name, barcode, factor_number, sale_date, sale_price,
                         quantity, product_type, sale_type, discount, total, user_id, created_at
                     ))
-                print(f"✅ محصول {barcode} افزوده شد")
+                print(f"✅ item {barcode}  added")
                 ## update products
                 cursor_sq.execute("UPDATE products SET is_synced=0 where barcode=?",(barcode,))
 
@@ -1126,6 +1275,23 @@ class WidgetManager(QWidget):
 
             for name, price, number, unit, discount, total in self.invoices[invoice_name]:
                 row = self.table.rowCount()
+                # دکمه حذف
+                denied_btn = QPushButton()
+                denied_icon = QIcon(self.get_asset_path("MacOS Close.png"))
+                denied_btn.setIcon(denied_icon)
+                denied_btn.setIconSize(QtCore.QSize(25, 25))
+                denied_btn.setStyleSheet('''
+                    QPushButton {
+                        background-color: transparent;
+                        border: none;
+                    }
+                ''')
+
+                # اتصال دکمه به تابع حذف ردیف مخصوص خود
+                denied_btn.clicked.connect(self.delete_product)
+
+                # ذخیره در لیست دکمه‌ها
+                self.denied_buttons.append(denied_btn)
                 self.table.insertRow(row)
                 self.table.setItem(row, 0, QTableWidgetItem(name))
                 self.table.setItem(row, 1, QTableWidgetItem(str(price)))
@@ -1133,10 +1299,14 @@ class WidgetManager(QWidget):
                 self.table.setItem(row, 3, QTableWidgetItem(str(unit)))
                 self.table.setItem(row, 4, QTableWidgetItem(str(discount)))
                 self.table.setItem(row, 5, QTableWidgetItem(str(total)))
+                self.table.setCellWidget(row,6,denied_btn)
                 self.calculate_total_price(self.table.item(row, 1))
 
                 # واکشی barcode از دیتابیس براساس نام و قیمت (در صورت نیاز می‌توان دقیق‌تر کرد)
-                db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                # رفتن یک سطح بالاتر از پوشه GUI
+                root_dir = os.path.dirname(base_dir)
+                db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
                 barcode = None
 
                 try:
@@ -1219,11 +1389,15 @@ class WidgetManager(QWidget):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
-    ##
+   ##
     def load_today_invoices(self):
         self.invoice_list.clear()  # پاک‌سازی لیست فاکتورها
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -1286,7 +1460,11 @@ class WidgetManager(QWidget):
         if result != QMessageBox.StandardButton.Yes:
             return  # لغو عملیات حذف
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -1313,8 +1491,8 @@ class WidgetManager(QWidget):
                                 cursor.execute("UPDATE products SET quantity = ?, is_synced = 0 WHERE barcode = ?", (new_qty, barcode))
 
                         # همچنین حذف از جدول sale_factor
-                        name = item.get("name")
-                        cursor.execute("DELETE FROM sale_factor WHERE name = ? AND barcode = ?", (name, barcode))
+                        name = item.get("product_name")
+                        cursor.execute("DELETE FROM sale_factor WHERE product_name = ? AND barcode = ?", (name, barcode))
 
                         conn.commit()
 
@@ -1330,5 +1508,24 @@ class WidgetManager(QWidget):
         finally:
             conn.close()
 
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
 
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+    ##
         

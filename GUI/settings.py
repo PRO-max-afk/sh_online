@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 
+
 class Settings(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -22,6 +23,7 @@ class Settings(QMainWindow):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
+        self.load_all_fonts()
 
         
 
@@ -133,6 +135,7 @@ class Settings(QMainWindow):
     def button_UI(self):
         ##
         self.user_settings.clicked.connect(self.user_page)
+        self.store_settings.clicked.connect(self.shop_se_page)
         # آیکون و متن‌ها
         buttons_info = [
             (self.store_settings, "grocery-store_16893316.png", "تنظیمات فروشگاه"),
@@ -244,6 +247,7 @@ class Settings(QMainWindow):
                 font_id = QFontDatabase.addApplicationFont(font_path)
                 if font_id == -1:
                     print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                
                 else:
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
@@ -263,6 +267,24 @@ class Settings(QMainWindow):
 
         # انیمیشن ورود از راست
         self.anim = QPropertyAnimation(self.user_settings, b"pos", self)
+        self.anim.setDuration(700)
+        self.anim.setStartValue(QPoint(self.stack.width(), 0))
+        self.anim.setEndValue(QPoint(0, 0))
+        self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.anim.start()
+    ##
+    def shop_se_page(self):
+        from shop_se import ShopSettings
+
+        self.shop_paged = ShopSettings()
+        self.stack.addWidget(self.shop_paged)
+
+        # موقعیت اولیه: خارج از صفحه
+        self.user_settings.move(self.stack.width(), 0)
+        self.stack.setCurrentWidget(self.shop_paged)
+
+        # انیمیشن ورود از راست
+        self.anim = QPropertyAnimation(self.shop_paged, b"pos", self)
         self.anim.setDuration(700)
         self.anim.setStartValue(QPoint(self.stack.width(), 0))
         self.anim.setEndValue(QPoint(0, 0))

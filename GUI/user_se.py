@@ -26,6 +26,7 @@ class UserSettings(QMainWindow):
         self.btn_mode= True
         self.show_first_spinner()
         #self.active_user()
+        self.load_all_fonts()
 
         
 
@@ -167,10 +168,6 @@ class UserSettings(QMainWindow):
         btn_layout.addWidget(self.save_btn)
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         
-        ##
-        #user_layout.addLayout(users_layout)
-        #user_layout.addLayout(last_layout)
-        #user_layout.addLayout(name_layout)
         ##
         all_layout.setSpacing(10)
         all_layout.addLayout(users_layout,2,3)
@@ -567,7 +564,11 @@ class UserSettings(QMainWindow):
             print("اتصال به سرور انجام نشد")
             return
         
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -651,7 +652,11 @@ class UserSettings(QMainWindow):
             print("خطا در اتصال به دیتابیس")
             return
 
-        db_path = r"D:\\projects\\sh_online\\Data\\sh_online.db"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
@@ -833,5 +838,25 @@ class UserSettings(QMainWindow):
             layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.setContentsMargins(0, 0, 0, 0)
             self.mobile_user_table.setCellWidget(i, 2, cell_widget)
+    ##
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
 
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+    ##
 
