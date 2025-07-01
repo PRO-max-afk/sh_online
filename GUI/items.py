@@ -1,129 +1,162 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QSpacerItem, QSizePolicy, QBoxLayout, QLabel, QLineEdit, QGraphicsDropShadowEffect
-from PyQt6.QtGui import QIcon, QFont, QColor
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QLineEdit,
+    QGraphicsDropShadowEffect, QSizePolicy, QSpacerItem, QGridLayout
+)
+from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap
 from PyQt6.QtCore import Qt, QSize
 import sys
 
-class ChangeItems(QWidget):
+
+class SettingsPage(QWidget):
     def __init__(self):
-         super().__init__()
-         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-         self.ini_UI()
-         
-         
-    def ini_UI(self):
-            self.setStyleSheet("background-color: #d9d9d9;")
+        super().__init__()
+        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.setup_ui()
 
-            title_label = QLabel("تنظیمات محصولات")
-            title_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
-            title_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+    def setup_ui(self):
+        # لایه اصلی
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
 
-            back_button = QPushButton()
-            back_button.setIcon(QIcon('images/back.png'))
-            back_button.setIconSize(QSize(60, 60))
-            back_button.setFixedSize(70, 70)
-            back_button.setStyleSheet("""
-                QPushButton {
-                    background-color: transparent;
-                    border-radius: 25px;
-                }
-                QPushButton:hover {
-                    background-color: #f8faff;        
-                }
-            """)
+        # اضافه کردن تاپ‌بار و فریم به لایه اصلی
+        main_layout.addLayout(self.create_top_bar())
+        main_layout.addSpacing(5)
+        main_layout.addWidget(self.create_frame1())
+        main_layout.addWidget(self.create_frame2())
 
-            frame1 = QFrame()
-            frame1.setFixedHeight(280)
-            frame1.setStyleSheet("""
-                QFrame {
-                    background-color: white;
-                    border-radius: 10px;
-                }
-            """)
+        self.setLayout(main_layout)
 
-            frame1_layout = QVBoxLayout(frame1)
-            frame1_layout.setContentsMargins(0, 0, 0, 0)
-            frame1_layout.setSpacing(5)
+    def create_top_bar(self):
+        top_bar = QHBoxLayout()
+        top_bar.setContentsMargins(15, 30, 20, 0)
+        top_bar.setSpacing(10)
 
-            frame1_title = QLabel("تغییر محصولات")
-            frame1_title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-            frame1_title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        title_label = QLabel("تنظیمات محصولات")
+        title_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
 
-            search_input = QLineEdit()
-            search_input.setPlaceholderText("جستجوی محصولات ...")
-            search_input.setFixedSize(200, 40)
-            search_input.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
-            search_input.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        back_button = QPushButton()
+        back_button.setIcon(QIcon('images/back.png'))
+        back_button.setIconSize(QSize(40, 40))
+        back_button.setFixedSize(50, 50)
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border-radius: 25px;
+            }
+            QPushButton:hover {
+                background-color: #f8faff;
+            }
+        """)
 
-            shadow = QGraphicsDropShadowEffect()
-            shadow.setBlurRadius(8)
-            shadow.setXOffset(0)
-            shadow.setYOffset(5)
-            shadow.setColor(QColor(0, 0, 0, 70))
+        top_bar.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+        top_bar.addStretch()
+        top_bar.addWidget(back_button, alignment=Qt.AlignmentFlag.AlignTop)
 
-            search_input.setGraphicsEffect(shadow)
+        return top_bar
 
-            label1 = QLabel("نام محصول: ")
-            label1.setFont(QFont("Arial", 12))
-            label2 = QLabel("بارکد محصول: ")
-            label2.setFont(QFont("Arial", 12))
-            label3 = QLabel("قیمت فروش: ")
-            label3.setFont(QFont("Arial", 12))
+    def create_frame1(self):
+        # ساخت فریم
+        frame1 = QFrame()
+        frame1.setFixedHeight(340)
+        frame1.setStyleSheet("QFrame { background-color: white; border-radius: 10px; }")
 
-            line_edit1 = QLineEdit()
-            line_edit1.setFixedSize(180, 28)
-            line_edit2 = QLineEdit()
-            line_edit2.setFixedSize(180, 28)
-            line_edit3 = QLineEdit()
-            line_edit3.setFixedSize(180, 28)
+        # لایه داخل فریم
+        frame1_layout = QVBoxLayout()
+        frame1_layout.setContentsMargins(0, 0, 0, 0)
+        frame1_layout.setSpacing(10)
 
-            field_layout = QHBoxLayout()
-            field_layout.addWidget(label1)
-            field_layout.addWidget(line_edit1)
-            field_layout.addWidget(label2)
-            field_layout.addWidget(line_edit2)
-            field_layout.addWidget(label3)
-            field_layout.addWidget(line_edit3)
+        frame1_title_label = QLabel("تغییر محصولات")
+        frame1_title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
 
-            spacer = QFrame()
-            spacer.setFixedHeight(15)
-            spacer.setStyleSheet("background-color: transparent; border: none;")
+        frame1_layout.addWidget(frame1_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        
+        frame1_search_input = QLineEdit()
+        frame1_search_input.setContentsMargins(0, 0, 30, 0)
+        frame1_search_input.setPlaceholderText("جستجوی محصولات ...")
+        frame1_search_input.setFixedSize(200, 40)
+        frame1_search_input.setStyleSheet("""
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            color: #222222;
+            font-size: 12px;
+        """)
+        frame1_layout.addWidget(frame1_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        frame1_layout.addStretch()
 
-            frame2 = QFrame()
-            frame2.setFixedHeight(150)
-            frame2.setStyleSheet("""
-                QFrame {
-                    background-color: white;
-                    border-radius: 10px;
-                    border: 1px solid #ccc;
-                }
-            """)
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(8)
+        shadow.setXOffset(0)
+        shadow.setYOffset(5)
+        shadow.setColor(QColor(0, 0, 0, 70))
+        frame1_search_input.setGraphicsEffect(shadow)
 
-            main_layout = QVBoxLayout(self)
-            main_layout.setContentsMargins(20, 20, 40, 40)
-            main_layout.setSpacing(20)
+        frame1.setLayout(frame1_layout)
 
-            top_bar_layout = QHBoxLayout()
-            top_bar_layout.setContentsMargins(20, 10, 20, 10)
-            top_bar_layout.setSpacing(10)
-            
-            top_bar_layout.addWidget(title_label)
-            top_bar_layout.addStretch()
-            top_bar_layout.addWidget(back_button)
+        return frame1
+    
+    def create_frame2(self):
+        frame2 = QFrame()
+        frame2.setFixedHeight(150)
+        frame2.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 10px;
+            }
+        """)
 
-            frame1_layout.addWidget(frame1_title)
-            frame1_layout.addWidget(search_input, alignment=Qt.AlignmentFlag.AlignLeft)
-            frame1_layout.addWidget(spacer)
-            frame1_layout.addStretch()
+        frame2_vlayout = QVBoxLayout()
+        frame2_vlayout.setContentsMargins(0, 0, 0, 0)
+        frame2_vlayout.setSpacing(10)
 
-            main_layout.addLayout(top_bar_layout)
+        frame2_title_label = QLabel("ساخت بارکد")
+        frame2_title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_vlayout.addWidget(frame2_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
-            main_layout.addWidget(frame1)
-            main_layout.addWidget(frame2)
+        frame2_hlayout = QHBoxLayout()
+        frame2_hlayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        frame2_hlayout.setSpacing(20)
+        frame2_label1 = QLabel("نام محصول")
+        frame2_label1.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_QLineEdit1 = QLineEdit()
+        frame2_QLineEdit1.setFixedSize(200, 40)
+        frame2_QLineEdit1.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
+        
+        frame2_label2 = QLabel("تولید بارکد")
+        frame2_label2.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_QLineEdit2 = QLineEdit()
+        frame2_QLineEdit2.setFixedSize(200, 40)
+        frame2_QLineEdit2.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
+        
+        frame2_label3 = QLabel("انتخاب مسیر")
+        frame2_label3.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_QLineEdit3 = QLineEdit()
+        frame2_QLineEdit3.setFixedSize(200, 40)
+        frame2_QLineEdit3.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
 
-            main_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
+        frame2_hlayout.addWidget(frame2_label1)
+        frame2_hlayout.addWidget(frame2_QLineEdit1)
+        
+        frame2_hlayout.addWidget(frame2_label2)
+        frame2_hlayout.addWidget(frame2_QLineEdit2)
+        
+        frame2_hlayout.addWidget(frame2_label3)
+        frame2_hlayout.addWidget(frame2_QLineEdit3)
+        frame2_hlayout.addStretch()
+
+        barcode_icon = QLabel()
+        barcode_icon.setPixmap(QPixmap('images/Barcode.png').scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio))
+
+        frame2_hlayout.addWidget(barcode_icon)
+    
+        frame2_vlayout.addLayout(frame2_hlayout)
+        frame2.setLayout(frame2_vlayout)
+
+        return frame2
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = ChangeItems()
+    window = SettingsPage()
     window.show()
     sys.exit(app.exec())
