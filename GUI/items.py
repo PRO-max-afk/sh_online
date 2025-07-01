@@ -1,0 +1,162 @@
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QLineEdit,
+    QGraphicsDropShadowEffect, QSizePolicy, QSpacerItem, QGridLayout
+)
+from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap
+from PyQt6.QtCore import Qt, QSize
+import sys
+
+
+class SettingsPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.setup_ui()
+
+    def setup_ui(self):
+        # لایه اصلی
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
+
+        # اضافه کردن تاپ‌بار و فریم به لایه اصلی
+        main_layout.addLayout(self.create_top_bar())
+        main_layout.addSpacing(5)
+        main_layout.addWidget(self.create_frame1())
+        main_layout.addWidget(self.create_frame2())
+
+        self.setLayout(main_layout)
+
+    def create_top_bar(self):
+        top_bar = QHBoxLayout()
+        top_bar.setContentsMargins(15, 30, 20, 0)
+        top_bar.setSpacing(10)
+
+        title_label = QLabel("تنظیمات محصولات")
+        title_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+
+        back_button = QPushButton()
+        back_button.setIcon(QIcon('images/back.png'))
+        back_button.setIconSize(QSize(40, 40))
+        back_button.setFixedSize(50, 50)
+        back_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border-radius: 25px;
+            }
+            QPushButton:hover {
+                background-color: #f8faff;
+            }
+        """)
+
+        top_bar.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+        top_bar.addStretch()
+        top_bar.addWidget(back_button, alignment=Qt.AlignmentFlag.AlignTop)
+
+        return top_bar
+
+    def create_frame1(self):
+        # ساخت فریم
+        frame1 = QFrame()
+        frame1.setFixedHeight(340)
+        frame1.setStyleSheet("QFrame { background-color: white; border-radius: 10px; }")
+
+        # لایه داخل فریم
+        frame1_layout = QVBoxLayout()
+        frame1_layout.setContentsMargins(0, 0, 0, 0)
+        frame1_layout.setSpacing(10)
+
+        frame1_title_label = QLabel("تغییر محصولات")
+        frame1_title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+
+        frame1_layout.addWidget(frame1_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        
+        frame1_search_input = QLineEdit()
+        frame1_search_input.setContentsMargins(0, 0, 30, 0)
+        frame1_search_input.setPlaceholderText("جستجوی محصولات ...")
+        frame1_search_input.setFixedSize(200, 40)
+        frame1_search_input.setStyleSheet("""
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            color: #222222;
+            font-size: 12px;
+        """)
+        frame1_layout.addWidget(frame1_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        frame1_layout.addStretch()
+
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(8)
+        shadow.setXOffset(0)
+        shadow.setYOffset(5)
+        shadow.setColor(QColor(0, 0, 0, 70))
+        frame1_search_input.setGraphicsEffect(shadow)
+
+        frame1.setLayout(frame1_layout)
+
+        return frame1
+    
+    def create_frame2(self):
+        frame2 = QFrame()
+        frame2.setFixedHeight(150)
+        frame2.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 10px;
+            }
+        """)
+
+        frame2_vlayout = QVBoxLayout()
+        frame2_vlayout.setContentsMargins(0, 0, 0, 0)
+        frame2_vlayout.setSpacing(10)
+
+        frame2_title_label = QLabel("ساخت بارکد")
+        frame2_title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_vlayout.addWidget(frame2_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+
+        frame2_hlayout = QHBoxLayout()
+        frame2_hlayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        frame2_hlayout.setSpacing(20)
+        frame2_label1 = QLabel("نام محصول")
+        frame2_label1.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_QLineEdit1 = QLineEdit()
+        frame2_QLineEdit1.setFixedSize(200, 40)
+        frame2_QLineEdit1.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
+        
+        frame2_label2 = QLabel("تولید بارکد")
+        frame2_label2.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_QLineEdit2 = QLineEdit()
+        frame2_QLineEdit2.setFixedSize(200, 40)
+        frame2_QLineEdit2.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
+        
+        frame2_label3 = QLabel("انتخاب مسیر")
+        frame2_label3.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame2_QLineEdit3 = QLineEdit()
+        frame2_QLineEdit3.setFixedSize(200, 40)
+        frame2_QLineEdit3.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
+
+        frame2_hlayout.addWidget(frame2_label1)
+        frame2_hlayout.addWidget(frame2_QLineEdit1)
+        
+        frame2_hlayout.addWidget(frame2_label2)
+        frame2_hlayout.addWidget(frame2_QLineEdit2)
+        
+        frame2_hlayout.addWidget(frame2_label3)
+        frame2_hlayout.addWidget(frame2_QLineEdit3)
+        frame2_hlayout.addStretch()
+
+        barcode_icon = QLabel()
+        barcode_icon.setPixmap(QPixmap('images/Barcode.png').scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio))
+
+        frame2_hlayout.addWidget(barcode_icon)
+    
+        frame2_vlayout.addLayout(frame2_hlayout)
+        frame2.setLayout(frame2_vlayout)
+
+        return frame2
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = SettingsPage()
+    window.show()
+    sys.exit(app.exec())
