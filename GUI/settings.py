@@ -131,11 +131,12 @@ class Settings(QMainWindow):
 
     def field_UI(self):
         pass
-   ##
+    ##
     def button_UI(self):
         ##
         self.user_settings.clicked.connect(self.user_page)
         self.store_settings.clicked.connect(self.shop_se_page)
+        self.item_settings.clicked.connect(self.item_page)
         # آیکون و متن‌ها
         buttons_info = [
             (self.store_settings, "grocery-store_16893316.png", "تنظیمات فروشگاه"),
@@ -259,6 +260,24 @@ class Settings(QMainWindow):
         from user_se import UserSettings
 
         self.user_settings = UserSettings()
+        self.stack.addWidget(self.user_settings)
+
+        # موقعیت اولیه: خارج از صفحه
+        self.user_settings.move(self.stack.width(), 0)
+        self.stack.setCurrentWidget(self.user_settings)
+
+        # انیمیشن ورود از راست
+        self.anim = QPropertyAnimation(self.user_settings, b"pos", self)
+        self.anim.setDuration(700)
+        self.anim.setStartValue(QPoint(self.stack.width(), 0))
+        self.anim.setEndValue(QPoint(0, 0))
+        self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.anim.start()
+    ##
+    def item_page(self):
+        from items import ItemsSettings
+
+        self.user_settings = ItemsSettings()
         self.stack.addWidget(self.user_settings)
 
         # موقعیت اولیه: خارج از صفحه

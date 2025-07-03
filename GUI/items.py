@@ -1,21 +1,35 @@
-from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QLineEdit,
-    QGraphicsDropShadowEffect, QSizePolicy, QSpacerItem, QGridLayout
-)
-from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
+    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPixmap
+from PyQt6 import QtCore
+from circle import CircularSpinner
+import sqlite3
+import pymysql
+import requests
+from notifi_box import Notification
+from user_info import UserFetchThread
+import threading
+from switch import ToggleSwitch
+from message_b import MessageBox
+from switch import ToggleSwitch
+import os
 import sys
 
-
-class SettingsPage(QWidget):
+class ItemsSettings(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setStyleSheet("background-color: #D9D9D9")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.setup_ui()
 
     def setup_ui(self):
+        self.stack_items= QStackedWidget()
+        self.setCentralWidget(self.stack_items)
+        self.itms_page= QWidget()
+
         # لایه اصلی
-        main_layout = QVBoxLayout()
+        main_layout = QVBoxLayout(self.itms_page)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
@@ -26,6 +40,7 @@ class SettingsPage(QWidget):
         main_layout.addWidget(self.create_frame2())
 
         self.setLayout(main_layout)
+        self.stack_items.addWidget(self.itms_page)
 
     def create_top_bar(self):
         top_bar = QHBoxLayout()
@@ -36,7 +51,7 @@ class SettingsPage(QWidget):
         title_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
 
         back_button = QPushButton()
-        back_button.setIcon(QIcon('images/back.png'))
+        back_button.setIcon(QIcon(self.get_asset_path('back.png')))
         back_button.setIconSize(QSize(40, 40))
         back_button.setFixedSize(50, 50)
         back_button.setStyleSheet("""
@@ -48,7 +63,7 @@ class SettingsPage(QWidget):
                 background-color: #f8faff;
             }
         """)
-
+        back_button.clicked.connect(self.back_settings)
         top_bar.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
         top_bar.addStretch()
         top_bar.addWidget(back_button, alignment=Qt.AlignmentFlag.AlignTop)
@@ -146,7 +161,7 @@ class SettingsPage(QWidget):
         frame2_hlayout.addStretch()
 
         barcode_icon = QLabel()
-        barcode_icon.setPixmap(QPixmap('images/Barcode.png').scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio))
+        barcode_icon.setPixmap(QPixmap(self.get_asset_path('Barcode.png')).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio))
 
         frame2_hlayout.addWidget(barcode_icon)
     
@@ -154,9 +169,53 @@ class SettingsPage(QWidget):
         frame2.setLayout(frame2_vlayout)
 
         return frame2
+    ##
+    def back_settings(self):
+        from settings import Settings
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = SettingsPage()
-    window.show()
-    sys.exit(app.exec())
+        self.settings= Settings()
+        self.stack_items.addWidget(self.settings)
+
+        
+        self.stack_items.setCurrentWidget(self.settings)
+        ##
+        start_pos = QPoint(-self.width(), 0)
+        end_pos = QPoint(0, 0)
+        self.settings.move(start_pos)
+        ##
+        self.animate= QPropertyAnimation(self.settings, b"pos",self)
+        self.animate.setDuration(700)
+        self.animate.setStartValue(start_pos)
+        self.animate.setEndValue(end_pos)
+        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animate.start()
+    ##
+    def get_asset_path(self, filename):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        image_path = os.path.join(project_root, "assets", filename)
+        if os.path.exists(image_path):
+            return image_path
+        else:
+            print(f"⚠ فایل یافت نشد: {image_path}")
+            return None
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+    
+

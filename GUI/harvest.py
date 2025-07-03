@@ -549,8 +549,6 @@ class Harvest(QMainWindow):
                     self.har_table.setItem(row, 2, QTableWidgetItem(self._make_cell(date)))
                     self.har_table.setItem(row,3,QTableWidgetItem(self._make_cell(description)))
 
-                    print(result)
-
         except sqlite3.Error as e:
             print(f"{e}: error in select db")
     ##
