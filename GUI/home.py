@@ -447,6 +447,7 @@ class WidgetManager(QWidget):
         self.add_button.setStyleSheet('''
             QPushButton {
                     background-color: #2251DB;
+                    color: white;
                     font-family: "B Nazanin";
                     font-size: 18px;
                     font-weight: bold;

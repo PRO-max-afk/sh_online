@@ -37,9 +37,16 @@ class SaleThread(QThread):
         
 
     def run(self):
-        self.month_sale()  # این خط حیاتی است تا thread واقعاً کاری انجام دهد
-        self.week_sale_off()
-        self.day_off()
+        # اول ماهانه، اگر تنظیم شده
+        if self.selected_month:
+            self.month_sale()
+            self.day_off()
+        # بعد هفته‌ای، اگر تنظیم شده
+        elif self.selected_week:
+            self.week_sale_off()
+        
+
+
         
     def month_sale(self):
         db_data= self.get_db_config()
