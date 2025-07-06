@@ -107,6 +107,52 @@ class ItemsSettings(QMainWindow):
         shadow.setColor(QColor(0, 0, 0, 70))
         frame1_search_input.setGraphicsEffect(shadow)
 
+        main_h_layout = QHBoxLayout()
+        main_h_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        main_h_layout.setSpacing(30)
+
+        fields = [
+            ("نام محصول", QLineEdit()),
+            ("بارکد محصول", QLineEdit()),
+            ("قیمت فروش", QLineEdit()),
+            ("قیمت عمده", QLineEdit()),
+            ("تعداد هر بسته", QLineEdit()),
+            ("تاریخ تولید", QLineEdit()),
+            ("تاریخ انقضا", QLineEdit()),
+            ("تعداد محصول", QLineEdit()),
+            ("قیمت خرید", QLineEdit())
+        ]
+
+        # تقسیم فیلدها در ۳ ستون
+        for col in range(3):
+            v_layout = QVBoxLayout()
+            v_layout.setSpacing(10)
+
+        for i in range(3):
+            index = col * 3 + i
+            label_text, line_edit = fields[index]
+
+            label = QLabel(label_text)
+            label.setFont(QFont("Arial", 10))
+
+            line_edit.setFixedSize(200, 40)
+            line_edit.setStyleSheet("""
+                background-color: white;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 12px;
+                color: #222;
+            """)
+
+            v_layout.addWidget(label)
+            v_layout.addWidget(line_edit)
+
+        main_h_layout.addLayout(v_layout)
+
+    # افزودن layout افقی به layout اصلی فریم
+        frame1_layout.addLayout(main_h_layout)
+
         frame1.setLayout(frame1_layout)
 
         return frame1
