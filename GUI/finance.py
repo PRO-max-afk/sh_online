@@ -18,19 +18,15 @@ class Money(QMainWindow):
         super().__init__()
         self.init_ui()
         self.label_UI()
-        self.field_UI()
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
         self.load_all_fonts()
 
-        
-
 
     def init_ui(self):
         self.stack= QStackedWidget()
         self.setCentralWidget(self.stack)
-       
 
         self.finance_page = QWidget()
         main_layout = QVBoxLayout(self.finance_page)
@@ -109,7 +105,6 @@ class Money(QMainWindow):
         self.harvest_reports= QToolButton()
         self.barrow_reports= QToolButton()
         self.item_reports= QToolButton()
-        self.delivary_settings= QToolButton()
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
         self.notification_frame = QFrame(self)
@@ -132,12 +127,11 @@ class Money(QMainWindow):
             margin-top: 5px;
         ''')
 
-    def field_UI(self):
-        pass
    ##
     def button_UI(self):
         ##
         self.sell_reports.clicked.connect(self.page_sell)
+        self.buy_reports.clicked.connect(self.page_buy)
         self.harvest_reports.clicked.connect(self.page_harvest)
         self.barrow_reports.clicked.connect(self.page_barrow)
         # آیکون و متن‌ها
@@ -146,9 +140,7 @@ class Money(QMainWindow):
             (self.buy_reports, "shopping-analytics_18086140.png", "گزارش خرید"),
             (self.harvest_reports, "clipboard_8915058.png", "گزارش برداشت ها"),
             (self.barrow_reports, "report_18765735.png", "گزارش قرض ها"),
-            (self.item_reports, "clipboard_6932327.png", "گزارش محصولات"),
-            (self.delivary_settings, "repair_18241257.png", "تنظیمات ارسال")
-            # می‌توانید دکمه‌های بیشتر هم اضافه کنید.
+            (self.item_reports, "clipboard_6932327.png", "گزارش محصولات")
         ]
 
         buttons = []
@@ -239,6 +231,23 @@ class Money(QMainWindow):
         self.stack.setCurrentWidget(self.sell_page)
         ##
         self.animate= QPropertyAnimation(self.sell_page, b'pos',self)
+        self.animate.setDuration(700)
+        self.animate.setStartValue(QPoint(self.stack.width(),0))
+        self.animate.setEndValue(QPoint(0,0))
+        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animate.start()
+    ##
+    ##
+    def page_buy(self):
+        from buy_reports import BuyDashboard
+        self.buy_page= BuyDashboard()
+        self.stack.addWidget(self.buy_page)
+        
+        ## out of page
+        self.buy_page.move(self.stack.width(),0)
+        self.stack.setCurrentWidget(self.buy_page)
+        ##
+        self.animate= QPropertyAnimation(self.buy_page, b'pos',self)
         self.animate.setDuration(700)
         self.animate.setStartValue(QPoint(self.stack.width(),0))
         self.animate.setEndValue(QPoint(0,0))

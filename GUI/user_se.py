@@ -498,23 +498,22 @@ class UserSettings(QMainWindow):
     ##
     def back_settings(self):
         from settings import Settings
-
-        self.settings= Settings()
-        self.stack_widget.addWidget(self.settings)
-
+        self.settings_main= Settings()
+        self.stack_widget.addWidget(self.settings_main)
+        self.stack_widget.setCurrentWidget(self.settings_main)
+        self.settings_main.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         
-        self.stack_widget.setCurrentWidget(self.settings)
+        ##animation:
+        start_pos= QPoint(-self.width(),0)
+        end_pos= QPoint(0,0)
+        self.settings_main.move(start_pos)
         ##
-        start_pos = QPoint(-self.width(), 0)
-        end_pos = QPoint(0, 0)
-        self.settings.move(start_pos)
-        ##
-        self.animate= QPropertyAnimation(self.settings, b"pos",self)
-        self.animate.setDuration(700)
-        self.animate.setStartValue(start_pos)
-        self.animate.setEndValue(end_pos)
-        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self.animate.start()
+        animation= QPropertyAnimation(self.settings_main, b'pos',self)
+        animation.setDuration(700)
+        animation.setStartValue(start_pos)
+        animation.setEndValue(end_pos)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        animation.start()
     ##
     def un_hide(self):
         if self.btn_mode:

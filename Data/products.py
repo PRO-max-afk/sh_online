@@ -33,6 +33,7 @@ cursor.execute('''
             big_sub_display TEXT,
             create_at TEXT,
             update_at TEXT,
+            type_save Text,
             user_id INTEGER
         );
     ''')

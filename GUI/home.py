@@ -23,6 +23,7 @@ from settings import Settings
 from PyQt6.QtWidgets import QStyledItemDelegate
 from PyQt6.QtGui import QColor, QPalette
 from functools import partial
+from db_connection import Connection
 
 class BlackTextDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -51,7 +52,8 @@ class WidgetManager(QWidget):
         self.create_frame1()
         self.invoice_counter = 1
         self.invoices = {}
-
+       
+        
         self.label_ui()
         self.set_today_date()
         self.set_today_time()
@@ -875,6 +877,8 @@ class WidgetManager(QWidget):
                 ))
 
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
+            type_save= "sale"
+            cursor.execute("update products set type_save=? where barcode=?",(type_save,barcode))
             conn.commit()
             MessageBox(text="اطلاعات موفقانه ذخیره شد✅",title="موفقانه",type="info").show()
 
@@ -1010,6 +1014,8 @@ class WidgetManager(QWidget):
                 ))
 
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
+            type_save= "sale"
+            cursor.execute("update products set type_save=? where barcode=?",(type_save,barcode))
             conn.commit()
 
             # بازخوانی فاکتورهای امروز برای نمایش
@@ -1151,68 +1157,33 @@ class WidgetManager(QWidget):
         self.table.setRowCount(0)
         self.table.setShowGrid(False)
     ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
-    ##
     def synced_to_server_to_sale(self):
-        db_connect = self.get_db_config()
+        db_connect= Connection().get_connection()
         if not db_connect:
             return
-
-        conn_sq = sqlite3.connect("D:\\projects\\sh_online\\Data\\sh_online.db")
+        base_dir= os.path.dirname(os.path.abspath(__file__))
+        root_dir= os.path.dirname(base_dir)
+        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
+        if not os.path.exists(db_path):
+            print("no db home offline found!")
+            return
+    
+        ##offline
+        conn_sq = sqlite3.connect(db_path)
         cursor_sq = conn_sq.cursor()
-
         cursor_sq.execute('''
             SELECT product_name, factor_number, barcode,
                 sale_date, sale_price, quantity, product_type,
-                sale_type, discount, total, user_id, created_at
+                sale_type, discount, total, user_id,created_at
             FROM sale_factor WHERE is_synced = 0
         ''')
 
         unsynced_products = cursor_sq.fetchall()
 
         try:
-            conn = pymysql.connect(
-                host=db_connect["host"],
-                user=db_connect["user"],
-                password=db_connect["password"],
-                database=db_connect["database"]
-            )
-            cursor = conn.cursor()
-
+            ##online
+            cursor= db_connect.cursor()
+    
             for product in unsynced_products:
                 (product_name, factor_number, barcode, sale_date, sale_price,
                 quantity, product_type, sale_type, discount, total, user_id, created_at) = product
@@ -1231,7 +1202,7 @@ class WidgetManager(QWidget):
                 cursor_sq.execute("UPDATE products SET is_synced=0 where barcode=?",(barcode,))
 
 
-            conn.commit()
+            db_connect.commit()
             #print("✅ اطلاعات با موفقیت به فروش رسید")
 
             cursor_sq.execute("UPDATE sale_factor SET is_synced = 1 WHERE is_synced = 0")
@@ -1242,8 +1213,8 @@ class WidgetManager(QWidget):
 
         finally:
             conn_sq.close()
-            if conn:
-                conn.close()
+            if db_connect:
+                db_connect.close()
    ##
     def calculate_total_price(self, item):
         row = item.row()

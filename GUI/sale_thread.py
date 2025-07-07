@@ -37,17 +37,24 @@ class SaleThread(QThread):
         
 
     def run(self):
-        # اول ماهانه، اگر تنظیم شده
-        if self.selected_month:
-            self.month_sale()
-            self.day_off()
-        # بعد هفته‌ای، اگر تنظیم شده
-        elif self.selected_week:
-            self.week_sale_off()
-        
-
-
-        
+        if self.get_db_config():
+            # اول ماهانه، اگر تنظیم شده
+            if self.selected_month:
+                self.month_sale()
+                self.day_off()
+                self.week_sale_off()
+            # بعد هفته‌ای، اگر تنظیم شده
+            elif self.selected_week:
+                self.week_sale_off()
+        else:
+            if self.selected_week:
+                self.week_sale_offline_only()
+            elif self.selected_month:
+                self.month_sale_offline_only()
+                self.day_sale_offline_only()
+            
+    
+    ###
     def month_sale(self):
         db_data= self.get_db_config()
         if not db_data:
@@ -216,6 +223,85 @@ class SaleThread(QThread):
 
         except pymysql.Error as e:
             print(f'{e}: خطا در اتصال یا اجرای کوئری به پایگاه داده')
+    #
+    def month_sale_offline_only(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users LIMIT 1;")
+            result = cursor.fetchone()
+            id_user = result[0]
+
+            cursor.execute('''
+                SELECT sale_date, total, profit
+                FROM sale_factor
+                WHERE user_id = ?
+            ''', (id_user,))
+            results = cursor.fetchall()
+
+            total = 0
+            total_profit = 0
+            monthly_totals = [0] * 12
+
+            for row in results:
+                date_str, value, profit = row
+                try:
+                    g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    j_month = j_date.month
+                    amount = float(value) if value else 0
+                    profit = float(profit) if profit else 0
+                    monthly_totals[j_month - 1] += amount
+                    total += amount
+                    total_profit += profit
+                except Exception as e:
+                    print(f"⚠️ خطا در تبدیل تاریخ آفلاین: {e} → {row}")
+
+            self.ofline_sale.emit(total)
+            self.online_sale.emit(0)  # فروش آنلاین صفر
+            self.total_sale.emit(total)
+            self.monthly_sale.emit(monthly_totals, total)
+
+            if self.selected_month:
+                try:
+                    j_year, j_month = map(int, self.selected_month.split("/"))
+                    target_prefix = f"{j_year:04d}/{j_month:02d}"
+                except:
+                    return
+
+                selected_total = 0
+                selected_profit = 0
+
+                for row in results:
+                    date_str, value, profit = row
+                    try:
+                        g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                        j_date = jdatetime.date.fromgregorian(date=g_date)
+                        prefix = f"{j_date.year:04d}/{j_date.month:02d}"
+                        if prefix == target_prefix:
+                            selected_total += float(value) if value else 0
+                            selected_profit += float(profit) if profit else 0
+                    except:
+                        continue
+
+                self.monthly_sa.emit({
+                    "offline": selected_total,
+                    "online": 0,
+                    "mobile": 0,
+                    "total": selected_total,
+                    "profit": selected_profit
+                })
+
+        except sqlite3.Error as e:
+            print(f"❌ خطای دیتابیس آفلاین: {e}")
     ##
     def week_sale_off(self):
         db_data = self.get_db_config()
@@ -358,6 +444,80 @@ class SaleThread(QThread):
 
         except pymysql.Error as e:
             print(f'{e}: خطا در اتصال یا اجرای کوئری به پایگاه داده')
+    #
+    def week_sale_offline_only(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users LIMIT 1;")
+            id_user = cursor.fetchone()[0]
+
+            cursor.execute('''
+                SELECT sale_date, total, profit
+                FROM sale_factor
+                WHERE user_id = ?
+            ''', (id_user,))
+            results = cursor.fetchall()
+
+            if not self.selected_month:
+                print("ماه انتخابی مشخص نیست!")
+                return
+
+            j_year, j_month = map(int, self.selected_month.split("/"))
+
+            week_totals = [0, 0, 0, 0]
+            offline_week = [0, 0, 0, 0]
+            profit_week = [0, 0, 0, 0]
+
+            for row in results:
+                try:
+                    date_str, value, profit = row
+                    g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    if j_date.year == j_year and j_date.month == j_month:
+                        week_index = (j_date.day - 1) // 7
+                        if 0 <= week_index < 4:
+                            amount = float(value) if value else 0
+                            profit = float(profit) if profit else 0
+                            week_totals[week_index] += amount
+                            offline_week[week_index] += amount
+                            profit_week[week_index] += profit
+                except:
+                    continue
+
+            if self.selected_week:
+                week_num = int(self.selected_week.replace("هفته ", "")) - 1
+                total_w = week_totals[week_num]
+                self.weekly_sale.emit(week_totals, sum(week_totals))
+                self.weekly_sa.emit({
+                    "offlines": offline_week[week_num],
+                    "onlines": 0,
+                    "mobiles": 0,
+                    "totals": total_w,
+                    "profits": profit_week[week_num]
+                })
+            else:
+                self.weekly_sale.emit(week_totals, sum(week_totals))
+                self.week_sales.emit(sum(week_totals))
+                self.weekly_sa.emit({
+                    "offlines": sum(offline_week),
+                    "onlines": 0,
+                    "mobiles": 0,
+                    "totals": sum(week_totals),
+                    "profits": sum(profit_week)
+                })
+
+        except sqlite3.Error as e:
+            print(f"❌ خطای دیتابیس آفلاین: {e}")
+
     ##
     def day_off(self):
         db_data = self.get_db_config()
@@ -490,7 +650,81 @@ class SaleThread(QThread):
 
         except pymysql.Error as e:
             print(f"{e}: خطا در اتصال یا اجرای کوئری به پایگاه داده")
+    #
+    def day_sale_offline_only(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
 
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users LIMIT 1;")
+            id_user = cursor.fetchone()[0]
+
+            cursor.execute('''
+                SELECT sale_date, total, profit
+                FROM sale_factor
+                WHERE user_id = ?
+            ''', (id_user,))
+            results = cursor.fetchall()
+
+            days = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
+            day_totals = {day: 0 for day in days}
+            offline_day = {day: 0 for day in days}
+            profit_day = {day: 0 for day in days}
+
+            today = jdatetime.date.today()
+
+            for row in results:
+                try:
+                    date_str, value, profit = row
+                    g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    delta_days = (today.togregorian() - j_date.togregorian()).days
+                    if delta_days < 0 or delta_days >= 7:
+                        continue
+
+                    weekday_name = days[j_date.weekday()]
+                    amount = float(value) if value else 0
+                    profit = float(profit) if profit else 0
+                    day_totals[weekday_name] += amount
+                    offline_day[weekday_name] += amount
+                    profit_day[weekday_name] += profit
+                except:
+                    continue
+
+            if self.selected_day and self.selected_day in days:
+                index = days.index(self.selected_day)
+                value = day_totals[self.selected_day]
+                sales_list = [0] * 7
+                sales_list[index] = value
+
+                self.daily_sale.emit(sales_list, value)
+                self.daily_sa.emit({
+                    "offliness": offline_day[self.selected_day],
+                    "onliness": 0,
+                    "mobiless": 0,
+                    "totalss": value,
+                    "profitss": profit_day[self.selected_day]
+                })
+            else:
+                ordered_values = [day_totals[day] for day in days]
+                self.daily_sale.emit(ordered_values, sum(ordered_values))
+                self.daily_sa.emit({
+                    "offliness": sum(offline_day.values()),
+                    "onliness": 0,
+                    "mobiless": 0,
+                    "totalss": sum(day_totals.values()),
+                    "profitss": sum(profit_day.values())
+                })
+
+        except sqlite3.Error as e:
+            print(f"❌ خطای دیتابیس آفلاین: {e}")
     ##
     def get_db_config(self):
 

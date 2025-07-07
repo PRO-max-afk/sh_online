@@ -12,6 +12,7 @@ Create TABLE IF NOT EXISTS sale_factor(
             sale_price REAL NOT NULL,
             sale_date TEXT NOT NULL,
             quantity REAL NOT NULL,
+            profit real default 0,
             product_type TEXT,
             sale_type TEXT,
             discount REAL DEFAULT 0,

@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
-    QGraphicsDropShadowEffect,QTextEdit,QStyledItemDelegate, QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+    QGraphicsDropShadowEffect,QTextEdit,QStyledItemDelegate, QSizePolicy,QScrollArea,QComboBox,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPalette,QPainter
 from PyQt6 import QtCore
@@ -80,6 +80,8 @@ class Harvest(QMainWindow):
         title_from_ly.addWidget(self.title_from)
         ###forms
         self.form_layout= QVBoxLayout()
+        ##type of harvest
+        self.typ_har= QComboBox()
         ##name
         self.name_line= QLineEdit()
         self.name_line.setPlaceholderText("نام شخص")
@@ -98,6 +100,7 @@ class Harvest(QMainWindow):
         self.save_btn= QPushButton()
 
         self.form.addLayout(title_from_ly)
+        self.form.addWidget(self.typ_har)
         self.form.addLayout(self.form_layout)
         self.form.addWidget(self.save_btn)
         self.form_layout.setSpacing(7)
@@ -166,7 +169,7 @@ class Harvest(QMainWindow):
             ''')
         self.form_layout.addWidget(self.descprit_text)
         ##
-        self.descprit_text.setMaximumHeight(150)
+        self.descprit_text.setMaximumHeight(110)
         self.descprit_text.setStyleSheet('''
                     color: black;
                     font-size: 16px;
@@ -241,14 +244,57 @@ class Harvest(QMainWindow):
                 }
     ''')
         ##
+        self.typ_har.setMaximumSize(120,30)
+        self.type_infos=["نوع برداشت","پول برق","کرایه دوکان","پول آب","پول مالیات"]
+        self.typ_har.addItems(self.type_infos)
+        self.typ_har.setCurrentText(self.type_infos[0])
+        self.typ_har.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.typ_har.setStyleSheet('''
+             QComboBox {
+                background-color: white;
+                font-family: "B Nazanin";
+                font-size: 15px;
+                font-weight: bold;
+                color: #000;
+                border: 1px solid #bfbfbf;
+                border-radius: 8px;
+                text-align: right;
+                padding: 6px 10px 6px 30px; /* فضای کافی برای فلش در سمت چپ */
+                padding-left: 15px;
+            }
+
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top left; /* انتقال فلش به چپ */
+                width: 30px;
+                border: none;
+            }
+
+            QComboBox::down-arrow {
+                image: url(assets/Down Button.png);
+                width: 20px;
+                height: 20px;
+            }
+
+            QComboBox QAbstractItemView {
+                background-color: white;  /* پس‌زمینه سفید */
+                color: black;             /* متن سیاه */
+                text-align: left;        /* تراز متن به راست */
+                font-family: "B Nazanin";
+                font-size: 15px;
+                border: 1px solid #bfbfbf;
+                border-radius: 8px;
+                selection-background-color: #f0f0f0;  /* رنگ انتخاب آیتم */
+            }
+        ''')
     ###
     def table_UI(self):
-        self.har_table.setColumnCount(4)
-        self.har_table.setHorizontalHeaderLabels(["نام شخص", "مقدار برداشت","تاریخ","توضیحات"])
+        self.har_table.setColumnCount(5)
+        self.har_table.setHorizontalHeaderLabels(["نام شخص", "نوعیت برداشت","مقدار برداشت","تاریخ","توضیحات"])
         self.har_table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.har_table.verticalHeader().setVisible(False)
         self.har_table.setGridStyle(Qt.PenStyle.SolidLine)
-        self.har_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.har_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers) 
         self.har_table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         # تنظیمات Head Section (ریسپانسیو ستون‌ها)
         header = self.har_table.horizontalHeader()
@@ -256,9 +302,10 @@ class Harvest(QMainWindow):
         #header.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         # حالت ریسپانسیو برای ستون‌ها:
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # نام شخص
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # مقدار برداشت
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # تاریخ
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)           # توضیحات → کشیده‌تر
+        header.setSectionResizeMode(1,QHeaderView.ResizeMode.ResizeToContents) # نوع برداشت
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # مقدار برداشت
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # تاریخ
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)           # توضیحات → کشیده‌تر
 
         # اعمال استایل
         self.har_table.setStyleSheet("""
@@ -330,66 +377,102 @@ class Harvest(QMainWindow):
         animation.start()
     ##
     def create_bar_chart(self):
-        total = [5000, 2000, 500004, 2334243, 321000,21312000, 70000]  # یا هر مقدار پیش‌فرض دلخواه
-        name_labels = ["کل خریداری", "کل فروشات", "مفاد خالص", "مجموعه برداشت", "مجموعه قرض ها", "سرمایه فعلی", "پول نقد"]
-        colors = ["#ff5733", "#33c1ff", "#9b59b6", "#f1c40f", "#e67e22", "#2ecc71", "#e84393"]
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')  # مسیر دیتابیس را درست کن
+
+        if not os.path.exists(db_path):
+            print("no such a file db")
+            return
+
+        months = ["حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله",
+                "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"]
+        monthly_totals = [0] * 12
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # فرض بر این است که ستون amount برای مبلغ و ستون date برای تاریخ است
+            cursor.execute("SELECT amount, date FROM harvest WHERE is_synced=1")
+            rows = cursor.fetchall()
+
+            for amount, date_str in rows:
+                try:
+                    # استخراج ماه شمسی از تاریخ مانند 1403/01/15
+                    parts = date_str.split('/')
+                    if len(parts) != 3:
+                        continue
+                    month_index = int(parts[1]) - 1  # index 0-11
+                    if 0 <= month_index <= 11:
+                        monthly_totals[month_index] += float(amount)
+                except Exception as e:
+                    print("Error parsing date:", e)
+
+            total_sale_value = max(monthly_totals)  if any(monthly_totals) else 0
+
+        except sqlite3.Error as e:
+            print(f"DB Chart Error: {e}")
+            return
+
+        finally:
+            conn.close()
+
+        # ساخت چارت
+        bar_set = QBarSet("گزارش برداشت")
+        bar_set.append(monthly_totals)
+        bar_set.setColor(QColor("#11f55d"))
+        bar_set.setLabelFont(QFont("B Nazanin", 11))
+        bar_set.setLabelBrush(QColor("black"))
 
         series = QBarSeries()
-
-        for i in range(len(total)):
-            bar_set = QBarSet(name_labels[i])
-            bar_set << total[i]
-            bar_set.setColor(QColor(colors[i]))
-            bar_set.setLabelFont(QFont("B Nazanin", 11))
-            bar_set.setLabelBrush(QColor("black"))
-            series.append(bar_set)
-
+        series.append(bar_set)
         series.setBarWidth(0.6)
 
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("نمودار برداشت فروشگاه")
-        chart.setTitleFont(QFont("B Nazanin", 15, QFont.Weight.Bold))
+        chart.setTitle("گزارش برداشت ماهانه")
+        chart.setTitleFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
 
         axis_x = QBarCategoryAxis()
-        axis_x.append([""])
-        axis_x.setLabelsFont(QFont("B Nazanin", 12))
+        axis_x.append(months)
+        axis_x.setLabelsFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
 
         axis_y = QValueAxis()
-        axis_y.setRange(0, max(total))
+        axis_y.setRange(0, total_sale_value)
         axis_y.setLabelFormat("%d")
         axis_y.setLabelsFont(QFont("Arial", 10))
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 
-        chart.legend().setVisible(True)
-        chart.legend().setFont(QFont("B Nazanin", 11))
-
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-
         return chart_view
-    ###
+    ##
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             if any(line.hasFocus() for line in [
                 self.name_line,self.money_line, self.date_line]):
                 self.save_harvest()
     
-
     ##
     def save_harvest(self):
         name = self.name_line.text()
         amount = str(self.money_line.text())
+        har_type= self.typ_har.currentText()
         date = self.date_line.text()
         description = self.descprit_text.toPlainText()
 
         if not name or not amount or not date:
             MessageBox(text="لطفاً اطلاعات مورد نیاز برای ثبت برداشت را پر کنید", type="warning", title="هشدار").show()
             return
+        if har_type== "نوع برداشت":
+            MessageBox(text="لطفاً نوعیت برداشت را انتخاب کنید",title="هشدار",type="warning").show()
+            return
+        
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
         root_dir = os.path.dirname(base_dir)
@@ -412,18 +495,19 @@ class Harvest(QMainWindow):
 
             is_synced = 0
             cursor.execute("""
-                INSERT INTO harvest(name, amount, date, description, user_id, is_synced) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (name, amount, date, description, id_user, is_synced))
+                INSERT INTO harvest(name, amount, har_type,date, description, user_id, is_synced) 
+                VALUES (?, ?, ?, ?, ?, ?,?)
+            """, (name, amount,har_type, date, description, id_user, is_synced))
             conn.commit()
 
             # ✅ نمایش ردیف جدید در جدول harvest_table
             row_position = self.har_table.rowCount()
             self.har_table.insertRow(row_position)
             self.har_table.setItem(row_position, 0, QTableWidgetItem(self._make_cell(name)))
-            self.har_table.setItem(row_position, 1, QTableWidgetItem(self._make_cell(str(amount))))
-            self.har_table.setItem(row_position, 2, QTableWidgetItem(self._make_cell(date)))
-            self.har_table.setItem(row_position, 3, QTableWidgetItem(self._make_cell(description)))
+            self.har_table.setItem(row_position,1, QTableWidgetItem(self._make_cell(har_type)))
+            self.har_table.setItem(row_position, 2, QTableWidgetItem(self._make_cell(str(amount))))
+            self.har_table.setItem(row_position, 3, QTableWidgetItem(self._make_cell(date)))
+            self.har_table.setItem(row_position, 4, QTableWidgetItem(self._make_cell(description)))
 
             # پاک کردن فیلدها
             self.name_line.clear()
@@ -489,7 +573,7 @@ class Harvest(QMainWindow):
         conn_sq= sqlite3.connect(db_path)
         cursor_sq= conn_sq.cursor()
         cursor_sq.execute('''
-        SELECT name,amount,date,description,user_id FROM harvest WHERE is_synced= 0
+        SELECT name,amount,har_type,date,description,user_id FROM harvest WHERE is_synced= 0
         ''')
         un_synced= cursor_sq.fetchall()
         try:
@@ -501,10 +585,10 @@ class Harvest(QMainWindow):
             )
             cursor= conn.cursor()
             for row in un_synced:
-                (name,amount,date,description,user_id)= row
+                (name,amount,har_type,date,description,user_id)= row
 
-                cursor.execute("INSERT INTO harvest (name,amount,date,description,user_id) VALUES(%s,%s,%s,%s,%s)",
-                               (name,amount,date,description,user_id))
+                cursor.execute("INSERT INTO harvest (name,amount,har_type,date,description,user_id) VALUES(%s,%s,%s,%s,%s,%s)",
+                               (name,amount,har_type,date,description,user_id))
                 print("info harvest successfully entered to server ✅")
                 conn.commit()
 
@@ -535,19 +619,20 @@ class Harvest(QMainWindow):
             conn= sqlite3.connect(db_path)
             cursor= conn.cursor()
             cursor.execute('''
-            SELECT name,amount,date,description
+            SELECT name,amount,har_type,date,description
             FROM harvest WHERE is_synced=1
             ORDER BY  h_id DESC LIMIT 5;
             ''')
             result= cursor.fetchall()
             if result:
-                for name,amount,date,description in result:
+                for name,amount,har_type,date,description in result:
                     row= self.har_table.rowCount()
                     self.har_table.insertRow(row)
                     self.har_table.setItem(row,0,QTableWidgetItem(self._make_cell(name)))
-                    self.har_table.setItem(row,1, QTableWidgetItem(self._make_cell(str(amount))))
-                    self.har_table.setItem(row, 2, QTableWidgetItem(self._make_cell(date)))
-                    self.har_table.setItem(row,3,QTableWidgetItem(self._make_cell(description)))
+                    self.har_table.setItem(row,1,QTableWidgetItem(self._make_cell(har_type)))
+                    self.har_table.setItem(row,2, QTableWidgetItem(self._make_cell(str(amount))))
+                    self.har_table.setItem(row, 3, QTableWidgetItem(self._make_cell(date)))
+                    self.har_table.setItem(row,4,QTableWidgetItem(self._make_cell(description)))
 
         except sqlite3.Error as e:
             print(f"{e}: error in select db")

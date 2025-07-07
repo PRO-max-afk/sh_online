@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS harvest(
                amount REAL NOT NULL,
                date TEXT NOT NULL,
                description TEXT,
+               har_type text,
                user_id INTEGER,
                is_synced INTEGER DEFAULT 0
                );

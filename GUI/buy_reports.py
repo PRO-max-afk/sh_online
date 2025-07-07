@@ -6,12 +6,12 @@ from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategory
 from PyQt6 import QtCore
 import os
 import jdatetime
-from sale_thread import SaleThread
+from buy_thread import BuyThread
 from circle import CircularSpinner
 
 
 
-class SalesDashboard(QMainWindow):
+class BuyDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setGeometry(100, 100, 1200, 700)
@@ -44,7 +44,7 @@ class SalesDashboard(QMainWindow):
         
         # لایه بالا
         top_layout = QHBoxLayout()
-        self.labels = QLabel("گزارشات فروش", self)
+        self.labels = QLabel("گزارشات خرید", self)
         title_label= QHBoxLayout()
         title_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
         title_label.addWidget(self.labels)
@@ -98,11 +98,10 @@ class SalesDashboard(QMainWindow):
         # --- باکس‌های آماری
         stats_layout = QHBoxLayout(self.month_frame)
         stats = [
-            ("فروشات حضوری", "offline"),
-            ("فروشات آنلاین", "online"),
-            ("فروشات مبایل", "mobile"),
-            ("مجموعه فروشات", "total"), 
-            ("فایده کلی", "profit") ]
+            ("خرید ماه جاری", "current_month"),
+            ("خرید ماه گذشته", "past_month"),
+            ("فیصدی تغییری (%)", "percent"),
+            ("مجموعه خرید ماهانه", "total")]
         for title, key in stats:
             box = QFrame()
             box.setStyleSheet("""
@@ -157,11 +156,11 @@ class SalesDashboard(QMainWindow):
         # --- باکس‌های آماری
         stats_layout_w = QHBoxLayout(self.month_frame)
         statse = [
-            ("فروشات حضوری", "offlines"),
-            ("فروشات آنلاین", "onlines"),
-            ("فروشات مبایل", "mobiles"),
-            ("مجموعه فروشات", "totals"), 
-            ("فایده کلی", "profits") ]
+            ("هفته اول", "first"),
+            ("هفته دوم", "second"),
+            ("هفته سوم", "third"),
+            ("هفته چهارم", "fourth"), 
+            ("مجموعه چهار هفته", "total_week") ]
         for title, key in statse:
             box = QFrame()
             box.setStyleSheet("""
@@ -216,11 +215,13 @@ class SalesDashboard(QMainWindow):
          # --- باکس‌های آماری
         stats_layout_d = QHBoxLayout(self.month_frame)
         statses = [
-            ("فروشات حضوری", "offliness"),
-            ("فروشات آنلاین", "onliness"),
-            ("فروشات مبایل", "mobiless"),
-            ("مجموعه فروشات", "totalss"), 
-            ("فایده کلی", "profitss") ]
+            ("شنبه", "saturday"),
+            ("یکشنبه", "sunday"),
+            ("دوشنبه", "monday"),
+            ("سه شنبه", "tuesday"), 
+            ("چهارشبنه", "wednesday"),
+            ("پنجشنبه","thursday"),
+            ("جمعه","friday")]
         for title, key in statses:
             box = QFrame()
             box.setStyleSheet("""
@@ -389,7 +390,7 @@ class SalesDashboard(QMainWindow):
             monthly_totals += [0] * (12 - len(monthly_totals))
 
         # 🔸 ساخت مجموعه داده‌ها
-        bar_set = QBarSet("فروش ماهانه")
+        bar_set = QBarSet("خرید ماهانه")
         bar_set.append(monthly_totals)
         bar_set.setColor(QColor("#11f55d"))
         bar_set.setLabelFont(QFont("B Nazanin", 11))
@@ -401,7 +402,7 @@ class SalesDashboard(QMainWindow):
 
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("گزارش فروش ماهانه")
+        chart.setTitle("گزارش خرید ماهانه")
         chart.setTitleFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
 
@@ -450,7 +451,7 @@ class SalesDashboard(QMainWindow):
         week_labels = [f"هفته {i + 1}" for i in range(len(weekly_sales))]
 
         # 🔹 ساخت BarSet
-        bar_set = QBarSet("فروش هفته وار")
+        bar_set = QBarSet("خرید هفته وار")
         bar_set.append(weekly_sales)
         bar_set.setColor(QColor("#11f55d"))
         bar_set.setLabelFont(QFont("B Nazanin", 11))
@@ -464,7 +465,7 @@ class SalesDashboard(QMainWindow):
         # 🔹 چارت اصلی
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("گزارش فروش هفته وار")
+        chart.setTitle("گزارش خرید هفته وار")
         chart.setTitleFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
 
@@ -515,7 +516,7 @@ class SalesDashboard(QMainWindow):
         day_labels = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
 
         # 🔹 ساخت BarSet
-        bar_set = QBarSet("فروش روزانه")
+        bar_set = QBarSet("خرید روزانه")
         bar_set.append(daily_sales)
         bar_set.setColor(QColor("#11f55d"))
         bar_set.setLabelFont(QFont("B Nazanin", 11))
@@ -531,7 +532,7 @@ class SalesDashboard(QMainWindow):
         chart.addSeries(series)
 
         # استفاده از selected_day_label برای عنوان چارت
-        title_text = "گزارش فروش روزانه"
+        title_text = "گزارش خرید روزانه"
         if selected_day_label:
             title_text += f" ({selected_day_label})"
 
@@ -826,7 +827,7 @@ class SalesDashboard(QMainWindow):
         self.selected_month = year_month  # مقداردهی به متغیر
         print(f"▶ Starting thread for: {year_month}")
 
-        self.sale_thread = SaleThread(selected_month=year_month, selected_week=week_label,selected_day=selected_day)
+        self.sale_thread = BuyThread(selected_month=year_month, selected_week=week_label,selected_day=selected_day)
         self.sale_thread.ofline_sale.connect(self.ofline_sale)
         self.sale_thread.monthly_sale.connect(self.update_month_chart)
         self.sale_thread.total_sale.connect(self.total_value)
@@ -852,10 +853,10 @@ class SalesDashboard(QMainWindow):
 
     ##
     def ofline_sale(self,value):
-        self.val_labels["offline"].setText(f"{value} افغانی")
+        self.val_labels["current_month"].setText(f"{value} افغانی")
     ##
     def online_sale(self,value):
-        self.val_labels["online"].setText(f'{value} افغانی')
+        self.val_labels["past_month"].setText(f'{value} افغانی')
     ##
     def total_value(self,total_sale_value):
         self.val_labels["total"].setText(f'{total_sale_value} افغانی')
