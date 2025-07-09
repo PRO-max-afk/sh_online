@@ -20,27 +20,33 @@ class YearThread(QThread):
     def __init__(self,selected_year=None):
         super().__init__()
         self.year_selected= selected_year
-
+    ##
     def run(self):
-        if self.year_selected:
-            # فقط اطلاعات آن سال را بده
-            self.year_datas()
-        else:
-            # فقط اطلاعات کلی بده
-            self.full_data()
-            self.fetch_years_only()
-            if hasattr(self, "available_years") and self.available_years:
-                self.year_data.emit(sorted(self.available_years))
+        if self.get_db_config():
+            if self.year_selected:
+                self.year_datas()
             else:
-                print("📭 سالی برای نمایش وجود ندارد")
+                self.full_data()
+                self.fetch_years_only()
+        else:
+            if self.year_selected:
+                self.year_datas_offline()
+            else:
+                self.full_data_offline()
+                self.fetch_years_only_offline()
 
-
+        if hasattr(self, "available_years") and self.available_years:
+            self.year_data.emit(sorted(self.available_years))
+        else:
+            print("📭 سالی برای نمایش وجود ندارد")
+    ###
     def year_datas(self):
         from datetime import datetime
         import jdatetime
 
         data = self.get_db_config()
         if not data:
+            self.year_datas_offline()
             print("خطا در اتصال به سرور")
             return
 
@@ -109,6 +115,8 @@ class YearThread(QThread):
             total_buy    = 0.0
             total_sale   = 0.0
             total_profit = 0.0
+            total_harvest= 0
+            total_barrow= 0
 
             # sale_factor
             cursor.execute("""
@@ -167,9 +175,31 @@ class YearThread(QThread):
                         continue
                 if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
                     total_buy += float(total) if total else 0
+            ##harvest
+            cursor.execute("SELECT date, amount from barrow where user_id = %s",(id_user,))
+            for date_str,amount in cursor.fetchall():
+                if not date_str:
+                    continue
+                try:
+                    year = date_str.strip().split('/') [0]
+                    if year == self.year_selected:
+                        total_harvest += float(amount) if amount else 0
+                except Exception as e:
+                    print("⛔ خطا در پردازش تاریخ harvest:", e)
+            ##
+            cursor.execute("SELECT date,amount FROM barrow WHERE user_id=%s",(id_user,))
+            for date_b,amounts in cursor.fetchall():
+                if not date_b:
+                    continue
+                try:
+                    years= date_b.strip().split('/')[0]
+                    if years== self.year_selected:
+                        total_barrow += float(amounts) if amounts else 0
+                except Exception as e:
+                    print("⛔ خطا در پردازش تاریخ harvest:", e) 
 
             # ---------- خروجی در صورت نبود داده ----------
-            if total_sale == total_buy == total_profit == 0:
+            if total_sale == total_buy == total_profit == total_harvest== total_barrow== 0:
                 print("📭 اطلاعاتی برای این سال وجود ندارد.")
                 return
 
@@ -178,8 +208,8 @@ class YearThread(QThread):
                 "total_buy"      : total_buy,
                 "total_sale"     : total_sale,
                 "profit"         : total_profit,
-                "harvest"        : 0,
-                "total_barrow"   : 0,
+                "harvest"        : total_harvest,
+                "total_barrow"   : total_barrow,
                 "current_capital": total_buy - total_profit,
                 "total_cush"     : total_sale,
             }
@@ -200,12 +230,126 @@ class YearThread(QThread):
 
         except pymysql.Error as e:
             print(f"❌ خطا در دیتابیس آنلاین: {e}")
+    ##
+    def year_datas_offline(self):
+        from datetime import datetime
+        import jdatetime
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+        if not os.path.exists(db_path):
+            MessageBox(text="📁 مسیر دیتابیس آفلاین یافت نشد", title="خطا", type="error").show()
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users LIMIT 1")
+            result = cursor.fetchone()
+            if not result:
+                print("❌ آیدی کاربر در دیتابیس آفلاین یافت نشد.")
+                return
+            id_user = result[0]
+        except Exception as e:
+            print("❌ خطا در اتصال به دیتابیس آفلاین:", e)
+            return
+
+        # سال انتخاب‌شده را بررسی کن
+        if not self.year_selected:
+            print("⚠️ سالی انتخاب نشده برای پردازش آفلاین.")
+            return
+
+        total_buy = 0.0
+        total_sale = 0.0
+        total_profit = 0.0
+        total_harvest = 0.0
+        total_barrow = 0.0
+
+        # sale_factor
+        cursor.execute("SELECT created_at, total, profit FROM sale_factor WHERE user_id = ?", (id_user,))
+        for created_at, total, profit in cursor.fetchall():
+            if not created_at:
+                continue
+            try:
+                miladi = datetime.strptime(str(created_at), "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                try:
+                    miladi = datetime.strptime(str(created_at), "%Y-%m-%d")
+                except:
+                    continue
+            if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
+                total_sale += float(total) if total else 0
+                total_profit += float(profit) if profit else 0
+
+        # products
+        cursor.execute("SELECT create_at, total FROM products WHERE user_id = ?", (id_user,))
+        for created_at, total in cursor.fetchall():
+            if not created_at:
+                continue
+            try:
+                miladi = datetime.strptime(str(created_at), "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                try:
+                    miladi = datetime.strptime(str(created_at), "%Y-%m-%d")
+                except:
+                    continue
+            if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
+                total_buy += float(total) if total else 0
+
+        # harvest (تاریخ شمسی است)
+        cursor.execute("SELECT date, amount FROM harvest WHERE user_id = ?", (id_user,))
+        for date_str, amount in cursor.fetchall():
+            if not date_str:
+                continue
+            year = date_str.strip().split("/")[0]
+            if year == self.year_selected:
+                total_harvest += float(amount) if amount else 0
+
+        # barrow (تاریخ شمسی است)
+        cursor.execute("SELECT date, amount FROM barrow WHERE user_id = ?", (id_user,))
+        for date_str, amount in cursor.fetchall():
+            if not date_str:
+                continue
+            year = date_str.strip().split("/")[0]
+            if year == self.year_selected:
+                total_barrow += float(amount) if amount else 0
+
+        # ارسال داده
+        if total_sale == total_buy == total_profit == total_harvest == total_barrow == 0:
+            print("📭 اطلاعاتی برای این سال در دیتابیس آفلاین وجود ندارد.")
+            return
+
+        box_stats = {
+            "total_buy": total_buy,
+            "total_sale": total_sale,
+            "profit": total_profit,
+            "harvest": total_harvest,
+            "total_barrow": total_barrow,
+            "current_capital": total_buy - total_profit,
+            "total_cush": total_sale,
+        }
+
+        self.year_info.emit(box_stats)
+
+        chart_values = [
+            box_stats["total_buy"],
+            box_stats["total_sale"],
+            box_stats["profit"],
+            box_stats["harvest"],
+            box_stats["total_barrow"],
+            box_stats["current_capital"],
+            box_stats["total_cush"],
+        ]
+        self.year_chart.emit(chart_values)
+        print(f"📦 آمار آفلاین برای سال {self.year_selected} بارگذاری شد.")
 
 
-
+    ###
     def full_data(self):
         data= self.get_db_config()
         if not data:
+            self.full_data_offline()
             print("خطا در اتصال به سرور")
             return
         ##ofline
@@ -214,7 +358,8 @@ class YearThread(QThread):
         db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
         if not os.path.exists(db_path):
             MessageBox(text="مسیر دیتابیس آفلاین پیدا نشد",title="ناموفق",type="error").show()
-       ##offline db
+            return
+        ##offline db
         try:
             conn_sq= sqlite3.connect(db_path)
             cursor_sq= conn_sq.cursor()
@@ -271,12 +416,28 @@ class YearThread(QThread):
                     total_profit += float(profit_result[0]) if profit_result[0] else 0
                     print(f"{total_profit} :  total profit")
             ##
+            cursor.execute("select SUM(amount) FROM harvest WHERE user_id= %s",(id_user,))
+            har_result= cursor.fetchone()
+            total_harvest=0
+            if har_result:
+                total_harvest += float(har_result[0]) if har_result[0] else 0
+                print(f'{total_harvest} : total_harvest')
+
+            cursor.execute("select SUM(ABS(amount)) from barrow WHERE user_id=%s",(id_user,))
+            bar_total= cursor.fetchone()
+            total_barrow=0
+            if bar_total:
+                total_barrow += float(bar_total[0]) if bar_total[0] else 0
+                print(f"{total_barrow} : total barrow")
+
+            
+            ##
             box_stats={
                 "total_buy" : total_buy,
                 "total_sale" : total_sale,
                 "profit" :total_profit,
-                "harvest" : 0,
-                "total_barrow" : 0,
+                "harvest" : total_harvest,
+                "total_barrow" : total_barrow,
                 "current_capital" : total_buy - total_profit,
                 "total_cush" : total_sale, 
             }
@@ -298,9 +459,88 @@ class YearThread(QThread):
         except pymysql.Error as e:
             print(f"{e}: online db error")
     
+    def full_data_offline(self):
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+            if not os.path.exists(db_path):
+                MessageBox(text="مسیر دیتابیس آفلاین پیدا نشد", title="ناموفق", type="error").show()
+                return
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT id FROM users LIMIT 1")
+            result = cursor.fetchone()
+            if not result:
+                print("آیدی کاربر در دیتابیس آفلاین یافت نشد.")
+                return
+            id_user = result[0]
+
+            total_sale_f = 0
+            total_sale_on = 0
+            total_profit = 0
+            total_buy = 0
+            total_harvest = 0
+            total_barrow = 0
+
+            # sale_factor
+            cursor.execute("SELECT SUM(total), SUM(profit) FROM sale_factor WHERE user_id = ?", (id_user,))
+            res = cursor.fetchone()
+            if res:
+                total_sale_f = float(res[0]) if res[0] else 0
+                total_profit = float(res[1]) if res[1] else 0
+
+            ###
+
+            total_sale = total_sale_f + total_sale_on
+
+            # inventories
+            cursor.execute("SELECT SUM(total) FROM products WHERE user_id = ?", (id_user,))
+            res = cursor.fetchone()
+            if res:
+                total_buy = float(res[0]) if res[0] else 0
+
+            # harvest
+            cursor.execute("SELECT SUM(amount) FROM harvest WHERE user_id = ?", (id_user,))
+            res = cursor.fetchone()
+            if res:
+                total_harvest = float(res[0]) if res[0] else 0
+
+            # barrow
+            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE user_id = ?", (id_user,))
+            res = cursor.fetchone()
+            if res:
+                total_barrow = float(res[0]) if res[0] else 0
+
+            box_stats = {
+                "total_buy": total_buy,
+                "total_sale": total_sale,
+                "profit": total_profit,
+                "harvest": total_harvest,
+                "total_barrow": total_barrow,
+                "current_capital": total_buy - total_profit,
+                "total_cush": total_sale,
+            }
+
+            self.full_info.emit(box_stats)
+            self.chart_data.emit([
+                box_stats["total_buy"],
+                box_stats["total_sale"],
+                box_stats["profit"],
+                box_stats["harvest"],
+                box_stats["total_barrow"],
+                box_stats["current_capital"],
+                box_stats["total_cush"],
+            ])
+            print("📦 آمار کلی از دیتابیس آفلاین خوانده شد.")
+
+        except Exception as e:
+            print("❌ خطا در full_data_offline:", e)
+
     ##
     def get_db_config(self):
-
         url = "https://aryaict.com/connect.php"
 
         headers = {
@@ -333,7 +573,6 @@ class YearThread(QThread):
         except Exception as e:
             print("❌ خطا در دریافت کانفیگ:", e)
             return None
-
     ##
     def fetch_years_only(self):
         from datetime import datetime
@@ -342,6 +581,7 @@ class YearThread(QThread):
         self.available_years = set()
         data = self.get_db_config()
         if not data:
+            self.fetch_years_only_offline()
             return
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -385,4 +625,46 @@ class YearThread(QThread):
                 self.available_years.add(sh_year)
         except:
             pass
+    ##
+    def fetch_years_only_offline(self):
+        from datetime import datetime
+        import jdatetime
+
+        self.available_years = set()
+
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+            if not os.path.exists(db_path):
+                return
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users LIMIT 1")
+            result = cursor.fetchone()
+            if not result:
+                return
+            id_user = result[0]
+
+            cursor.execute("SELECT update_at FROM products WHERE user_id = ?", (id_user,))
+            for row in cursor.fetchall():
+                created_at = row[0]
+                print(created_at)
+                if not created_at:
+                    continue
+                try:
+                    miladi = datetime.strptime(str(created_at), "%Y-%m-%d %H:%M:%S")
+                except:
+                    try:
+                        miladi = datetime.strptime(str(created_at), "%Y-%m-%d")
+                    except:
+                        continue
+                sh_year = str(jdatetime.date.fromgregorian(date=miladi.date()).year)
+                self.available_years.add(sh_year)
+
+            print("📅 سال‌های موجود در دیتابیس آفلاین:", self.available_years)
+
+        except Exception as e:
+            print("❌ خطا در fetch_years_only_offline:", e)
 

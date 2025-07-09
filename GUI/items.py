@@ -107,52 +107,6 @@ class ItemsSettings(QMainWindow):
         shadow.setColor(QColor(0, 0, 0, 70))
         frame1_search_input.setGraphicsEffect(shadow)
 
-        main_h_layout = QHBoxLayout()
-        main_h_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
-        main_h_layout.setSpacing(30)
-
-        fields = [
-            ("نام محصول", QLineEdit()),
-            ("بارکد محصول", QLineEdit()),
-            ("قیمت فروش", QLineEdit()),
-            ("قیمت عمده", QLineEdit()),
-            ("تعداد هر بسته", QLineEdit()),
-            ("تاریخ تولید", QLineEdit()),
-            ("تاریخ انقضا", QLineEdit()),
-            ("تعداد محصول", QLineEdit()),
-            ("قیمت خرید", QLineEdit())
-        ]
-
-        # تقسیم فیلدها در ۳ ستون
-        for col in range(3):
-            v_layout = QVBoxLayout()
-            v_layout.setSpacing(10)
-
-        for i in range(3):
-            index = col * 3 + i
-            label_text, line_edit = fields[index]
-
-            label = QLabel(label_text)
-            label.setFont(QFont("Arial", 10))
-
-            line_edit.setFixedSize(200, 40)
-            line_edit.setStyleSheet("""
-                background-color: white;
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                padding: 5px;
-                font-size: 12px;
-                color: #222;
-            """)
-
-            v_layout.addWidget(label)
-            v_layout.addWidget(line_edit)
-
-        main_h_layout.addLayout(v_layout)
-
-    # افزودن layout افقی به layout اصلی فریم
-        frame1_layout.addLayout(main_h_layout)
-
         frame1.setLayout(frame1_layout)
 
         return frame1
@@ -177,13 +131,15 @@ class ItemsSettings(QMainWindow):
         frame2_vlayout.addWidget(frame2_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
         frame2_hlayout = QHBoxLayout()
-        frame2_hlayout.setSpacing(12)
+        frame2_hlayout.setSpacing(25)
+        frame2_hlayout.setContentsMargins(20, 0, 20, 0)
 
-        fields = ["انتخاب مسیر", "تولید بارکد", "نام محصول"]
+        fields = ["نام محصول", "تولید بارکد", "انتخاب مسیر"]
         line_edits = []
 
         for field in fields:
             label = QLabel(field)
+            label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
             line_edit = QLineEdit()
             line_edit.setStyleSheet("""
                 background-color: white;
@@ -197,6 +153,7 @@ class ItemsSettings(QMainWindow):
             line_edits.append(line_edit)
 
             container = QHBoxLayout()
+            container.setContentsMargins(20, 0, 5, 0)
             container.addWidget(label)
             container.addWidget(line_edit)
             frame2_hlayout.addLayout(container)
@@ -205,6 +162,7 @@ class ItemsSettings(QMainWindow):
         barcode_icon = QLabel()
         barcode_icon.setPixmap(QPixmap('assets/Barcode.png').scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio))
         barcode_icon.setPixmap(QPixmap(self.get_asset_path('Barcode.png')).scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio))
+        barcode_icon.setStyleSheet("background-color: white; border-radius: 5px;")
         frame2_hlayout.addWidget(barcode_icon)
     
         frame2_vlayout.addLayout(frame2_hlayout)
@@ -230,6 +188,7 @@ class ItemsSettings(QMainWindow):
         frame2_hlayout.addWidget(generate_barcode_button)
 
         button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(40, 0, 0, 10)
         button_layout.addStretch()
         button_layout.addWidget(generate_barcode_button)
 

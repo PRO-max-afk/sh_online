@@ -1079,7 +1079,7 @@ class Inventory(QFrame):
     def start_auto_sync_timer(self):
         self.sync_timer = QTimer(self)
         self.sync_timer.timeout.connect(self.start_sync_thread)
-        self.sync_timer.start(5 * 60 * 1000)  # هر 5 دقیقه
+        self.sync_timer.start(5 *60 * 1000)  # هر 5 دقیقه
 
     def start_sync_thread(self):
         from new_p import ProductForm
