@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+from PyQt6.QtWidgets import (QApplication,QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
+    QGraphicsDropShadowEffect, QGraphicsColorizeEffect,QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPixmap
 from PyQt6 import QtCore
@@ -114,6 +114,7 @@ class ItemsSettings(QMainWindow):
     def create_frame2(self):
         frame2 = QFrame()
         frame2.setFixedHeight(150)
+        frame2.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         frame2.setStyleSheet("""
             QFrame {
                 background-color: white;
@@ -130,46 +131,73 @@ class ItemsSettings(QMainWindow):
         frame2_vlayout.addWidget(frame2_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
         frame2_hlayout = QHBoxLayout()
-        frame2_hlayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        frame2_hlayout.setSpacing(20)
-        frame2_label1 = QLabel("نام محصول")
-        frame2_label1.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        frame2_QLineEdit1 = QLineEdit()
-        frame2_QLineEdit1.setFixedSize(200, 40)
-        frame2_QLineEdit1.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
-        
-        frame2_label2 = QLabel("تولید بارکد")
-        frame2_label2.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        frame2_QLineEdit2 = QLineEdit()
-        frame2_QLineEdit2.setFixedSize(200, 40)
-        frame2_QLineEdit2.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
-        
-        frame2_label3 = QLabel("انتخاب مسیر")
-        frame2_label3.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        frame2_QLineEdit3 = QLineEdit()
-        frame2_QLineEdit3.setFixedSize(200, 40)
-        frame2_QLineEdit3.setStyleSheet("background-color: white; border: 1px solid #ccc; border-radius: 5px; color: #222222; font-size: 12px;")
+        frame2_hlayout.setSpacing(25)
+        frame2_hlayout.setContentsMargins(20, 0, 20, 0)
 
-        frame2_hlayout.addWidget(frame2_label1)
-        frame2_hlayout.addWidget(frame2_QLineEdit1)
-        
-        frame2_hlayout.addWidget(frame2_label2)
-        frame2_hlayout.addWidget(frame2_QLineEdit2)
-        
-        frame2_hlayout.addWidget(frame2_label3)
-        frame2_hlayout.addWidget(frame2_QLineEdit3)
-        frame2_hlayout.addStretch()
+        fields = ["نام محصول", "تولید بارکد", "انتخاب مسیر"]
+        line_edits = []
+
+        for field in fields:
+            label = QLabel(field)
+            label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+            line_edit = QLineEdit()
+            line_edit.setStyleSheet("""
+                background-color: white;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 12px;
+                color: #222;
+            """)
+            line_edit.setFixedSize(200, 40)
+            line_edits.append(line_edit)
+
+            container = QHBoxLayout()
+            container.setContentsMargins(20, 0, 5, 0)
+            container.addWidget(label)
+            container.addWidget(line_edit)
+            frame2_hlayout.addLayout(container)
+
 
         barcode_icon = QLabel()
-        barcode_icon.setPixmap(QPixmap(self.get_asset_path('Barcode.png')).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio))
-
+        barcode_icon.setPixmap(QPixmap('assets/Barcode.png').scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio))
+        barcode_icon.setPixmap(QPixmap(self.get_asset_path('Barcode.png')).scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio))
+        barcode_icon.setStyleSheet("background-color: white; border-radius: 5px;")
         frame2_hlayout.addWidget(barcode_icon)
     
         frame2_vlayout.addLayout(frame2_hlayout)
+
+        generate_barcode_button = QPushButton("ساخت بارکد")
+        generate_barcode_button.setIcon(QIcon(self.get_asset_path("Check Mark.png")))
+        generate_barcode_button.setIconSize(QSize(24, 24))
+        generate_barcode_button.setFixedSize(130, 40)
+        generate_barcode_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        generate_barcode_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00C853;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 13px;
+                padding: 5px 10px;
+        }
+            QPushButton:hover {
+                background-color: #00B44A;
+        }
+    """)
+        frame2_hlayout.addWidget(generate_barcode_button)
+
+        button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(40, 0, 0, 10)
+        button_layout.addStretch()
+        button_layout.addWidget(generate_barcode_button)
+
+        frame2_vlayout.addLayout(button_layout)
+
         frame2.setLayout(frame2_vlayout)
 
         return frame2
-    ##
+
     def back_settings(self):
         from settings import Settings
 
@@ -219,3 +247,8 @@ class ItemsSettings(QMainWindow):
                         pass
     
 
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = ItemsSettings()
+    window.show()
+    sys.exit(app.exec())
