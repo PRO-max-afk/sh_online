@@ -22,6 +22,7 @@ class ItemsSettings(QMainWindow):
         self.setStyleSheet("background-color: #D9D9D9")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.setup_ui()
+        self.load_all_fonts()
 
     def setup_ui(self):
         self.stack_items= QStackedWidget()
@@ -38,7 +39,8 @@ class ItemsSettings(QMainWindow):
         main_layout.addSpacing(5)
         main_layout.addWidget(self.create_frame1())
         main_layout.addWidget(self.create_frame2())
-
+        main_layout.addWidget(self.create_frame3()) # برای بلند تنظیم دو فریم بالا فریم سوم را ساختم
+      
         self.setLayout(main_layout)
         self.stack_items.addWidget(self.itms_page)
 
@@ -48,7 +50,12 @@ class ItemsSettings(QMainWindow):
         top_bar.setSpacing(10)
 
         title_label = QLabel("تنظیمات محصولات")
-        title_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+        title_label.setStyleSheet('''
+            color: black;
+            font-family: Mirza, 'B Nazanin';
+            font-size: 20px;
+            font-weight: blod;
+        ''')
 
         back_button = QPushButton()
         back_button.setIcon(QIcon(self.get_asset_path('back.png')))
@@ -73,8 +80,15 @@ class ItemsSettings(QMainWindow):
     def create_frame1(self):
         # ساخت فریم
         frame1 = QFrame()
-        frame1.setFixedHeight(340)
+        frame1.setMinimumHeight(340)
         frame1.setStyleSheet("QFrame { background-color: white; border-radius: 10px; }")
+
+        frame_shadow= QGraphicsDropShadowEffect(self)
+        frame_shadow.setBlurRadius(10)
+        frame_shadow.setOffset(0,5)
+        frame_shadow.setColor(QColor(0,0,0,70))
+        frame1.setGraphicsEffect(frame_shadow)
+
 
         # لایه داخل فریم
         frame1_layout = QVBoxLayout()
@@ -82,20 +96,24 @@ class ItemsSettings(QMainWindow):
         frame1_layout.setSpacing(10)
 
         frame1_title_label = QLabel("تغییر محصولات")
-        frame1_title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        frame1_title_label.setStyleSheet("background-color:transparent; color: black; font-family: Mirza,'B Nazanin'; font-size: 18px; font-weight: bold;")
+        frame1_title_label.setMinimumHeight(25)
 
         frame1_layout.addWidget(frame1_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         
         frame1_search_input = QLineEdit()
         frame1_search_input.setContentsMargins(0, 0, 30, 0)
         frame1_search_input.setPlaceholderText("جستجوی محصولات ...")
-        frame1_search_input.setFixedSize(200, 40)
+        frame1_search_input.setFixedSize(250, 45)
         frame1_search_input.setStyleSheet("""
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 5px;
             color: #222222;
-            font-size: 12px;
+            font-size: 14px;
+            font-family: B Nazanin, 'arial';
+            font-weight: bold;
+            padding: 5px;
         """)
         frame1_layout.addWidget(frame1_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         frame1_layout.addStretch()
@@ -113,7 +131,7 @@ class ItemsSettings(QMainWindow):
     
     def create_frame2(self):
         frame2 = QFrame()
-        frame2.setFixedHeight(150)
+        frame2.setMinimumHeight(140)
         frame2.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         frame2.setStyleSheet("""
             QFrame {
@@ -121,56 +139,84 @@ class ItemsSettings(QMainWindow):
                 border-radius: 10px;
             }
         """)
+        frame_shadow= QGraphicsDropShadowEffect(self)
+        frame_shadow.setBlurRadius(10)
+        frame_shadow.setOffset(0,5)
+        frame_shadow.setColor(QColor(0,0,0,70))
+        frame2.setGraphicsEffect(frame_shadow)
 
         frame2_vlayout = QVBoxLayout()
-        frame2_vlayout.setContentsMargins(0, 0, 0, 0)
+        frame2_vlayout.setContentsMargins(10, 10, 10, 10)
         frame2_vlayout.setSpacing(10)
 
+        # عنوان بالای فرم
         frame2_title_label = QLabel("ساخت بارکد")
-        frame2_title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        frame2_vlayout.addWidget(frame2_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        frame2_title_label.setStyleSheet('''color: black; font-family: Mirza,'B Nazanin'; font-weight: bold; font-size:16px;''')
+        frame2_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        frame2_vlayout.addWidget(frame2_title_label)
 
+        # لایه افقی اصلی
         frame2_hlayout = QHBoxLayout()
-        frame2_hlayout.setSpacing(25)
-        frame2_hlayout.setContentsMargins(20, 0, 20, 0)
+        frame2_hlayout.setSpacing(20)
+        frame2_hlayout.setContentsMargins(10, 0, 10, 0)
 
-        fields = ["نام محصول", "تولید بارکد", "انتخاب مسیر"]
+        fields = ["نام محصول:", "تولید بارکد:", "انتخاب مسیر:"]
         line_edits = []
 
         for field in fields:
             label = QLabel(field)
-            label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+            label.setStyleSheet('''
+                background-color: white;
+                color: black;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 16px;
+            ''')
+            label.setFixedWidth(100)  # اطمینان از هم‌راستایی
+            label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
             line_edit = QLineEdit()
             line_edit.setStyleSheet("""
                 background-color: white;
                 border: 1px solid #ccc;
                 border-radius: 5px;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 14px;
                 padding: 5px;
-                font-size: 12px;
                 color: #222;
             """)
-            line_edit.setFixedSize(200, 40)
+            line_edit.setMinimumWidth(150)
+            line_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             line_edits.append(line_edit)
 
-            container = QHBoxLayout()
-            container.setContentsMargins(20, 0, 5, 0)
-            container.addWidget(label)
-            container.addWidget(line_edit)
-            frame2_hlayout.addLayout(container)
-
-
-        barcode_icon = QLabel()
-        barcode_icon.setPixmap(QPixmap('assets/Barcode.png').scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio))
-        barcode_icon.setPixmap(QPixmap(self.get_asset_path('Barcode.png')).scaled(60, 60, Qt.AspectRatioMode.KeepAspectRatio))
-        barcode_icon.setStyleSheet("background-color: white; border-radius: 5px;")
-        frame2_hlayout.addWidget(barcode_icon)
+            # بسته‌بندی هر لیبل و ورودی در یک layout جدا
+            pair_layout = QHBoxLayout()
+            pair_layout.setSpacing(10)
+            pair_layout.addWidget(label)
+            pair_layout.addWidget(line_edit)
     
-        frame2_vlayout.addLayout(frame2_hlayout)
 
+            pair_widget = QWidget()
+            pair_widget.setLayout(pair_layout)
+            pair_widget.setStyleSheet("background-color: white;")
+            pair_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+            frame2_hlayout.addWidget(pair_widget)
+
+        # آیکون بارکد
+        barcode_icon = QLabel()
+        barcode_icon.setPixmap(QPixmap(self.get_asset_path('barcode_2089366.png')).scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio))
+        barcode_icon.setStyleSheet("background-color: white; border-radius: 5px;")
+        barcode_icon.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        frame2_hlayout.addWidget(barcode_icon)
+
+        # دکمه ساخت بارکد
         generate_barcode_button = QPushButton("ساخت بارکد")
         generate_barcode_button.setIcon(QIcon(self.get_asset_path("Check Mark.png")))
         generate_barcode_button.setIconSize(QSize(24, 24))
-        generate_barcode_button.setFixedSize(130, 40)
+        generate_barcode_button.setMinimumWidth(110)
+        generate_barcode_button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         generate_barcode_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         generate_barcode_button.setStyleSheet("""
             QPushButton {
@@ -178,45 +224,48 @@ class ItemsSettings(QMainWindow):
                 color: white;
                 border: none;
                 border-radius: 8px;
-                font-size: 13px;
+                font-size: 15px;
+                font-family: Mirza;
+                font-weight: bold;
                 padding: 5px 10px;
-        }
+            }
             QPushButton:hover {
                 background-color: #00B44A;
-        }
-    """)
+            }
+        """)
         frame2_hlayout.addWidget(generate_barcode_button)
 
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(40, 0, 0, 10)
-        button_layout.addStretch()
-        button_layout.addWidget(generate_barcode_button)
-
-        frame2_vlayout.addLayout(button_layout)
+        # افزودن لایه افقی به لایه عمودی اصلی
+        frame2_vlayout.addLayout(frame2_hlayout)
 
         frame2.setLayout(frame2_vlayout)
-
         return frame2
+    
+    def create_frame3(self):
+        frame3=QFrame()
+        frame3.setStyleSheet("background-color:transparent; border-radius:10px;")    
+        return frame3
+
+
 
     def back_settings(self):
         from settings import Settings
-
-        self.settings= Settings()
-        self.stack_items.addWidget(self.settings)
-
+        self.settings_main= Settings()
+        self.stack_items.addWidget(self.settings_main)
+        self.stack_items.setCurrentWidget(self.settings_main)
+        self.settings_main.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         
-        self.stack_items.setCurrentWidget(self.settings)
+        ##animation:
+        start_pos= QPoint(-self.width(),0)
+        end_pos= QPoint(0,0)
+        self.settings_main.move(start_pos)
         ##
-        start_pos = QPoint(-self.width(), 0)
-        end_pos = QPoint(0, 0)
-        self.settings.move(start_pos)
-        ##
-        self.animate= QPropertyAnimation(self.settings, b"pos",self)
-        self.animate.setDuration(700)
-        self.animate.setStartValue(start_pos)
-        self.animate.setEndValue(end_pos)
-        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self.animate.start()
+        animation= QPropertyAnimation(self.settings_main, b'pos',self)
+        animation.setDuration(700)
+        animation.setStartValue(start_pos)
+        animation.setEndValue(end_pos)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        animation.start()
     ##
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
