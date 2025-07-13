@@ -98,6 +98,7 @@ class ItemsSettings(QMainWindow):
             font-size: 12px;
         """)
         frame1_layout.addWidget(frame1_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        frame1_layout.addStretch()
 
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(8)
@@ -115,13 +116,15 @@ class ItemsSettings(QMainWindow):
         # به جای frame1_layout، لایه‌ای که قبلاً به فریم اختصاص داده‌ای قرار بده
         for i in range(0, len(fields), 3):
             row_layout = QHBoxLayout()
-            row_layout.setSpacing(15)
+            row_layout.setSpacing(5)
             row_layout.setContentsMargins(0, 0, 0, 0)  # در صورت نیاز تنظیم کن
+            row_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             for j in range(3):
                 if i + j < len(fields):
                     label = QLabel(fields[i + j])
                     label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+                    label.setFixedWidth(80)
 
                     line_edit = QLineEdit()
                     line_edit.setFixedSize(200, 40)
@@ -145,6 +148,55 @@ class ItemsSettings(QMainWindow):
             # لایه افقی را به لایه اصلی فریم اضافه کن (مثلاً frame1_layout)
             frame1_layout.addLayout(row_layout)
             frame1_layout.addStretch()
+
+            bottom_layout = QHBoxLayout()
+            bottom_layout.setContentsMargins(20, 0, 20, 0)
+            bottom_layout.setSpacing(20)
+
+            # دکمه سمت راست
+            save_button = QPushButton("ذخیره تغییرات")
+            save_button.setFixedSize(120, 40)
+            save_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #00C853;
+                    color: white;
+                    border-radius: 8px;
+                    font-size: 13px;
+                }
+                QPushButton:hover {
+                    background-color: #00B44A;
+                }
+            """)
+
+            # آیکون وسط
+            center_icon = QLabel()
+            center_icon.setPixmap(QPixmap(self.get_asset_path("Upload.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            # دکمه سمت چپ
+            upload_button = QPushButton("آپلود تصویر")
+            upload_button.setFixedSize(100, 40)
+            upload_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #304FFE;
+                    color: white;
+                    border-radius: 8px;
+                    font-size: 13px;
+                }
+                QPushButton:hover {
+                    background-color: #1E40FF;
+                }
+            """)
+
+            # ترتیب افزودن به layout: چپ ← وسط ← راست
+            bottom_layout.addWidget(save_button, alignment=Qt.AlignmentFlag.AlignLeft)
+            bottom_layout.addStretch()
+            bottom_layout.addWidget(center_icon)
+            bottom_layout.addStretch()
+            bottom_layout.addWidget(upload_button, alignment=Qt.AlignmentFlag.AlignRight)
+
+        # افزودن این layout به layout اصلی فریم
+        frame1_layout.addLayout(bottom_layout)
 
         frame1.setLayout(frame1_layout)
 
@@ -178,24 +230,44 @@ class ItemsSettings(QMainWindow):
 
         for field in fields:
             label = QLabel(field)
-            label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+            label.setStyleSheet('''
+                background-color: white;
+                color: black;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 16px;
+            ''')
+            label.setFixedWidth(100)  # اطمینان از هم‌راستایی
+            label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
             line_edit = QLineEdit()
             line_edit.setStyleSheet("""
                 background-color: white;
                 border: 1px solid #ccc;
                 border-radius: 5px;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 14px;
                 padding: 5px;
-                font-size: 12px;
                 color: #222;
             """)
-            line_edit.setFixedSize(200, 40)
+            line_edit.setMinimumWidth(150)
+            line_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             line_edits.append(line_edit)
 
-            container = QHBoxLayout()
-            container.setContentsMargins(20, 0, 5, 0)
-            container.addWidget(label)
-            container.addWidget(line_edit)
-            frame2_hlayout.addLayout(container)
+            # بسته‌بندی هر لیبل و ورودی در یک layout جدا
+            pair_layout = QHBoxLayout()
+            pair_layout.setSpacing(10)
+            pair_layout.addWidget(label)
+            pair_layout.addWidget(line_edit)
+    
+
+            pair_widget = QWidget()
+            pair_widget.setLayout(pair_layout)
+            pair_widget.setStyleSheet("background-color: white;")
+            pair_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+            frame2_hlayout.addWidget(pair_widget)
 
 
         barcode_icon = QLabel()
