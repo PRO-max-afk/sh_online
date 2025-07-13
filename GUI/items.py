@@ -50,7 +50,7 @@ class ItemsSettings(QMainWindow):
         top_bar.setSpacing(10)
 
         title_label = QLabel("تنظیمات محصولات")
-        title_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+        title_label.setStyleSheet("color: black; font-family: Mirza; font-size: 20px; font-weight: bold;")
 
         back_button = QPushButton()
         back_button.setIcon(QIcon(self.get_asset_path('back.png')))
