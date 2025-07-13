@@ -1,15 +1,23 @@
-from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QToolButton,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout,QComboBox)
-from PyQt6.QtGui import QPainter,QFont,QColor,QFontDatabase,QIcon
+from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout,QPushButton,
+    QGraphicsDropShadowEffect, QFileDialog,QStyledItemDelegate,QSizePolicy,QAbstractItemView,QWidget,QComboBox,QTableWidgetItem,QTableWidget,QHeaderView)
+from PyQt6.QtGui import QPalette,QPainter,QFont,QColor,QFontDatabase,QIcon
 from PyQt6.QtCore import Qt, QDate,QPoint,QPropertyAnimation,QEasingCurve,QTimer
 from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
 from PyQt6 import QtCore
 import os
+from fpdf import FPDF
 import jdatetime
 from item_thread import ItemThread
 from circle import CircularSpinner
 from spitial_calendar import JalaliCalendar
 
+class BlackTextDelegate(QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        editor = super().createEditor(parent, option, index)
+        palette = editor.palette()
+        palette.setColor(QPalette.ColorRole.Text, QColor("black"))
+        editor.setPalette(palette)
+        return editor
 class ItemReport(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -17,10 +25,12 @@ class ItemReport(QMainWindow):
         self.val_sale={}
         self.val_buy={}
         self.selected_month= None
+        self.selected_date= None
 
         self.in_UI()
         self.label()
         self.Button_UI()
+        self.table_UI()
         self.load_all_fonts()
         self.show_first_spinner()
     
@@ -209,14 +219,24 @@ class ItemReport(QMainWindow):
             tab_layout.addWidget(btn)
         ##
         self.handle_tab_buttons(self.sale_button)
+        ###tables:
+        self.sale_table= QTableWidget()
+        self.buy_table= QTableWidget()
+        #button pdf
+        self.pdf_btn= QPushButton()
+        self.pdf_btns= QPushButton()
         ##hide bag frames
         self.sale_container= QVBoxLayout()
         self.sale_container.addWidget(self.sale_frame)
         self.sale_layout.addLayout(stat_layout_sale)
+        self.sale_layout.addWidget(self.sale_table)
+        self.sale_layout.addWidget(self.pdf_btn)
 
         self.buy_container= QVBoxLayout()
         self.buy_container.addWidget(self.buy_frame)
         self.buy_layout.addLayout(stat_layout_buy)
+        self.buy_layout.addWidget(self.buy_table)
+        self.buy_layout.addWidget(self.pdf_btns)
         ###hide for layout:
         self.info_layout= QVBoxLayout()
         self.info_layout.setSpacing(7)
@@ -345,6 +365,186 @@ class ItemReport(QMainWindow):
                 }
         ''')
         self.calendar_btn.clicked.connect(self.show_calendar)
+        ##
+        self.pdf_btn.setMaximumSize(110,40)
+        self.pdf_btn.setMinimumSize(90,20)
+        self.pdf_btn.clicked.connect(self.export_sale_table_pdf_fpdf)
+        self.pdf_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Maximum)
+        pdf_icon= QIcon(self.get_asset_path("pdf_9496432.png"))
+        self.pdf_btn.setIcon(pdf_icon)
+        self.pdf_btn.setIconSize(QtCore.QSize(25,25))
+        self.pdf_btn.setText("ساخت")
+        self.pdf_btn.setStyleSheet('''
+            QPushButton {
+                background-color: white;
+                border: 1px solid transparent;
+                padding: 5px;
+                color: black;
+                font-family: Mirza;
+                font-size: 15px;
+                font-weight: bold;
+                border-radius: 15px; /* گردی برای همه حالت‌ها */
+            }
+            QPushButton:hover {
+                background-color: #f5f5f5;
+            }
+            QPushButton:pressed {
+                background-color: white;  /* خاکستری ملایم هنگام کلیک */
+            }
+            ''')
+        shadow= QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(15)
+        shadow.setOffset(1,4)
+        shadow.setColor(QColor(0,0,0,70))
+        self.pdf_btn.setGraphicsEffect(shadow)
+        ##
+        self.pdf_btns.setMaximumSize(110,40)
+        self.pdf_btns.setMinimumSize(90,20)
+        self.pdf_btns.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Maximum)
+        self.pdf_btns.setIcon(pdf_icon)
+        self.pdf_btns.setIconSize(QtCore.QSize(25,25))
+        self.pdf_btns.setText("ساخت")
+        self.pdf_btns.setStyleSheet('''
+            QPushButton {
+                background-color: white;
+                border: 1px solid transparent;
+                padding: 5px;
+                color: black;
+                font-family: Mirza;
+                font-size: 15px;
+                font-weight: bold;
+                border-radius: 15px; /* گردی برای همه حالت‌ها */
+            }
+            QPushButton:hover {
+                background-color: #f5f5f5;
+            }
+            QPushButton:pressed {
+                background-color: white;  /* خاکستری ملایم هنگام کلیک */
+            }
+            ''')
+        shadows= QGraphicsDropShadowEffect()
+        shadows.setBlurRadius(15)
+        shadows.setOffset(1,4)
+        shadows.setColor(QColor(0,0,0,70))
+        self.pdf_btns.setGraphicsEffect(shadows)
+        
+    ##
+    def table_UI(self):
+        self.sale_table.setColumnCount(4)
+        self.sale_table.setHorizontalHeaderLabels(["نام محصول","تعداد محصول","واحد","قیمت کل"])
+        self.sale_table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.sale_table.verticalHeader().setVisible(False)
+        #self.sale_table.setGridStyle(Qt.PenStyle.SolidLine)
+        self.sale_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.sale_table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.sale_table.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Expanding)
+        #header:
+        header= self.sale_table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        ##reszie mode:
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        #style:
+        self.sale_table.setStyleSheet("""
+            QTableWidget {
+                border: 2px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 0px;
+                gridline-color: black;
+            }
+            QHeaderView::section {
+                background-color: transparent;
+                border: 1px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 0px;
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
+        """)
+        ##color class:
+        self.sale_table.setItemDelegate(BlackTextDelegate())
+        
+        ### buy table
+        self.buy_table.setColumnCount(4)
+        self.buy_table.setHorizontalHeaderLabels(["نام محصول","تعداد محصول","واحد","قیمت کل"])
+        self.buy_table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.buy_table.verticalHeader().setVisible(False)
+        self.buy_table.setGridStyle(Qt.PenStyle.SolidLine)
+        self.buy_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.buy_table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.buy_table.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Expanding)
+        #header:
+        header= self.buy_table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignHCenter)
+        ##reszie mode:
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        #style:
+        self.buy_table.setStyleSheet("""
+            QTableWidget {
+                border: 2px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 0px;
+                gridline-color: black;
+            }
+            QHeaderView::section {
+                background-color: transparent;
+                border: 1px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 0px;
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
+        """)
+        ##color class:
+        self.buy_table.setItemDelegate(BlackTextDelegate())
+
     ##
     def open_reports(self):
             from finance import Money
@@ -450,25 +650,39 @@ class ItemReport(QMainWindow):
             self.spinner_wrapper.setVisible(True)
             self.run_layout_holder.setVisible(False)
 
-        # 👇 مقدار انتخاب‌شده را بده به ترد
-        QTimer.singleShot(100, lambda: self.start_thread(self.selected_month))
+        QTimer.singleShot(0, self.defer_start_thread)
+    ##
+    def defer_start_thread(self):
+        self.start_thread(year_month=self.selected_month, full_date=self.selected_date)
 
     ##
-    def start_thread(self, year_month: str = None, full_date: str= None):
-        if year_month is None:
+    def start_thread(self, year_month: str = None, full_date: str = None):
+        if full_date:
+            # فقط اطلاعات روزانه را بارگذاری کن
+            self.item_thread = ItemThread(selected_month=None, selected_date=full_date)
+        elif year_month:
+            # فقط اطلاعات ماهانه را بارگذاری کن
+            self.item_thread = ItemThread(selected_month=year_month, selected_date=None)
+        else:
+            # پیش‌فرض: بارگذاری ماه جاری
             jdate = jdatetime.date.today()
             year_month = f"{jdate.year}/{jdate.month:02d}"
-        elif full_date is None:
-            j_date= jdatetime.date.today()
-            full_date = f"{j_date.year:04d}/{j_date.month:02d}/{j_date:02d}"
-        self.item_thread= ItemThread(selected_month=year_month,selected_date=full_date)
+            self.item_thread = ItemThread(selected_month=year_month, selected_date=None)
+        ##boxes
         self.item_thread.sale_box_signal.connect(self.sale_box)
         self.item_thread.buy_box_signal.connect(self.buy_boxes)
+        ##day
         self.item_thread.day_sale_signal.connect(self.sale_box)
         self.item_thread.day_buy_signal.connect(self.buy_boxes)
+        ##tables_m
+        self.item_thread.sale_table_data.connect(self.sale_table_info)
+        self.item_thread.buy_table_data.connect(self.buy_table_info)
+        ##day
+        self.item_thread.sale_table_data_day.connect(self.sale_table_info)
+        self.item_thread.buy_table_data_day.connect(self.buy_table_info)
+        
         self.item_thread.finished.connect(self.on_data_loaded)
         self.item_thread.start()
-
     ##
     def on_data_loaded(self):
         if self.spinner_wrapper:
@@ -496,15 +710,15 @@ class ItemReport(QMainWindow):
     def set_selected_month(self, year_month: str):
         if self.selected_month != year_month:
             self.selected_month = year_month
+            self.selected_date = None  # 🟢 پاک کردن تاریخ قبلی برای جلوگیری از اجرای گزارش روز
             print(f"📌 ماه انتخاب‌شده جدید: {self.selected_month}")
             self.show_first_spinner()
     ##
     def handle_selected_date(self, date_str: str):
         print(f"📅 تاریخ انتخاب‌شده: {date_str}")
-        self.selected_date = date_str          # تاریخ کامل مثل "1404/04/20"
-        self.show_first_spinner()
-
-
+        self.selected_date = date_str
+        #self.selected_month = None  # مهم! ماه را پاک کن تا فقط اطلاعات روزانه اجرا شود
+        self.show_first_spinner()   # نمایش spinner و اجرای thread
 
     def handle_month_change(self, index):
         today = jdatetime.date.today()
@@ -521,8 +735,91 @@ class ItemReport(QMainWindow):
             formatted_month = f"{current_year}/{month_number:02d}"
             print(f"📆 انتخاب کاربر از کمبو: {formatted_month}")
             self.set_selected_month(formatted_month)
+    ##
+    def sale_table_info(self, data : dict):
+        self.sale_table.setRowCount(0)
+        for row_index,values in data.items():
+            self.sale_table.insertRow(row_index)
+            for col_index,value in enumerate(values):
+                item= QTableWidgetItem(str(value))
+                item.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+                self.sale_table.setItem(row_index,col_index,item)   
+    ##
+    def buy_table_info(self, info: dict):
+        self.buy_table.setRowCount(0)
+        for row_index, values in info.items():
+            self.buy_table.insertRow(row_index)
+            for column_index, value in enumerate(values):
+                items= QTableWidgetItem(str(value))
+                items.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+                self.buy_table.setItem(row_index,column_index,items)
+    ##
+    def export_sale_table_pdf_fpdf(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "ذخیره گزارش فروش به صورت PDF",
+            "گزارش_فروش.pdf",
+            "PDF Files (*.pdf)"
+        )
 
+        if not file_path:
+            print("❌ ذخیره لغو شد.")
+            return
 
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+
+        # 📁 فونت پیشنهادی: Shabnam یا نسخه سالم BNazanin
+        font_file = "BNazanin.ttf"  # یا "Shabnam.ttf"
+        font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fonts", font_file)
+
+        use_farsi_font = False
+        if os.path.exists(font_path):
+            try:
+                pdf.add_font("Persian", "", font_path, uni=True)
+                pdf.set_font("Persian", size=16)
+                use_farsi_font = True
+            except Exception as e:
+                print(f"⚠️ خطا در افزودن فونت: {e}")
+                pdf.set_font("Arial", size=16)
+        else:
+            print("⚠️ فونت پیدا نشد، استفاده از Arial")
+            pdf.set_font("Arial", size=16)
+
+        today = jdatetime.date.today().strftime("%Y/%m/%d")
+        pdf.cell(200, 10, txt="📄 گزارش فروش", ln=True, align='C')
+        pdf.set_font("Persian" if use_farsi_font else "Arial", size=12)
+        pdf.cell(200, 10, txt=f"تاریخ: {today}", ln=True, align='R')
+        pdf.ln(10)
+
+        headers = []
+        for col in range(self.sale_table.columnCount()):
+            header_item = self.sale_table.horizontalHeaderItem(col)
+            headers.append(header_item.text() if header_item else "")
+
+        col_width = 40
+        row_height = 10
+
+        pdf.set_font("Persian" if use_farsi_font else "Arial", size=13)
+        for header in headers:
+            pdf.cell(col_width, row_height, txt=header, border=1, align='C')
+        pdf.ln(row_height)
+
+        pdf.set_font("Persian" if use_farsi_font else "Arial", size=14)
+        for row in range(self.sale_table.rowCount()):
+            for col in range(self.sale_table.columnCount()):
+                item = self.sale_table.item(row, col)
+                text = item.text() if item else ''
+                pdf.cell(col_width, row_height, txt=text, border=1, align='C')
+            pdf.ln(row_height)
+
+        pdf.output(file_path)
+        print(f"✅ فایل PDF ذخیره شد در: {file_path}")
+
+    ##
+    def create_buy_report_pdf(self):
+        pass     
 
     ##images
     def get_asset_path(self, filename):
