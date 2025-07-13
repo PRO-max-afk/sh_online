@@ -125,6 +125,97 @@ class ItemsSettings(QMainWindow):
         shadow.setColor(QColor(0, 0, 0, 70))
         frame1_search_input.setGraphicsEffect(shadow)
 
+        fields = [
+            "نام محصول: ", "بارکد محصول: ", "قیمت خرید: ",
+            "قیمت فروش: ", "قیمت عمده: ", "تعداد محصول: ",
+            "تعداد هر بسته: ", "تاریخ تولید", "تاریخ انقضاء: "
+        ]
+
+        # به جای frame1_layout، لایه‌ای که قبلاً به فریم اختصاص داده‌ای قرار بده
+        for i in range(0, len(fields), 3):
+            row_layout = QHBoxLayout()
+            row_layout.setSpacing(5)
+            row_layout.setContentsMargins(0, 0, 0, 0)  # در صورت نیاز تنظیم کن
+            row_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            for j in range(3):
+                if i + j < len(fields):
+                    label = QLabel(fields[i + j])
+                    label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+                    label.setFixedWidth(80)
+
+                    line_edit = QLineEdit()
+                    line_edit.setFixedSize(200, 40)
+                    line_edit.setStyleSheet("""
+                        background-color: white;
+                        border: 1px solid #ccc;
+                        border-radius: 5px;
+                        padding: 5px;
+                        font-size: 12px;
+                        color: #222;
+                    """)
+
+                    pair_layout = QHBoxLayout()
+                    pair_layout.setSpacing(5)
+                    pair_layout.addWidget(label)
+                    pair_layout.addWidget(line_edit)
+                    pair_layout.addStretch()
+
+                    row_layout.addLayout(pair_layout)
+
+            # لایه افقی را به لایه اصلی فریم اضافه کن (مثلاً frame1_layout)
+            frame1_layout.addLayout(row_layout)
+            frame1_layout.addStretch()
+
+            bottom_layout = QHBoxLayout()
+            bottom_layout.setContentsMargins(20, 0, 20, 0)
+            bottom_layout.setSpacing(20)
+
+            # دکمه سمت راست
+            save_button = QPushButton("ذخیره تغییرات")
+            save_button.setFixedSize(120, 40)
+            save_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #00C853;
+                    color: white;
+                    border-radius: 8px;
+                    font-size: 13px;
+                }
+                QPushButton:hover {
+                    background-color: #00B44A;
+                }
+            """)
+
+            # آیکون وسط
+            center_icon = QLabel()
+            center_icon.setPixmap(QPixmap(self.get_asset_path("Upload.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            # دکمه سمت چپ
+            upload_button = QPushButton("آپلود تصویر")
+            upload_button.setFixedSize(100, 40)
+            upload_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #304FFE;
+                    color: white;
+                    border-radius: 8px;
+                    font-size: 13px;
+                }
+                QPushButton:hover {
+                    background-color: #1E40FF;
+                }
+            """)
+
+            # ترتیب افزودن به layout: چپ ← وسط ← راست
+            bottom_layout.addWidget(save_button, alignment=Qt.AlignmentFlag.AlignLeft)
+            bottom_layout.addStretch()
+            bottom_layout.addWidget(center_icon)
+            bottom_layout.addStretch()
+            bottom_layout.addWidget(upload_button, alignment=Qt.AlignmentFlag.AlignRight)
+
+        # افزودن این layout به layout اصلی فریم
+        frame1_layout.addLayout(bottom_layout)
+
         frame1.setLayout(frame1_layout)
 
         return frame1
@@ -195,7 +286,6 @@ class ItemsSettings(QMainWindow):
             pair_layout.setSpacing(10)
             pair_layout.addWidget(label)
             pair_layout.addWidget(line_edit)
-    
 
             pair_widget = QWidget()
             pair_widget.setLayout(pair_layout)
