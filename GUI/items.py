@@ -141,8 +141,14 @@ class ItemsSettings(QMainWindow):
             for j in range(3):
                 if i + j < len(fields):
                     label = QLabel(fields[i + j])
-                    label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-                    label.setFixedWidth(80)
+                    label.setStyleSheet('''
+                        background-color: white;
+                        color: black;
+                        font-family: B Nazanin;
+                        font-weight: bold;
+                        font-size: 15px;
+                        ''')
+                    label.setFixedHeight(25)
 
                     line_edit = QLineEdit()
                     line_edit.setFixedSize(200, 40)
@@ -151,7 +157,8 @@ class ItemsSettings(QMainWindow):
                         border: 1px solid #ccc;
                         border-radius: 5px;
                         padding: 5px;
-                        font-size: 12px;
+                        font-size: 14px;
+                        font-family: B Nazanin;
                         color: #222;
                     """)
 
@@ -179,7 +186,9 @@ class ItemsSettings(QMainWindow):
                     background-color: #00C853;
                     color: white;
                     border-radius: 8px;
-                    font-size: 13px;
+                    font-family: B Nazanin;
+                    font-size: 14px;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #00B44A;
@@ -188,7 +197,7 @@ class ItemsSettings(QMainWindow):
 
             # آیکون وسط
             center_icon = QLabel()
-            center_icon.setPixmap(QPixmap(self.get_asset_path("Upload.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            center_icon.setPixmap(QPixmap(self.get_asset_path("photo-album_6194124.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
             center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             # دکمه سمت چپ
@@ -199,7 +208,9 @@ class ItemsSettings(QMainWindow):
                     background-color: #304FFE;
                     color: white;
                     border-radius: 8px;
-                    font-size: 13px;
+                    font-size: 14px;
+                    font-family: B Nazanin;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #1E40FF;
@@ -207,11 +218,12 @@ class ItemsSettings(QMainWindow):
             """)
 
             # ترتیب افزودن به layout: چپ ← وسط ← راست
-            bottom_layout.addWidget(save_button, alignment=Qt.AlignmentFlag.AlignLeft)
+            bottom_layout.addWidget(upload_button, alignment=Qt.AlignmentFlag.AlignLeft)
             bottom_layout.addStretch()
             bottom_layout.addWidget(center_icon)
-            bottom_layout.addStretch()
-            bottom_layout.addWidget(upload_button, alignment=Qt.AlignmentFlag.AlignRight)
+            bottom_layout.addStretch(4)
+            bottom_layout.addWidget(save_button, alignment=Qt.AlignmentFlag.AlignRight)
+            
 
         # افزودن این layout به layout اصلی فریم
         frame1_layout.addLayout(bottom_layout)
