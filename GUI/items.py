@@ -98,7 +98,6 @@ class ItemsSettings(QMainWindow):
             font-size: 12px;
         """)
         frame1_layout.addWidget(frame1_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        frame1_layout.addStretch()
 
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(8)
@@ -106,6 +105,46 @@ class ItemsSettings(QMainWindow):
         shadow.setYOffset(5)
         shadow.setColor(QColor(0, 0, 0, 70))
         frame1_search_input.setGraphicsEffect(shadow)
+
+        fields = [
+            "نام محصول", "بارکد محصول", "قیمت فروش",
+            "قیمت خرید", "تعداد محصول", "تعداد هر بسته",
+            "قیمت عمده", "تاریخ تولید", "تاریخ انقضا"
+        ]
+
+        # به جای frame1_layout، لایه‌ای که قبلاً به فریم اختصاص داده‌ای قرار بده
+        for i in range(0, len(fields), 3):
+            row_layout = QHBoxLayout()
+            row_layout.setSpacing(15)
+            row_layout.setContentsMargins(0, 0, 0, 0)  # در صورت نیاز تنظیم کن
+
+            for j in range(3):
+                if i + j < len(fields):
+                    label = QLabel(fields[i + j])
+                    label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+
+                    line_edit = QLineEdit()
+                    line_edit.setFixedSize(200, 40)
+                    line_edit.setStyleSheet("""
+                        background-color: white;
+                        border: 1px solid #ccc;
+                        border-radius: 5px;
+                        padding: 5px;
+                        font-size: 12px;
+                        color: #222;
+                    """)
+
+                    pair_layout = QHBoxLayout()
+                    pair_layout.setSpacing(5)
+                    pair_layout.addWidget(label)
+                    pair_layout.addWidget(line_edit)
+                    pair_layout.addStretch()
+
+                    row_layout.addLayout(pair_layout)
+
+            # لایه افقی را به لایه اصلی فریم اضافه کن (مثلاً frame1_layout)
+            frame1_layout.addLayout(row_layout)
+            frame1_layout.addStretch()
 
         frame1.setLayout(frame1_layout)
 
@@ -139,7 +178,7 @@ class ItemsSettings(QMainWindow):
 
         for field in fields:
             label = QLabel(field)
-            label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+            label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
             line_edit = QLineEdit()
             line_edit.setStyleSheet("""
                 background-color: white;
