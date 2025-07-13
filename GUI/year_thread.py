@@ -430,7 +430,9 @@ class YearThread(QThread):
                 total_barrow += float(bar_total[0]) if bar_total[0] else 0
                 print(f"{total_barrow} : total barrow")
 
-            
+            ##
+            total_cush= total_sale - total_harvest - total_barrow
+            total_cush =  float(total_cush) if total_cush else 0
             ##
             box_stats={
                 "total_buy" : total_buy,
@@ -438,8 +440,8 @@ class YearThread(QThread):
                 "profit" :total_profit,
                 "harvest" : total_harvest,
                 "total_barrow" : total_barrow,
-                "current_capital" : total_buy - total_profit,
-                "total_cush" : total_sale, 
+                "current_capital" :total_cush + total_buy,
+                "total_cush" : total_cush 
             }
             self.full_info.emit(box_stats)
             

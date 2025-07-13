@@ -635,7 +635,7 @@ class WidgetManager(QWidget):
                     self.barocde= str(result[2])
 
     
-        except pymysql.Error as e:
+        except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
     ##
     def eventFilter(self, source, event):
