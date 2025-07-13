@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
+from calendars import JalaliCalendar 
 
 
 class Money(QMainWindow):
@@ -134,6 +135,7 @@ class Money(QMainWindow):
         self.buy_reports.clicked.connect(self.page_buy)
         self.harvest_reports.clicked.connect(self.page_harvest)
         self.barrow_reports.clicked.connect(self.page_barrow)
+        self.item_reports.clicked.connect(self.page_item)
         # آیکون و متن‌ها
         buttons_info = [
             (self.sell_reports, "sale-report_11357276.png", "گزارش فروش"),
@@ -248,6 +250,22 @@ class Money(QMainWindow):
         self.stack.setCurrentWidget(self.buy_page)
         ##
         self.animate= QPropertyAnimation(self.buy_page, b'pos',self)
+        self.animate.setDuration(700)
+        self.animate.setStartValue(QPoint(self.stack.width(),0))
+        self.animate.setEndValue(QPoint(0,0))
+        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animate.start()
+    ##
+    def page_item(self):
+        from items_report import ItemReport
+        self.item_page= ItemReport()
+        self.stack.addWidget(self.item_page)
+        
+        ## out of page
+        self.item_page.move(self.stack.width(),0)
+        self.stack.setCurrentWidget(self.item_page)
+        ##
+        self.animate= QPropertyAnimation(self.item_page, b'pos',self)
         self.animate.setDuration(700)
         self.animate.setStartValue(QPoint(self.stack.width(),0))
         self.animate.setEndValue(QPoint(0,0))

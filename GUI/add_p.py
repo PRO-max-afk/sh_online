@@ -7,11 +7,8 @@ import jdatetime
 import datetime
 from datetime import date
 from profile_picture import ProfileImage
-from info_box import ProductBox
-from inventory import Inventory
 from message_b import MessageBox
-from inventory import Inventory
-from PyQt6.QtCore import Qt,QPropertyAnimation,QEasingCurve,QPoint
+from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 import os
 from calendars import JalaliCalendar

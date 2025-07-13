@@ -62,7 +62,7 @@ class BuyDashboard(QMainWindow):
         #datetime_layout.addWidget(self.date_label)
         #datetime_layout.addWidget(self.time_label)
         datetime_layout.addWidget(self.back_btn)
-        datetime_layout.setAlignment( Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignLeft)
+        datetime_layout.setAlignment( Qt.AlignmentFlag.AlignLeft)
 
         top_layout.addLayout(title_label) 
         top_layout.addStretch(1)
@@ -121,7 +121,6 @@ class BuyDashboard(QMainWindow):
 
             box_layout = QVBoxLayout(box)
             shadow= QGraphicsDropShadowEffect(self)
-            
             shadow.setBlurRadius(12)
             shadow.setXOffset(0)
             shadow.setYOffset(5)
