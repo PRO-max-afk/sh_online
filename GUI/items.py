@@ -52,7 +52,7 @@ class ItemsSettings(QMainWindow):
         title_label = QLabel("تنظیمات محصولات")
         title_label.setStyleSheet('''
             color: black;
-            font-family: Mirza, 'B Nazanin';
+            font-family: Mirza;
             font-size: 20px;
             font-weight: blod;
         ''')

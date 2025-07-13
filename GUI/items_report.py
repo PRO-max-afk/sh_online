@@ -5,10 +5,19 @@ from PyQt6.QtCore import Qt, QDate,QPoint,QPropertyAnimation,QEasingCurve,QTimer
 from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
 from PyQt6 import QtCore
 import os
-from fpdf import FPDF
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Table, TableStyle, Paragraph
+from reportlab.lib import colors
+import arabic_reshaper
+from bidi.algorithm import get_display
 import jdatetime
 from item_thread import ItemThread
 from circle import CircularSpinner
+from notifi_box import Notification
 from spitial_calendar import JalaliCalendar
 
 class BlackTextDelegate(QStyledItemDelegate):
@@ -247,6 +256,12 @@ class ItemReport(QMainWindow):
         self.main_layout.addLayout(top_layout)
         self.main_layout.addLayout(middle_layout)
         #main_layout.addLayout(self.info_layout)
+        # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
+        self.notification_frame = QFrame(self)
+        self.notification_frame.setStyleSheet("background: transparent;")
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.notification_frame.raise_()
         ##
         self.item_stack.addWidget(self.item_page)
         
@@ -368,7 +383,7 @@ class ItemReport(QMainWindow):
         ##
         self.pdf_btn.setMaximumSize(110,40)
         self.pdf_btn.setMinimumSize(90,20)
-        self.pdf_btn.clicked.connect(self.export_sale_table_pdf_fpdf)
+        self.pdf_btn.clicked.connect(self.export_sale_table_pdf_reportlab)
         self.pdf_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Maximum)
         pdf_icon= QIcon(self.get_asset_path("pdf_9496432.png"))
         self.pdf_btn.setIcon(pdf_icon)
@@ -401,6 +416,7 @@ class ItemReport(QMainWindow):
         self.pdf_btns.setMaximumSize(110,40)
         self.pdf_btns.setMinimumSize(90,20)
         self.pdf_btns.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Maximum)
+        self.pdf_btns.clicked.connect(self.create_buy_report_pdf)
         self.pdf_btns.setIcon(pdf_icon)
         self.pdf_btns.setIconSize(QtCore.QSize(25,25))
         self.pdf_btns.setText("ساخت")
@@ -754,72 +770,166 @@ class ItemReport(QMainWindow):
                 items.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
                 self.buy_table.setItem(row_index,column_index,items)
     ##
-    def export_sale_table_pdf_fpdf(self):
+    def export_sale_table_pdf_reportlab(self):
+        today = jdatetime.date.today().strftime("%Y/%m/%d")
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "ذخیره گزارش فروش به صورت PDF",
-            "گزارش_فروش.pdf",
-            "PDF Files (*.pdf)"
-        )
-
+            f"{today} گزارش فروش.pdf",
+            "PDF Files (*.pdf)")
+        
         if not file_path:
             print("❌ ذخیره لغو شد.")
             return
 
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
+        font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'Shabnam.ttf')
+        if not os.path.exists(font_path):
+            print("❌ فونت Shabnam.ttf پیدا نشد.")
+            return
 
-        # 📁 فونت پیشنهادی: Shabnam یا نسخه سالم BNazanin
-        font_file = "BNazanin.ttf"  # یا "Shabnam.ttf"
-        font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fonts", font_file)
+        # ثبت فونت
+        pdfmetrics.registerFont(TTFont("Shabnam", font_path))
 
-        use_farsi_font = False
-        if os.path.exists(font_path):
-            try:
-                pdf.add_font("Persian", "", font_path, uni=True)
-                pdf.set_font("Persian", size=16)
-                use_farsi_font = True
-            except Exception as e:
-                print(f"⚠️ خطا در افزودن فونت: {e}")
-                pdf.set_font("Arial", size=16)
-        else:
-            print("⚠️ فونت پیدا نشد، استفاده از Arial")
-            pdf.set_font("Arial", size=16)
+        c = canvas.Canvas(file_path, pagesize=A4)
+        width, height = A4
 
-        today = jdatetime.date.today().strftime("%Y/%m/%d")
-        pdf.cell(200, 10, txt="📄 گزارش فروش", ln=True, align='C')
-        pdf.set_font("Persian" if use_farsi_font else "Arial", size=12)
-        pdf.cell(200, 10, txt=f"تاریخ: {today}", ln=True, align='R')
-        pdf.ln(10)
+        # متن راست‌چین
+        def rtl(text):
+            return get_display(arabic_reshaper.reshape(text))
 
+        # 🔹 عنوان (وسط) و تاریخ (راست)
+        title = rtl("📄 گزارش فروش")
+        
+        date_str = rtl(f"تاریخ: {today}")
+
+        c.setFont("Shabnam", 16)
+        c.drawCentredString(width / 2, height - 50, title)
+
+        c.setFont("Shabnam", 12)
+        c.drawRightString(width - 40, height - 70, date_str)
+
+        # 🔹 داده‌های جدول
         headers = []
         for col in range(self.sale_table.columnCount()):
             header_item = self.sale_table.horizontalHeaderItem(col)
-            headers.append(header_item.text() if header_item else "")
+            headers.append(rtl(header_item.text()) if header_item else "")
 
-        col_width = 40
-        row_height = 10
+        # برعکس کردن ترتیب ستون‌ها
+        headers = headers[::-1]
 
-        pdf.set_font("Persian" if use_farsi_font else "Arial", size=13)
-        for header in headers:
-            pdf.cell(col_width, row_height, txt=header, border=1, align='C')
-        pdf.ln(row_height)
-
-        pdf.set_font("Persian" if use_farsi_font else "Arial", size=14)
+        data = [headers]
         for row in range(self.sale_table.rowCount()):
+            row_data = []
             for col in range(self.sale_table.columnCount()):
                 item = self.sale_table.item(row, col)
-                text = item.text() if item else ''
-                pdf.cell(col_width, row_height, txt=text, border=1, align='C')
-            pdf.ln(row_height)
+                text = item.text() if item else ""
+                row_data.append(rtl(text))
+            # برعکس کردن ترتیب داده‌های هر ردیف
+            data.append(row_data[::-1])
 
-        pdf.output(file_path)
-        print(f"✅ فایل PDF ذخیره شد در: {file_path}")
+        # اندازه جدول
+        col_width = 90
+        total_width = col_width * len(headers)
+        x_position = (width - total_width) / 2  # مرکز افقی
+        y_position = height - 120 - (len(data) * 20)
 
+        # جدول
+        table = Table(data, colWidths=[col_width] * len(headers))
+        table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Shabnam'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),  # 🔹 اطلاعات راست‌چین
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ]))
+
+        # رسم جدول در وسط
+        table.wrapOn(c, width, height)
+        table.drawOn(c, x_position, y_position)
+
+        # پایان
+        c.save()
+        print(f"✅ فایل PDF با موفقیت ذخیره شد: {file_path}")
+        notifi= Notification(
+            pro_name="pdf ساخت",
+            icon_path= self.get_asset_path("Check Mark.png"),
+            message= f"ذخیر ه شد {file_path} فایل به مسیر " ,
+            parent_frame= self.notification_frame)
+        notifi.show()
     ##
     def create_buy_report_pdf(self):
-        pass     
+        today= jdatetime.date.today().strftime("%Y/%m/%d")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "ذخیره محصولات به شکل PDF",
+            f"{today} گزارش خرید به تاریخ.pdf",
+            "PDF Files (*.pdf)")
+        if not file_path:
+            print("canceling the saving pdf process")
+            return
+        font_path= os.path.join(os.path.dirname(os.path.dirname(__file__)),'fonts', 'B NAZANIN.TTF')
+        if not font_path:
+            print("no font b Nazanin")
+            return
+        pdfmetrics.registerFont(TTFont("B Nazanin", font_path))
+        c= canvas.Canvas(file_path,pagesize=A4)
+        width, height = A4
+        def rtl(text):
+            return get_display(arabic_reshaper.reshape(text))
+        title= rtl("گزارش خرید")
+        date_str= rtl(f'تاریخ: {today}')
+        c.setFont("B Nazanin",size=16)
+        c.drawCentredString(width/2, height-50, title)
+        c.setFont("B Nazanin", 12)
+        c.drawRightString(width - 40, height -70 , date_str)
+
+        ##
+        headers= []
+        for col in range(self.buy_table.columnCount()):
+            header_item= self.buy_table.horizontalHeaderItem(col)
+            headers.append(rtl(header_item.text()) if header_item else "")
+        
+        # reverse headers
+        headers= headers[::-1]
+        data= [headers]
+        for row in range(self.buy_table.rowCount()):
+            row_data= []
+            for col in range(self.buy_table.columnCount()):
+                item= self.buy_table.item(row,col)
+                text= item.text() if item else ""
+                row_data.append(rtl(text))
+            data.append(row_data[::-1])
+            
+        ## اندازه جدول
+        col_width= 90
+        total_width= col_width * len(headers)
+        x_position= (width -total_width) /2 # مرکز افقی
+        y_position= height - 120 - (len(data) *20)
+
+        #table
+        table= Table(data,colWidths=[col_width] * len(headers))
+        table.setStyle(TableStyle([
+            ('FONTNAME', (0,0), (-1,-1), 'B Nazanin'),
+            ('FONTSIZE',(0,0),(-1,-1), 10),
+            ('GRID',(0,0), (-1,-1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgreen),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),  # 🔹 اطلاعات راست‌چین
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+
+        ]))
+        ## draw the table to the middle page
+        table.wrapOn(c, width,height)
+        table.drawOn(c, x_position,y_position)
+        c.save()
+        notifi= Notification(
+            pro_name="pdf ساخت",
+            icon_path= self.get_asset_path("Check Mark.png"),
+            message= f"ذخیر ه شد {file_path} فایل به مسیر " ,
+            parent_frame= self.notification_frame)
+        notifi.show()
 
     ##images
     def get_asset_path(self, filename):
