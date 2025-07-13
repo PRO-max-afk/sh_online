@@ -48,7 +48,7 @@ class ItemsSettings(QMainWindow):
         top_bar.setSpacing(10)
 
         title_label = QLabel("تنظیمات محصولات")
-        title_label.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+        title_label.setStyleSheet("color: black; font-family: Mirza; font-size: 20px; font-weight: bold;")
 
         back_button = QPushButton()
         back_button.setIcon(QIcon(self.get_asset_path('back.png')))
@@ -170,7 +170,7 @@ class ItemsSettings(QMainWindow):
 
             # آیکون وسط
             center_icon = QLabel()
-            center_icon.setPixmap(QPixmap(self.get_asset_path("Upload.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            center_icon.setPixmap(QPixmap(self.get_asset_path("gallery.jpg")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
             center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             # دکمه سمت چپ
