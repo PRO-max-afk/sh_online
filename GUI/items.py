@@ -123,7 +123,7 @@ class ItemsSettings(QMainWindow):
         fields = [
             "نام محصول: ", "بارکد محصول: ", "قیمت خرید: ",
             "قیمت فروش: ", "قیمت عمده: ", "تعداد محصول: ",
-            "تعداد هر بسته: ", "تاریخ تولید", "تاریخ انقضاء: "
+            "تعداد هر بسته: ", "تاریخ تولید: ", "تاریخ انقضاء: "
         ]
 
         # به جای frame1_layout، لایه‌ای که قبلاً به فریم اختصاص داده‌ای قرار بده
@@ -136,7 +136,14 @@ class ItemsSettings(QMainWindow):
             for j in range(3):
                 if i + j < len(fields):
                     label = QLabel(fields[i + j])
-                    label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
+                    label.setStyleSheet('''
+                        background-color: white;
+                        color: black;
+                        font-family: B Nazanin;
+                        font-weight: bold;
+                        font-size: 15px;
+                        ''')
+                    label.setFixedHeight(25)
                     label.setFixedWidth(80)
 
                     line_edit = QLineEdit()
@@ -146,7 +153,8 @@ class ItemsSettings(QMainWindow):
                         border: 1px solid #ccc;
                         border-radius: 5px;
                         padding: 5px;
-                        font-size: 12px;
+                        font-size: 14px;
+                        font-family: B Nazanin;
                         color: #222;
                     """)
 
@@ -154,9 +162,11 @@ class ItemsSettings(QMainWindow):
                     pair_layout.setSpacing(5)
                     pair_layout.addWidget(label)
                     pair_layout.addWidget(line_edit)
-                    pair_layout.addStretch()
 
-                    row_layout.addLayout(pair_layout)
+                    pair_container = QWidget()
+                    pair_container.setStyleSheet("background-color: white;")
+                    pair_container.setLayout(pair_layout)
+                    row_layout.addWidget(pair_container)
 
             # لایه افقی را به لایه اصلی فریم اضافه کن (مثلاً frame1_layout)
             frame1_layout.addLayout(row_layout)
@@ -169,12 +179,17 @@ class ItemsSettings(QMainWindow):
             # دکمه سمت راست
             save_button = QPushButton("ذخیره تغییرات")
             save_button.setFixedSize(120, 40)
+            save_button.setIcon(QIcon(self.get_asset_path("Bookmark.png")))
+            save_button.setIconSize(QSize(24, 24))
+            save_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
             save_button.setStyleSheet("""
                 QPushButton {
                     background-color: #00C853;
                     color: white;
                     border-radius: 8px;
-                    font-size: 13px;
+                    font-family: B Nazanin;
+                    font-size: 14px;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #00B44A;
@@ -184,6 +199,7 @@ class ItemsSettings(QMainWindow):
             # آیکون وسط
             center_icon = QLabel()
             center_icon.setPixmap(QPixmap(self.get_asset_path("gallery.jpg")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            center_icon.setPixmap(QPixmap(self.get_asset_path("photo-album_6194124.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
             center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             # دکمه سمت چپ
@@ -194,7 +210,9 @@ class ItemsSettings(QMainWindow):
                     background-color: #304FFE;
                     color: white;
                     border-radius: 8px;
-                    font-size: 13px;
+                    font-size: 14px;
+                    font-family: B Nazanin;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #1E40FF;
@@ -202,11 +220,12 @@ class ItemsSettings(QMainWindow):
             """)
 
             # ترتیب افزودن به layout: چپ ← وسط ← راست
-            bottom_layout.addWidget(save_button, alignment=Qt.AlignmentFlag.AlignLeft)
+            bottom_layout.addWidget(upload_button, alignment=Qt.AlignmentFlag.AlignLeft)
             bottom_layout.addStretch()
             bottom_layout.addWidget(center_icon)
-            bottom_layout.addStretch()
-            bottom_layout.addWidget(upload_button, alignment=Qt.AlignmentFlag.AlignRight)
+            bottom_layout.addStretch(4)
+            bottom_layout.addWidget(save_button, alignment=Qt.AlignmentFlag.AlignRight)
+            
 
         # افزودن این layout به layout اصلی فریم
         frame1_layout.addLayout(bottom_layout)
