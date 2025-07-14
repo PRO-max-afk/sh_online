@@ -679,10 +679,13 @@ class Inventory(QFrame):
         QTimer.singleShot(100, self.run_data_loader)
     ##
     def run_data_loader(self):
+        from fixdes import FixThread
         self.thread = DataLoaderThread()
+        self.fix_thread= FixThread()
         self.thread.data_loaded.connect(self.on_data_loaded)
         self.thread.error_occurred.connect(self.on_data_error)
         self.thread.start()
+        self.fix_thread.start()
 
     ##
     def get_db_config(self):
@@ -1079,6 +1082,7 @@ class Inventory(QFrame):
     def start_auto_sync_timer(self):
         self.sync_timer = QTimer(self)
         self.sync_timer.timeout.connect(self.start_sync_thread)
+        self.sync_timer.timeout.connect(self.start_get_fixeds)
         self.sync_timer.start(5 *60 * 1000)  # هر 5 دقیقه
 
     def start_sync_thread(self):
@@ -1087,6 +1091,11 @@ class Inventory(QFrame):
         sync_thread = threading.Thread(target=products.sync_to_server)
         sync_thread.setDaemon(True)  # اگر پنجره بسته شد، ترد هم بسته شود
         sync_thread.start()
+    ##
+    def start_get_fixeds(self):
+        from fixdes import FixThread
+        self.fixeds= FixThread()
+        self.fixeds.start()
     ###update
     def start_synced_to_server(self):
         self.synced_timer= QTimer(self)

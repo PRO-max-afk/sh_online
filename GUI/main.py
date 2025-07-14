@@ -383,7 +383,7 @@ class mainwindow(QWidget):
         self.background_widget.setGeometry(0, 0, self.panel_width, height)
         self.stack.setGeometry(0, 0, width - self.panel_width, height)  
         super().resizeEvent(event)
-    #
+    
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
