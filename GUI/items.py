@@ -50,12 +50,7 @@ class ItemsSettings(QMainWindow):
         top_bar.setSpacing(10)
 
         title_label = QLabel("تنظیمات محصولات")
-        title_label.setStyleSheet('''
-            color: black;
-            font-family: Mirza;
-            font-size: 20px;
-            font-weight: blod;
-        ''')
+        title_label.setStyleSheet("color: black; font-family: Mirza; font-size: 20px; font-weight: bold;")
 
         back_button = QPushButton()
         back_button.setIcon(QIcon(self.get_asset_path('back.png')))
@@ -128,7 +123,7 @@ class ItemsSettings(QMainWindow):
         fields = [
             "نام محصول: ", "بارکد محصول: ", "قیمت خرید: ",
             "قیمت فروش: ", "قیمت عمده: ", "تعداد محصول: ",
-            "تعداد هر بسته: ", "تاریخ تولید", "تاریخ انقضاء: "
+            "تعداد هر بسته: ", "تاریخ تولید: ", "تاریخ انقضاء: "
         ]
 
         # به جای frame1_layout، لایه‌ای که قبلاً به فریم اختصاص داده‌ای قرار بده
@@ -149,6 +144,7 @@ class ItemsSettings(QMainWindow):
                         font-size: 15px;
                         ''')
                     label.setFixedHeight(25)
+                    label.setFixedWidth(80)
 
                     line_edit = QLineEdit()
                     line_edit.setFixedSize(200, 40)
@@ -166,9 +162,11 @@ class ItemsSettings(QMainWindow):
                     pair_layout.setSpacing(5)
                     pair_layout.addWidget(label)
                     pair_layout.addWidget(line_edit)
-                    pair_layout.addStretch()
 
-                    row_layout.addLayout(pair_layout)
+                    pair_container = QWidget()
+                    pair_container.setStyleSheet("background-color: white;")
+                    pair_container.setLayout(pair_layout)
+                    row_layout.addWidget(pair_container)
 
             # لایه افقی را به لایه اصلی فریم اضافه کن (مثلاً frame1_layout)
             frame1_layout.addLayout(row_layout)
@@ -181,6 +179,9 @@ class ItemsSettings(QMainWindow):
             # دکمه سمت راست
             save_button = QPushButton("ذخیره تغییرات")
             save_button.setFixedSize(120, 40)
+            save_button.setIcon(QIcon(self.get_asset_path("Bookmark.png")))
+            save_button.setIconSize(QSize(24, 24))
+            save_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
             save_button.setStyleSheet("""
                 QPushButton {
                     background-color: #00C853;
@@ -197,6 +198,7 @@ class ItemsSettings(QMainWindow):
 
             # آیکون وسط
             center_icon = QLabel()
+            center_icon.setPixmap(QPixmap(self.get_asset_path("gallery.jpg")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
             center_icon.setPixmap(QPixmap(self.get_asset_path("photo-album_6194124.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
             center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
