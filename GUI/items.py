@@ -1,21 +1,21 @@
 from PyQt6.QtWidgets import (QApplication,QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
-    QGraphicsDropShadowEffect, QGraphicsColorizeEffect,QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
+    QGraphicsDropShadowEffect, QFileDialog,QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+from PyQt6.QtCore import Qt,QTimer,pyqtSignal,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPixmap
-from PyQt6 import QtCore
-from circle import CircularSpinner
 import sqlite3
-import pymysql
-import requests
-from notifi_box import Notification
-from user_info import UserFetchThread
-import threading
-from switch import ToggleSwitch
 from message_b import MessageBox
-from switch import ToggleSwitch
-import os
+from barcode import EAN13
+from barcode.writer import ImageWriter
+import os,random
+import datetime
 import sys
 
+class ClickableLineEdit(QLineEdit):
+    clicked = pyqtSignal()
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+        super().mousePressEvent(event)
 class ItemsSettings(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -53,7 +53,7 @@ class ItemsSettings(QMainWindow):
         title_label.setStyleSheet("color: black; font-family: Mirza; font-size: 20px; font-weight: bold;")
 
         back_button = QPushButton()
-        back_button.setIcon(QIcon(self.get_asset_path('back.png')))
+        back_button.setIcon(QIcon(self.get_asset_path('left.png')))
         back_button.setIconSize(QSize(40, 40))
         back_button.setFixedSize(50, 50)
         back_button.setStyleSheet("""
@@ -96,21 +96,21 @@ class ItemsSettings(QMainWindow):
 
         frame1_layout.addWidget(frame1_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         
-        frame1_search_input = QLineEdit()
-        frame1_search_input.setContentsMargins(0, 0, 30, 0)
-        frame1_search_input.setPlaceholderText("جستجوی محصولات ...")
-        frame1_search_input.setFixedSize(250, 45)
-        frame1_search_input.setStyleSheet("""
+        self.frame1_search_input = QLineEdit()
+        self.frame1_search_input.setContentsMargins(0, 0, 30, 0)
+        self.frame1_search_input.setPlaceholderText("جستجوی محصولات ...")
+        self.frame1_search_input.setFixedSize(250, 45)
+        self.frame1_search_input.setStyleSheet("""
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 5px;
             color: #222222;
             font-size: 14px;
-            font-family: B Nazanin, 'arial';
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             padding: 5px;
         """)
-        frame1_layout.addWidget(frame1_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        frame1_layout.addWidget(self.frame1_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         frame1_layout.addStretch()
 
         shadow = QGraphicsDropShadowEffect()
@@ -118,13 +118,14 @@ class ItemsSettings(QMainWindow):
         shadow.setXOffset(0)
         shadow.setYOffset(5)
         shadow.setColor(QColor(0, 0, 0, 70))
-        frame1_search_input.setGraphicsEffect(shadow)
+        self.frame1_search_input.setGraphicsEffect(shadow)
 
         fields = [
             "نام محصول: ", "بارکد محصول: ", "قیمت خرید: ",
             "قیمت فروش: ", "قیمت عمده: ", "تعداد محصول: ",
-            "تعداد هر بسته: ", "تاریخ تولید: ", "تاریخ انقضاء: "
-        ]
+            "تعداد هر بسته: ", "تاریخ خرید: ", "تاریخ انقضاء: "]
+        self.line_frame1=[]
+        
 
         # به جای frame1_layout، لایه‌ای که قبلاً به فریم اختصاص داده‌ای قرار بده
         for i in range(0, len(fields), 3):
@@ -153,10 +154,12 @@ class ItemsSettings(QMainWindow):
                         border: 1px solid #ccc;
                         border-radius: 5px;
                         padding: 5px;
-                        font-size: 14px;
-                        font-family: B Nazanin;
+                        font-size: 15px;
+                        font-family: Roboto,'B Nazanin';
+                        font-weight: bold;
                         color: #222;
                     """)
+                    self.line_frame1.append(line_edit)
 
                     pair_layout = QHBoxLayout()
                     pair_layout.setSpacing(5)
@@ -182,6 +185,7 @@ class ItemsSettings(QMainWindow):
             save_button.setIcon(QIcon(self.get_asset_path("Bookmark.png")))
             save_button.setIconSize(QSize(24, 24))
             save_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+            save_button.clicked.connect(self.change_info)
             save_button.setStyleSheet("""
                 QPushButton {
                     background-color: #00C853;
@@ -194,17 +198,21 @@ class ItemsSettings(QMainWindow):
                 QPushButton:hover {
                     background-color: #00B44A;
                 }
+                QPushButton:Pressed{
+                    background-color: #00C853;
+                                      }
             """)
 
             # آیکون وسط
-            center_icon = QLabel()
-            center_icon.setPixmap(QPixmap(self.get_asset_path("gallery.jpg")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-            center_icon.setPixmap(QPixmap(self.get_asset_path("photo-album_6194124.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-            center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.center_icon = QLabel()
+            #self.center_icon.setPixmap(QPixmap(self.get_asset_path("gallery.jpg")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            self.center_icon.setPixmap(QPixmap(self.get_asset_path("photo-album_6194124.png")).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+            self.center_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             # دکمه سمت چپ
             upload_button = QPushButton("آپلود تصویر")
             upload_button.setFixedSize(100, 40)
+            upload_button.clicked.connect(self.select_file)
             upload_button.setStyleSheet("""
                 QPushButton {
                     background-color: #304FFE;
@@ -217,12 +225,15 @@ class ItemsSettings(QMainWindow):
                 QPushButton:hover {
                     background-color: #1E40FF;
                 }
+                QPushButton:Pressed{
+                    background-color: #304FFE;
+                                      }
             """)
 
             # ترتیب افزودن به layout: چپ ← وسط ← راست
             bottom_layout.addWidget(upload_button, alignment=Qt.AlignmentFlag.AlignLeft)
             bottom_layout.addStretch()
-            bottom_layout.addWidget(center_icon)
+            bottom_layout.addWidget(self.center_icon)
             bottom_layout.addStretch(4)
             bottom_layout.addWidget(save_button, alignment=Qt.AlignmentFlag.AlignRight)
             
@@ -266,7 +277,7 @@ class ItemsSettings(QMainWindow):
         frame2_hlayout.setContentsMargins(10, 0, 10, 0)
 
         fields = ["نام محصول:", "تولید بارکد:", "انتخاب مسیر:"]
-        line_edits = []
+        self.line_edits = []
 
         for field in fields:
             label = QLabel(field)
@@ -277,23 +288,34 @@ class ItemsSettings(QMainWindow):
                 font-weight: bold;
                 font-size: 16px;
             ''')
-            label.setFixedWidth(100)  # اطمینان از هم‌راستایی
+            label.setFixedWidth(70)  # اطمینان از هم‌راستایی
             label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
-            line_edit = QLineEdit()
-            line_edit.setStyleSheet("""
+            line_edit = ClickableLineEdit()
+            self.line_edits.append(line_edit)
+            # بررسی نوع فونت بسته به نام فیلد
+            if field in ["تولید بارکد:", "انتخاب مسیر:"]:
+                font_family = "Arial"
+            else:
+                font_family = "B Nazanin"
+            line_edit.setStyleSheet(f"""
                 background-color: white;
                 border: 1px solid #ccc;
                 border-radius: 5px;
-                font-family: B Nazanin;
+                font-family: {font_family};
                 font-weight: bold;
                 font-size: 14px;
                 padding: 5px;
                 color: #222;
             """)
-            line_edit.setMinimumWidth(150)
+            line_edit.setMinimumWidth(160)
             line_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            line_edits.append(line_edit)
+            
+            if len(self.line_edits) > 1:
+                self.line_edits[1].clicked.connect(self.generate_random_number)
+            if len(self.line_edits) > 2:
+                self.line_edits[2].clicked.connect(self.select_path)
+
 
             # بسته‌بندی هر لیبل و ورودی در یک layout جدا
             pair_layout = QHBoxLayout()
@@ -336,7 +358,11 @@ class ItemsSettings(QMainWindow):
             QPushButton:hover {
                 background-color: #00B44A;
             }
+            QPushButton:Pressed{
+                    background-color: #00C853;
+                                      }
         """)
+        generate_barcode_button.clicked.connect(self.create_barcode)
         frame2_hlayout.addWidget(generate_barcode_button)
 
         # افزودن لایه افقی به لایه عمودی اصلی
@@ -351,7 +377,232 @@ class ItemsSettings(QMainWindow):
         return frame3
 
 
+    #### back_end : creating barcode
+    def generate_random_number(self):
+        random_barcode= "".join(str(random.randint(0,9)) for _ in range(12))
+        self.line_edits[1].clear()
+        self.line_edits[1].insert(str(random_barcode))
+    ##
+    def select_path(self):
+        name = self.line_edits[0].text().strip()  # از "نام محصول" استفاده کن برای نام فایل پیش‌فرض
+        if not name:
+            name = "فایل_جدید"
 
+        self.choice_file = QFileDialog.getExistingDirectory(self, "انتخاب پوشه")
+        if self.choice_file:
+            self.line_edits[2].setText(self.choice_file)
+    ##
+    def create_barcode(self):
+            name = self.line_edits[0].text().strip()
+            barcode = self.line_edits[1].text().strip()
+
+            if len(barcode) != 12:
+                MessageBox(text="برای ساخت بارکد کد 12 رقمی نیاز است", title="هشدار", type="warning").show()
+                return
+            if not name:
+                MessageBox(text="لطفاً نام برای ساخت بارکد را وارد کنید", title="هشدار", type="warning").show()
+                return
+
+            try:
+                # اطمینان از اینکه مسیر، پوشه است نه فایل
+                save_dir = self.choice_file
+                if os.path.isfile(save_dir):
+                    save_dir = os.path.dirname(save_dir)
+
+                os.makedirs(save_dir, exist_ok=True)  # اگر پوشه وجود ندارد، بساز
+
+                # ساخت بارکد
+                barcode_obj = EAN13(barcode, writer=ImageWriter())
+                file_path = os.path.join(save_dir, f"{name}.png")
+                barcode_obj.save(file_path)
+
+                self.line_edits[0].clear()
+                self.line_edits[1].clear()
+                self.line_edits[2].clear()
+                MessageBox(text="بارکد به مسیر انتخاب شده ذخیره شد ✅", title="موفقانه", type="info").show()
+            except Exception as e:
+                print(f"{e}: problem while creating barcode")
+    ##
+    def search_chaged_info(self):
+        search= self.frame1_search_input.text()
+        if not search:
+            MessageBox(text="هیچ اطلاعاتی برای جستجو پیدا نشد",type="error",title="خطا").show()
+            return
+        base_dir= os.path.dirname(os.path.abspath(__file__))
+        root_dir= os.path.dirname(base_dir)
+        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
+        if not os.path.exists(db_path):
+            print("no offline db")
+            return
+    
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT name, barcode, buy_price, sale_price, big_price,
+                    big_sub, big_quantity,buy_date,expire_date, image_path
+                FROM products
+                WHERE TRIM(name) = ? OR barcode = ?
+            ''', (search, search))
+
+            search_result = cursor.fetchone()
+            if search_result:
+                # مستقیماً آن را unpack می‌کنیم
+                (name, barcode, buy_price, sale_price, big_price,
+                big_sub, big_quantity, buy_date,expire_date, image_path) = search_result
+
+                self.line_frame1[0].clear()
+                self.line_frame1[0].setText(name)
+
+                self.line_frame1[1].clear()
+                self.line_frame1[1].setText(str(barcode))
+
+                self.line_frame1[2].clear()
+                self.line_frame1[2].setText(str(buy_price))
+
+                self.line_frame1[3].clear()
+                self.line_frame1[3].setText(str(sale_price))
+
+                self.line_frame1[4].clear()
+                self.line_frame1[4].setText(str(big_price))
+
+                self.line_frame1[5].clear()
+                self.line_frame1[5].setText(str(big_sub))
+
+                self.line_frame1[6].clear()
+                self.line_frame1[6].setText(str(big_quantity))
+
+                self.line_frame1[7].clear()
+                self.line_frame1[7].setText(str(buy_date))
+
+                self.line_frame1[8].clear()
+                self.line_frame1[8].setText(str(expire_date))
+
+                self.center_icon.clear()
+                if image_path and os.path.exists(image_path):
+                    self.center_icon.setPixmap(QPixmap(image_path).scaled(75, 75, Qt.AspectRatioMode.KeepAspectRatio))
+                else:
+                    print("تصویر یافت نشد یا مسیر نادرست است:", image_path)
+
+        except sqlite3.Error as e:
+            print(f"db offline search error: {e}")
+
+    ##
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if self.frame1_search_input.hasFocus():
+                self.search_chaged_info()
+            elif any(line.hasFocus() for line in self.line_frame1):
+                self.change_info()
+            elif any(line.hasFocus() for line in self.line_edits):
+                self.create_barcode()
+
+    ##
+    def change_info(self):
+        name= self.line_frame1[0].text()
+        barcode= self.line_frame1[1].text()
+        buy_price= self.line_frame1[2].text()
+        sale_price= self.line_frame1[3].text()
+        big_price= self.line_frame1[4].text()
+        number= self.line_frame1[5].text()
+        big_sub= self.line_frame1[5].text()
+        big_quantity= self.line_frame1[6].text()
+        buy_date= self.line_frame1[7].text()
+        expir_date= self.line_frame1[8].text()
+        type_save= 'inventory'
+        date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
+        ##
+        base_dir= os.path.dirname(os.path.abspath(__file__))
+        root_dir= os.path.dirname(base_dir)
+        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
+        if not os.path.exists(db_path):
+            print("no offline db")
+            return
+        try:
+            number = float(number) if number else 0
+            buy_price = float(buy_price) if buy_price else 0
+
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+
+            # واکشی مقدار قبلی
+            cursor_sq.execute("""
+                SELECT big_sub, buy_price,big_quantity
+                FROM products 
+                WHERE barcode = ?
+            """, (barcode,))
+            row = cursor_sq.fetchone()
+
+            if row:
+                old_quantity = float(row[0]) if row[0] else 0
+                old_price = float(row[1]) if row[1] else 0
+                bg_quantity= float(row[2]) if row[2] else 0
+
+                updated_quantity = old_quantity + number
+
+                if updated_quantity > 0:
+                    new_avg_price = ((old_price * old_quantity) + (buy_price * number)) / updated_quantity
+                else:
+                    new_avg_price = buy_price
+
+                total = ((old_price * old_quantity) + (buy_price * number))
+                ## مجموعه محصول
+                big_quantity= updated_quantity * bg_quantity
+                print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
+
+
+                is_synced = 0
+                cursor_sq.execute("""
+                    UPDATE products 
+                    SET name=?, barcode=?, quantity = ?, buy_price = ?, update_date = ?, 
+                        new_quantity = ?,expire_date = ?, big_sub=?,
+                        sale_price = ?, big_price = ?, 
+                        total = ?, is_synced = ?,type_save=?,update_at=?
+                    WHERE barcode = ?
+                """, (
+                    name, barcode,big_quantity, new_avg_price, buy_date, number,
+                    expir_date,big_sub, sale_price,big_price,
+                    total, is_synced,type_save,date_ent, barcode
+                ))
+
+                conn_sq.commit()
+
+                # پیام موفقیت واضح
+                MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()
+                print("✅ تغییرات در جدول products ثبت شد.")
+                self.line_frame1[0].clear()
+                self.line_frame1[1].clear()
+                self.line_frame1[2].clear()
+                self.line_frame1[3].clear()
+                self.line_frame1[4].clear()
+                self.line_frame1[5].clear()
+                self.line_frame1[6].clear()
+                self.line_frame1[7].clear()
+                self.line_frame1[8].clear()
+                self.frame1_search_input.clear()
+                self.center_icon.clear()
+            else:
+                MessageBox("محصولی با این نام یافت نشد!", title="❗ خطا", type="warning").show()
+
+        except sqlite3.Error as e:
+            MessageBox(f"{e}: خطا در پایگاه داده", title="❌ خطا", type="error").show()
+    ##
+    def select_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+        self,
+        "انتخاب عکس",
+        "",
+        "PNG Files (*.png);;WEBP Files (*.webp);;JPG Files (*.jpg *.jpeg)")
+
+        if not os.path.exists(file_path):
+            print("عکس انتخاب نشد")
+        else:
+            self.center_icon.setFixedSize(75, 75)
+            self.center_icon.setScaledContents(True)
+            self.center_icon.setPixmap(QPixmap(file_path))
+        
+    ##
     def back_settings(self):
         from settings import Settings
         self.settings_main= Settings()

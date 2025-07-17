@@ -6,9 +6,10 @@ from db_connection import Connection
 class FixThread(QThread):
     def __init__(self):
         super().__init__()
-        self.db_connect = Connection().get_connection()
+        
 
     def run(self):
+        self.db_connect = Connection().get_connection()
         if self.db_connect:
             self.get_fixed_info()
 
@@ -31,11 +32,9 @@ class FixThread(QThread):
 
             if os.path.exists(local_path):
                 print("📦 تصویر قبلاً دانلود شده:", local_path)
-                return local_path
+                return local_path  # مسیر لوکال به‌جای لینک URL
 
-            headers = {
-                'User-Agent': 'Mozilla/5.0'
-            }
+            headers = {'User-Agent': 'Mozilla/5.0'}
 
             response = requests.get(image_path, headers=headers, timeout=20)
             if response.status_code == 404:
@@ -47,7 +46,7 @@ class FixThread(QThread):
                 f.write(response.content)
 
             print("✅ تصویر با موفقیت دانلود شد:", local_path)
-            return local_path
+            return local_path  # فقط مسیر فایل روی سیستم
 
         except Exception as e:
             print("❌ خطا در دریافت تصویر:", e)
@@ -55,6 +54,7 @@ class FixThread(QThread):
             if os.path.exists(default_image_path):
                 return default_image_path
             return None
+
 
     def get_fixed_info(self):
         try:
@@ -91,17 +91,18 @@ class FixThread(QThread):
                     big_category, sale_unit, big_quantity
                 ) = product
 
-                # ✅ تبدیل Decimal به float
-                for var_name in ['buy_price', 'sell_price', 'big_price']:
-                    value = locals()[var_name]
-                    if isinstance(value, Decimal):
-                        locals()[var_name] = float(value)
+                # 🔄 تبدیل Decimal‌ها به float
+                buy_price = float(buy_price) if isinstance(buy_price, Decimal) else buy_price
+                sell_price = float(sell_price) if isinstance(sell_price, Decimal) else sell_price
+                big_price = float(big_price) if isinstance(big_price, Decimal) else big_price
+
 
                 # ✅ مدیریت مسیر تصویر
                 if not product_image:
                     downloaded_image_path = os.path.join(os.getcwd(), "default.png")
                 else:
                     downloaded_image_path = self.download_image_from_url(product_image)
+
 
                 # بررسی وجود داده
                 cursor_sq.execute("SELECT COUNT(*) FROM fixeds WHERE barcode = ?", (barcode,))
@@ -113,7 +114,7 @@ class FixThread(QThread):
                             try:
                                 cursor_sq.execute('''
                                     UPDATE fixeds SET
-                                        barcode=?, product_name=?, category=?, sub_category=?, product_image=?,
+                                        barcode=?, product_name=?, categorie=?, sub_categorie=?, product_image=?,
                                         weight=?, production_date=?, brand=?, production_place=?, product_state=?, more_detail=?,
                                         keep_place=?, buy_price=?, sell_price=?, big_price=?, big_category=?,
                                         sale_unit=?, big_quantity=?
@@ -124,6 +125,7 @@ class FixThread(QThread):
                                     keep_place, buy_price, sell_price, big_price, big_category, sale_unit, big_quantity,
                                     barcode
                                 ))
+                                print("info updated successfully ✅")
                                 conn_sq.commit()
                                 break
                             except sqlite3.OperationalError as e:
@@ -151,6 +153,7 @@ class FixThread(QThread):
                                     more_detail, keep_place, buy_price, sell_price,
                                     big_price, big_category, sale_unit, big_quantity
                                 ))
+                                print("info inserted successfully ✅")
                                 conn_sq.commit()
                                 break
                             except sqlite3.OperationalError as e:

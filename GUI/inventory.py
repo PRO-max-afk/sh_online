@@ -676,7 +676,10 @@ class Inventory(QFrame):
         self.box_layout.addWidget(spinner_wrapper, 0, 0, 1, 2)
 
         # شروع بارگذاری داده‌ها
-        QTimer.singleShot(100, self.run_data_loader)
+        QTimer.singleShot(0, self.late_thread)
+    ##
+    def late_thread(self):
+        self.run_data_loader()
     ##
     def run_data_loader(self):
         from fixdes import FixThread

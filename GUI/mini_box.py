@@ -42,7 +42,7 @@ class MniniBox(QWidget):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
 
-        self.number_label = QLabel("30")
+        self.number_label = QLabel("0")
         self.number_label.setStyleSheet("color: black; font-family: PoetsenOne; font-size: 18px; font-weight: bold;")
         self.number_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 

@@ -6,7 +6,10 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-SELECT * FROM products WHERE is_synced = 1;
+SELECT *
+FROM products
+WHERE is_synced=1;
+
 ''')
 rows = cursor.fetchall()
 for row in rows:

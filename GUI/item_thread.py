@@ -32,9 +32,10 @@ class ItemThread(QThread):
         super().__init__()
         self.selected_month= selected_month
         self.selected_date= selected_date
-        self.db_connect= Connection().get_connection()
+        
     
     def run(self):
+        self.db_connect= Connection().get_connection()
         if self.db_connect:
             if self.selected_month:
                 self.sale_signal()

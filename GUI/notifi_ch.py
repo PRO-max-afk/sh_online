@@ -3,6 +3,7 @@ import pymysql
 import sqlite3
 import datetime
 from datetime import date
+from db_connection import Connection
 import time
 import os
 import requests
@@ -11,6 +12,9 @@ from message_b import MessageBox
 class ExpirationNotifier(QThread):
     new_expired_info = pyqtSignal(list)  # لیستی از دیکشنری‌ها شامل اطلاعات محصولات
     expired_count_signal = pyqtSignal(int)
+    empty_count= pyqtSignal(int)
+    discount_expire= pyqtSignal(int)
+    new_discount_expired = pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
@@ -19,8 +23,8 @@ class ExpirationNotifier(QThread):
 
     def run(self):
         while self.running:
-            db_config = self.get_db_config()
-            if not db_config:
+            self.db_config = Connection().get_connection()
+            if not self.db_config:
                 time.sleep(5)
                 continue
 
@@ -46,13 +50,7 @@ class ExpirationNotifier(QThread):
                 continue
 
             try:
-                conn = pymysql.connect(
-                    host=db_config["host"],
-                    user=db_config["user"],
-                    passwd=db_config["password"],
-                    database=db_config["database"]
-                )
-                cursor = conn.cursor()
+                cursor = self.db_config.cursor()
 
                 today = datetime.date.today().strftime("%Y/%m/%d")
                 #print(today)
@@ -79,45 +77,43 @@ class ExpirationNotifier(QThread):
                     self.prev_count = count
                     self.expired_count_signal.emit(count)
                     self.new_expired_info.emit(products)
-
-                conn.close()
-            except pymysql.MySQLError as e:
+                ## empty items number
+                cursor.execute('''
+                    SELECT COUNT(quantity) as quanity from inventories WHERE quantity < 0  and user_id= %s
+                    ''',(id_user,))
+                empty_result= cursor.fetchone()
+                if empty_result:
+                    empty_number= empty_result[0] 
+                self.empty_count.emit(empty_number)
+                ##expired date discount
+                cursor.execute('''
+                    SELECT COUNT(discount_percent) FROM inventories 
+                    WHERE user_id= %s AND expir_discount= 0
+                ''',(id_user,))
+                expire_disc_result= cursor.fetchone()
+                if expire_disc_result:
+                    expired_discount= expire_disc_result[0]
+                self.discount_expire.emit(expired_discount)
+                ##
+                cursor.execute('''
+                    SELECT product_name, quantity,discount_percent,product_image
+                    FROM inventories
+                    WHERE expir_discount=0 and user_id= %s
+                ''',(id_user,))
+                discount_result= cursor.fetchall()
+                discount_list= []
+                if discount_result:
+                    for discount in discount_result:
+                        (product_name, quantities,discount_percent,product_image) = discount
+                        discount_list.append({
+                            "name" :product_name,
+                            "quantity" : quantities,
+                            "discount_percent" :discount_percent,
+                            "product_image" :product_image or ""
+                        })
+                self.new_discount_expired.emit(discount_list)
+                self.db_config.close()
+            except pymysql.Error as e:
                 print(f"{e}: خطا در کوئری یا اتصال دیتابیس")
 
             time.sleep(5)
-
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-

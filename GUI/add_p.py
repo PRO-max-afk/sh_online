@@ -11,7 +11,7 @@ from message_b import MessageBox
 from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 import os
-from calendars import JalaliCalendar
+from c_calendar import Calendar
 import requests
 import pymysql
 import sqlite3
@@ -65,7 +65,7 @@ class AddProduct(QDialog):
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(15)
         self.layout.setContentsMargins(20, 20, 20, 20)
-        self.jalali_calendar = JalaliCalendar(self)
+        self.jalali_calendar = Calendar(self)
         self.jalali_calendar.setMaximumHeight(0)  # در ابتدا بسته باشد
         self.layout.addWidget(self.jalali_calendar)
         ##
@@ -423,7 +423,7 @@ class AddProduct(QDialog):
         self.line.setStyleSheet("color: white; background-color: white;")
     ##
     def show_calendar(self):
-        self.calendar_popup = JalaliCalendar(self)
+        self.calendar_popup = Calendar(self)
         pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomRight())
         self.calendar_popup.show_with_animation(pos)
     ##fonts
@@ -582,10 +582,10 @@ class AddProduct(QDialog):
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
             cursor_sq.execute('''
-            select barcode,buy_price,
-            sale_price,big_sub,
-            expire_date,big_price
-            From products WHERE  name=?''',(name,))
+            SELECT barcode, buy_price, sale_price, big_sub, expire_date, big_price
+            FROM products
+            WHERE TRIM(name) =?;
+            ''',(name,))
             result= cursor_sq.fetchone()
             
             if result:
@@ -665,7 +665,6 @@ class AddProduct(QDialog):
         big_sale = self.sale_big_line.text()
         date = datetime.date.today().strftime("%Y/%m/%d")
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
-        print(date_ent)
         type_save= "inventory"
 
         # بررسی کامل اعتبارسنجی فیلدها
@@ -714,7 +713,6 @@ class AddProduct(QDialog):
                 big_quantity= updated_quantity * bg_quantity
                 print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
 
-                self.calculate_total()
 
                 is_synced = 0
                 cursor_sq.execute("""
@@ -723,11 +721,11 @@ class AddProduct(QDialog):
                         new_quantity = ?, expire_date = ?, big_sub=?,
                         sale_price = ?, big_price = ?, 
                         total = ?, is_synced = ?,type_save=?,update_at=?
-                    WHERE name = ?
+                    WHERE barcode = ?
                 """, (
                     big_quantity, new_avg_price, date, number,
                     expire_date,updated_quantity, sale_price, big_sale,
-                    total, is_synced,type_save,date_ent, name
+                    total, is_synced,type_save,date_ent, barcode
                 ))
 
                 conn_sq.commit()
@@ -768,7 +766,7 @@ class AddProduct(QDialog):
         conn_sq = sqlite3.connect(db_path)
         cursor_sq = conn_sq.cursor()
 
-        cursor_sq.execute('''SELECT barcode,
+        cursor_sq.execute('''SELECT name,barcode,
                             buy_date, buy_price, sale_price, big_price,
                             quantity, expire_date,new_price,discount_percent,expire_discount,big_sub, total,type_save,user_id,update_at
                             FROM products WHERE is_synced = 0''')
@@ -785,7 +783,7 @@ class AddProduct(QDialog):
             cursor = conn.cursor()
 
             for product in unsynced_products:
-                (barcode, buy_date, buy_price,
+                (name,barcode, buy_date, buy_price,
                 sale_price, big_price, quantity, expire_date,new_price,discount_percent,expire_discount,big_sub,
                 total, type_save,user_id,update_at) = product
 
@@ -797,6 +795,8 @@ class AddProduct(QDialog):
                     # بروزرسانی
                     cursor.execute('''
                         UPDATE inventories SET
+                            product_name=%s,
+                            barcode= %s,
                             quantity = %s,
                             buy_price = %s,
                             buy_date = %s,
@@ -812,7 +812,7 @@ class AddProduct(QDialog):
                             updated_at = %s
                         WHERE barcode = %s AND user_id = %s
                     ''', (
-                        quantity, buy_price, buy_date,
+                        name,barcode,quantity, buy_price, buy_date,
                         sale_price, big_price, expire_date,new_price,discount_percent,expire_discount,big_sub,
                         total,type_save,update_at ,barcode, user_id
                     ))

@@ -412,7 +412,7 @@ class mainwindow(QWidget):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
-
+    
 
 
 if __name__== "__main__":

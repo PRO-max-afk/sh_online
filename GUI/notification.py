@@ -16,6 +16,7 @@ from notifi_info import Notifi_Box
 from notifi_check import NotificationChecker
 from notifi_box import Notification
 from notifi_ch import ExpirationNotifier
+from notifi_discount import Notifi_Discount_Box
 import pymysql
 from info_box import ProductBox
 from mini_box import MniniBox
@@ -309,7 +310,10 @@ class Frame2(QFrame):
     def run_data_loader(self):
         self.notifier = ExpirationNotifier()
         self.notifier.new_expired_info.connect(self.show_nt)
+        self.notifier.new_discount_expired.connect(self.show_discount)
         self.notifier.expired_count_signal.connect(self.show_exp)
+        self.notifier.empty_count.connect(self.show_empty)
+        self.notifier.discount_expire.connect(self.show_end_discount)
         self.notifier.start()
     ##
     def show_nt(self, products: list):
@@ -335,10 +339,36 @@ class Frame2(QFrame):
 
             self.box_layout.addWidget(notif)
 
+    ##
+    def show_discount(self, disc_list : list):
+      #  today_date= jdatetime.date.today().strftime("%Y/%m/%d")
+        # پاک کردن ویجت‌های قبلی در layout
+        for i in reversed(range(self.box_layout.count())):
+            widget = self.box_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+        #
+        for item in disc_list:
+            notfi= Notifi_Discount_Box()
+            image_path= self.download_image_from_url(item.get("product_image", ""))
+            
+            notfi.set_product_info(
+                name= item.get("name", ""),
+                number= item.get("quantity", ""),
+                discount_percent= item.get("discount_percent", ""),
+                image_path= image_path or ""          
+            )
+            self.box_layout.addWidget(notfi)
 
-    def show_exp(self, count):
+    ##
+    def show_exp(self, count : int):
         self.decrease.set_product_info(number=str(count))
-
+    ##
+    def show_empty(self,count : int):
+        self.mini_info.set_product_info(number=str(count))
+    ##
+    def show_end_discount(self, count : int):
+        self.stock.set_product_info(number=str(count))
     
     # #images
     def get_asset_path(self, filename):

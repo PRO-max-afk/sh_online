@@ -16,6 +16,8 @@ from message_b import MessageBox
 class NotificationChecker(QThread):
     new_message = pyqtSignal(str, str)  # ارسال همزمان product_name و message
     new_count = pyqtSignal(int)
+    
+    
 
     def __init__(self):
         super().__init__()
@@ -84,8 +86,26 @@ class NotificationChecker(QThread):
                     WHERE expiration_dates < %s AND user_id=%s;
                 """, (jalali_date, id_user))
                 e_count = cursor.fetchone()[0]
+                ##
+                cursor.execute('''
+                    SELECT COUNT(discount_percent) FROM inventories 
+                    WHERE user_id= %s AND expir_discount= 0
+                ''',(id_user,))
+                expire_disc_result= cursor.fetchone()
+                if expire_disc_result:
+                    exp_count= expire_disc_result[0]
+                
+                ##
+                cursor.execute('''
+                    SELECT COUNT(quantity) as quanity from inventories WHERE quantity < 0  and user_id= %s
+                    ''',(id_user,))
+                empty_result= cursor.fetchone()
+                if empty_result:
+                    empty_count= empty_result[0]
+                
 
-                total_count = m_count + e_count
+
+                total_count = m_count + e_count + empty_count + exp_count
 
                 if total_count not in self.count_ms:
                     self.count_ms.add(total_count)
@@ -98,6 +118,7 @@ class NotificationChecker(QThread):
                     if unique_key not in self.shown_messages:
                         self.shown_messages.add(unique_key)
                         self.new_message.emit(pro_name, message)
+                
 
                 conn.close()
             except pymysql.MySQLError as e:

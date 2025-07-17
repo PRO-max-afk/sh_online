@@ -20,6 +20,7 @@ import pymysql
 import sqlite3
 from  ftplib import FTP
 from list_p import ProductListPopup
+from inventory import Inventory
 
 
 class ProductDiscount(QDialog):
@@ -30,6 +31,7 @@ class ProductDiscount(QDialog):
         self.setFixedSize(613, 492)  # جلوگیری از تغییر اندازه
         self.setStyleSheet("background-color: #E8E6E6;")
         self.load_all_fonts()
+        self.inventory_page= Inventory()
         
 
         self.center_window()  # <-- وسط‌چین کردن
@@ -460,7 +462,7 @@ class ProductDiscount(QDialog):
             cursor_sq = conn_sq.cursor()
             cursor_sq.execute('''
             select barcode,sale_price
-            From products WHERE  name=?''',(name,))
+            From products WHERE  TRIM(name)=?''',(name,))
             result= cursor_sq.fetchone()
             
             if result:
@@ -576,6 +578,11 @@ class ProductDiscount(QDialog):
         except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در پایگاه داده", title="❌ خطا", type="error").show()
 
+    ##
+    def closeEvent(self, event):
+        if self.inventory_page:
+            self.inventory_page.start_synced_to_thread()
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

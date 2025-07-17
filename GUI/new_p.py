@@ -363,6 +363,7 @@ class ProductForm(QDialog):
             color: black;
             padding: 7px;
         ''')
+        self.bar_line.textChanged.connect(self.auto_barcode_search)
         ##
         self.exp_line.setGeometry(653,330,250,45)
         self.exp_line.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -587,11 +588,11 @@ class ProductForm(QDialog):
         if selected == "مواد غذایی":
             self.under_cate = ["انتخاب","تنقلات و شیرینی ها","میوه و سبزیجات", "انواع گوشت ", "روغن و برنج","خشکبار و مغزیجات","حبوبات","لبنیات"]
         elif selected == "نوشیدنی":
-            self.under_cate = ["انتخاب","چای و قهوه","نوشیدنی انرژی زا","نوشابه و آبمیوه"]
+            self.under_cate = ["انتخاب","چای و قهوه","نوشیدنی های انرژی زا","نوشابه و آب میوه"]
         elif selected == "لوازم خانه گی و آشپزخانه":
-            self.under_cate = ["انتخاب","ظرف", "قاشق و چنگال", "دستمال", "سرویس آشپزخانه"]
+            self.under_cate = ["انتخاب"," ظروف آشپزی", "مبل و فرنیچر", "وسایل حمام", "وسایل تزئینی خانه","ظروف پلاستیکی"]
         elif selected == "لوازم برقی و الکترونیکی":
-            self.under_cate = ["انتخاب","تلویزیون", "یخچال", "ماشین لباسشویی", "پنکه"]
+            self.under_cate = ["انتخاب","ساعت و وسایل هوشمند", "موبایل و لوازم جانبی", "کامپیوتر", "وسایل روشنایی","وسایل شبکه ای"]
         elif selected == "لوازم کودک و اسباب بازی":
             self.under_cate = ["انتخاب","عروسک", "ماشین بازی", "لگو", "توپ"]
         elif selected== "انتخاب":
@@ -757,6 +758,95 @@ class ProductForm(QDialog):
         if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
             self.insert_product()
     ##
+    def search_fixeds_info(self):
+        barcode = self.bar_line.text().strip()
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not barcode:
+            print("❌ بارکد وارد نشده است!")
+            return
+
+        if not os.path.exists(db_path):
+            print("❌ دیتابیس آفلاین یافت نشد.")
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT product_name, categorie, sub_categorie, product_image,
+                    weight, production_date, brand, production_place, product_state, 
+                    more_detail, keep_place, buy_price, sell_price, big_price, 
+                    big_category, sale_unit, big_quantity
+                FROM fixeds WHERE barcode=?
+            ''', (barcode,))
+            fix_result = cursor.fetchone()
+
+            self.details = []
+
+            if fix_result:
+                (
+                    product_name, categorie, sub_categorie, product_image,
+                    weight, production_date, brand, production_place, product_state,
+                    more_detail, keep_place, buy_price, sell_price, big_price,
+                    big_category, sale_unit, big_quantity
+                ) = fix_result
+
+                self.name_line.setText(product_name)
+
+                # دسته اصلی
+                if categorie not in [self.choise_c.itemText(i) for i in range(self.choise_c.count())]:
+                    self.choise_c.addItem(categorie)
+                self.choise_c.setCurrentText(categorie)
+
+                # زیر دسته
+                if sub_categorie not in [self.under_choise.itemText(i) for i in range(self.under_choise.count())]:
+                    self.under_choise.addItem(sub_categorie)
+                self.under_choise.setCurrentText(sub_categorie)
+
+                # تصویر
+                if product_image and os.path.exists(product_image):
+                    self.img_preveiw.setPixmap(QPixmap(product_image))
+                    self.image_path= product_image
+                else:
+                    self.img_preveiw.setPixmap(QPixmap("default.png"))
+
+                self.buy_line.setText(str(buy_price))
+                self.sale_line.setText(str(sell_price))
+                self.sale_big_line.setText(str(big_price))
+
+                if big_category not in [self.cate_ch.itemText(i) for i in range(self.cate_ch.count())]:
+                    self.cate_ch.addItem(big_category)
+                self.cate_ch.setCurrentText(big_category)
+
+                fixed_info = {
+                    "weight": weight,
+                    "production_date": production_date,
+                    "brand": brand,
+                    "production_place": production_place,
+                    "product_state": product_state,
+                    "more_detail": more_detail,
+                    "keep": keep_place,
+                    "sale_unit" : sale_unit,
+                    "big_quantity" :big_quantity
+                }
+                self.details.append(fixed_info)
+                self.unit_lineedit.setText(str(big_quantity))
+
+            else:
+                print("🔍 محصولی با این بارکد یافت نشد.")
+
+        except sqlite3.Error as e:
+            MessageBox(text=f"خطا در دیتابیس :{e}", title="خطا", type="error").show()
+    ##
+    def auto_barcode_search(self):
+        text= self.bar_line.text().strip()
+        if text:
+            self.search_fixeds_info()
+    ##
     def insert_product(self):
         import shutil
         f_ch = self.choise_c.currentText()
@@ -770,8 +860,7 @@ class ProductForm(QDialog):
         sale_price = self.sale_line.text()
         sale_big = self.sale_big_line.text()
         type_save= "inventory"
-        
-        
+        ### big_quantity
         if hasattr(self, 'unit_lineedit') and self.unit_lineedit and self.unit_lineedit.isVisible():
             text = self.unit_lineedit.text()
             try:
@@ -779,9 +868,9 @@ class ProductForm(QDialog):
             except ValueError:
                 big_s = 0.0
         else:
-            big_s = 0.0
-
-
+            big_s = self.big_quantity
+            print(self.big_quantity)
+        ##
         db_connection = self.get_db_config()
 
         if f_ch == "انتخاب" and s_ch == "انتخاب":
@@ -811,28 +900,46 @@ class ProductForm(QDialog):
             MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
             return
         try:
-            conn_sq = sqlite3.connect(db_path)
-            cursor_sq = conn_sq.cursor()
-            cursor_sq.execute('''
-                SELECT weight, production_date, brand, production_place, product_state, more_details, keep_place
-                FROM details
-                ORDER BY production_date DESC
-                LIMIT 1;
-        ''')
-            detail = cursor_sq.fetchone()
-            if detail:
-                weight= detail[0]
-                pro_date= detail[1]
-                brand= detail[2]
-                palce= detail[3]
-                status= detail[4]
-                data= detail[5]
-                place= detail[6]
-
+            # اگر اطلاعات در self.details موجود بود، از آن استفاده شود
+            if hasattr(self, "details") and self.details:
+                detail = self.details[0]
+                weight = detail.get("weight", "")
+                pro_date = detail.get("production_date", "")
+                brand = detail.get("brand", "")
+                palce = detail.get("production_place", "")
+                status = detail.get("product_state", "")
+                data = detail.get("more_detail", "")  # یا "more_details" بسته به نام اصلی
+                place = detail.get("keep", "")
+                print("✅ اطلاعات جزئیات از حافظه داخلی بارگذاری شد.")
+            else:
+                # در غیر این صورت از دیتابیس بخوان
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute('''
+                    SELECT weight, production_date, brand, production_place, product_state, more_details, keep_place
+                    FROM details
+                    ORDER BY production_date DESC
+                    LIMIT 1;
+                ''')
+                detail = cursor_sq.fetchone()
+                if detail:
+                    weight = detail[0]
+                    pro_date = detail[1]
+                    brand = detail[2]
+                    palce = detail[3]
+                    status = detail[4]
+                    data = detail[5]
+                    place = detail[6]
+                    
+                else:
+                    # اگر دیتای جزئیات یافت نشد، می‌تونی مقدار پیش‌فرض بزاری یا هشدار بدهی
+                    weight = pro_date = brand = palce = status = data = place = ""
+                    print("ℹ️ جزئیات در دیتابیس یافت نشد.")
 
         except Exception as e:
-            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            MessageBox(text=f"خطا در خواندن اطلاعات جزئیات: {e}", title="❌ خطا", type="error").show()
             return
+        
 
         date = datetime.date.today().strftime("%Y/%m/%d")
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")

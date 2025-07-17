@@ -23,7 +23,7 @@ class ProductBox(QWidget):
 
         # تصویر محصول (خالی تا بعداً ست شود)
         self.image_label = QLabel(self.frame)
-        self.image_label.setGeometry(60, 40, 120, 90)
+        self.image_label.setGeometry(60, 20, 120, 90)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.line = QFrame(self.frame)
@@ -107,13 +107,20 @@ class ProductBox(QWidget):
         self.big_sa_lb.adjustSize()
 
 
-        if image_path and os.path.exists(image_path):
-            pixmap = QPixmap(image_path).scaled(120, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-        else:
-            pixmap = QPixmap("default.png").scaled(120, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        self.image_label.setFixedSize(115, 115)               # تنظیم اندازه ثابت
+        self.image_label.setScaledContents(True)              # اجازه مقیاس تصویر داخل QLabel
 
-        
+        if image_path and os.path.exists(image_path):
+            pixmap = QPixmap(image_path)
+        else:
+            pixmap = QPixmap("default.png").scaled(
+                120, 100,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+
         self.image_label.setPixmap(pixmap)
+
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

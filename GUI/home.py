@@ -1500,4 +1500,11 @@ class WidgetManager(QWidget):
                     if families:
                         pass
     ##
+    def showEvent(self, event):
+        from inventory import Inventory
+        self.inventory_page = Inventory()
+        self.inventory_page.start_synced_to_server()
+        event.accept()
+                    
+
         
