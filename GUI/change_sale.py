@@ -29,8 +29,9 @@ class ChangingFactor(QMainWindow):
         main_layout.setSpacing(15)
 
         main_layout.addLayout(self.create_top_bar())
+        main_layout.addWidget(self.create_frame())
+        main_layout.addWidget(self.Invisible_frame())
 
-        self.setLayout(main_layout)
         self.stack_items.addWidget(self.items_page)
 
     def create_top_bar(self):
@@ -61,6 +62,68 @@ class ChangingFactor(QMainWindow):
 
         return top_bar
     
+    def create_frame(self):
+        frame = QFrame()
+        frame.setMaximumHeight(400)
+        frame.setStyleSheet("QFrame { background-color: white; border-radius: 10px; }")
+
+        frame_shadow= QGraphicsDropShadowEffect(self)
+        frame_shadow.setBlurRadius(10)
+        frame_shadow.setOffset(0,5)
+        frame_shadow.setColor(QColor(0,0,0,70))
+        frame.setGraphicsEffect(frame_shadow)
+
+        frame_layout = QVBoxLayout()
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(10)
+
+        frame_title_label = QLabel("تغییر فاکتور فروش")
+        frame_title_label.setStyleSheet("background-color:transparent; color: black; font-family: Mirza,'B Nazanin'; font-size: 18px; font-weight: bold;")
+        frame_title_label.setMinimumHeight(25)
+
+        frame_layout.addWidget(frame_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+
+        self.frame_search_input = QLineEdit()
+        self.frame_search_input.setContentsMargins(0, 0, 30, 0)
+        self.frame_search_input.setPlaceholderText("نمبر فاکتور...")
+        self.frame_search_input.setFixedSize(200, 40)
+        self.frame_search_input.setStyleSheet("""
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            color: #222222;
+            font-size: 14px;
+            font-family: Roboto,'B Nazanin';
+            font-weight: bold;
+            padding: 5px;
+        """)
+        frame_layout.addWidget(self.frame_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        frame_layout.addStretch()
+
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(8)
+        shadow.setXOffset(0)
+        shadow.setYOffset(5)
+        shadow.setColor(QColor(0, 0, 0, 70))
+        self.frame_search_input.setGraphicsEffect(shadow)
+
+        frame.setLayout(frame_layout)
+
+        return frame
+    
+    def Invisible_frame(self):
+        invisible_frame = QFrame()
+        invisible_frame.setMaximumHeight(300)
+        invisible_frame.setStyleSheet("background-color: transparent; border: none;")
+        
+        invisible_frame_layout = QVBoxLayout()
+        invisible_frame_layout.setContentsMargins(0, 0, 0, 0)
+        invisible_frame_layout.setSpacing(10)
+
+        invisible_frame_layout.addWidget(invisible_frame)
+
+        return invisible_frame
+
 
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
