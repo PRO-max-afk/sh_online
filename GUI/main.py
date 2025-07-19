@@ -39,13 +39,6 @@ class mainwindow(QWidget):
         self.animation.setEndValue(QRect(panel_x, 0, self.panel_width, screen.height()))  # ورود به صفحه
         self.animation.start()
 
-        # 👇 Drop Shadow قوی‌تر و واضح‌تر برای side_panel
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(self.panel_width)  # سایه به اندازه عرض پنل
-        shadow.setOffset(-10, 0)  # سایه به سمت چپ بیاد
-        shadow.setColor(QColor(0, 0, 0, 150))  # سایه‌ی تیره‌تر و نیمه‌شفاف
-        self.side_panel.setGraphicsEffect(shadow)
-        ##icons
         #home_icon
         self.active_button = None
         self.home_btn= QPushButton(self.side_panel)

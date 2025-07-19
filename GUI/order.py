@@ -27,8 +27,6 @@ class Orders(QFrame):
         self.spinner= None
         self.init_ui()
         self.label_UI()
-        self.button_UI()
-        self.field_UI()
         self.set_today_date()
         self.set_today_time()
         self.start_notification_checker()
@@ -72,12 +70,8 @@ class Orders(QFrame):
         top_layout = QHBoxLayout()
         ##widgets
         self.label = QLabel("لیست سفارشات", self)
-        self.search_line = QLineEdit(self)
-        self.serach_btn = QPushButton("جستجو", self)
         ##
         self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-        self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.serach_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         datetime_layout = QVBoxLayout()
         self.date_label = QLabel(self)
@@ -88,8 +82,8 @@ class Orders(QFrame):
 
         top_layout.addLayout(datetime_layout)
         top_layout.addStretch(1)
-        top_layout.addWidget(self.serach_btn)
-        top_layout.addWidget(self.search_line, 3)
+        #top_layout.addWidget(self.serach_btn)
+        #top_layout.addWidget(self.search_line, 3)
         top_layout.addWidget(self.label, 1)
     
         # لایه جعبه‌ها
@@ -126,53 +120,6 @@ class Orders(QFrame):
             margin-top: 5px;
         ''')
 
-    def field_UI(self):
-        self.search_line.setMinimumHeight(60)
-        self.search_line.setMaximumHeight(70)
-        self.search_line.setMaximumWidth(700)
-        self.search_line.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        #self.search_line.textChanged.connect(self.show_spinner_and_load_dataes)
-        self.search_line.setPlaceholderText("جستجو محصولات...")
-        self.search_line.setStyleSheet('''
-            font-size: 17px;
-            color: black;
-            font-family: B Nazanin;
-            font-weight: bold;
-            background-color: white;
-            border: 5px solid transparent;
-            border-radius: 30px;
-            padding: 5px;
-            margin-right: 50px;
-        ''')
-        #
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(25)
-        shadow.setXOffset(0)
-        shadow.setYOffset(5)
-        shadow.setColor(QColor(0, 0, 0, 70))
-        self.search_line.setGraphicsEffect(shadow)
-
-    def button_UI(self):
-        self.serach_btn.setMinimumSize(100, 30)
-        self.serach_btn.setMaximumSize(140, 40)
-        #self.serach_btn.clicked.connect(self.show_notification)
-        self.serach_btn.setStyleSheet('''
-            QPushButton {
-                background-color: #2251DB;
-                font-family: "B Nazanin";
-                font-size: 18px;
-                font-weight: bold;
-                border-radius: 10px;
-                text-align: center;
-                padding: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: #498bf5;  
-            }
-            QPushButton:pressed {
-                background-color: #2251DB;
-            }
-        ''')
     ##
     def set_today_date(self):
         today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")

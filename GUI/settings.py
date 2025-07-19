@@ -14,16 +14,17 @@ from PyQt6.QtCore import Qt
 
 
 
+
 class Settings(QMainWindow):
     def __init__(self):
         super().__init__()
         self.init_ui()
         self.label_UI()
-        self.field_UI()
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
         self.load_all_fonts()
+        
 
         
 
@@ -106,7 +107,7 @@ class Settings(QMainWindow):
         self.sale_settings= QToolButton()
         self.user_settings= QToolButton()
         self.finance_settings= QToolButton()
-        self.delivary_settings= QToolButton()
+        self.log_out= QToolButton()
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
         self.notification_frame = QFrame(self)
@@ -129,14 +130,14 @@ class Settings(QMainWindow):
             margin-top: 5px;
         ''')
 
-    def field_UI(self):
-        pass
     ##
     def button_UI(self):
         ##
         self.user_settings.clicked.connect(self.user_page)
         self.store_settings.clicked.connect(self.shop_se_page)
         self.item_settings.clicked.connect(self.item_page)
+        self.log_out.clicked.connect(self.open_login_with_animation)
+        
         # آیکون و متن‌ها
         buttons_info = [
             (self.store_settings, "grocery-store_16893316.png", "تنظیمات فروشگاه"),
@@ -144,7 +145,7 @@ class Settings(QMainWindow):
             (self.sale_settings, "setting_5935006.png", "تنظیمات فروشات"),
             (self.user_settings, "group_151943.png", "تنظیمات کاربران"),
             (self.finance_settings, "settings_1657673.png", "تنظیمات مالی"),
-            (self.delivary_settings, "repair_18241257.png", "تنظیمات ارسال")
+            (self.log_out, "export_5469314.png", "خروج از سیستم")
             # می‌توانید دکمه‌های بیشتر هم اضافه کنید.
         ]
 
@@ -224,38 +225,7 @@ class Settings(QMainWindow):
             color: #333;
             margin-left:30px;
         ''')
-    ##images
-    def get_asset_path(self, filename):
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        image_path = os.path.join(project_root, "assets", filename)
-        if os.path.exists(image_path):
-            return image_path
-        else:
-            print(f"⚠ فایل یافت نشد: {image_path}")
-            return None
-    ##fonts
-    def load_all_fonts(self):
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        fonts_folder = os.path.join(project_root, "fonts")
-
-        if not os.path.exists(fonts_folder):
-            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
-            return
-
-        for filename in os.listdir(fonts_folder):
-            if filename.lower().endswith((".ttf", ".otf",".TTF")):
-                font_path = os.path.join(fonts_folder, filename)
-                font_id = QFontDatabase.addApplicationFont(font_path)
-                if font_id == -1:
-                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
-                
-                else:
-                    families = QFontDatabase.applicationFontFamilies(font_id)
-                    if families:
-                        pass
     
-    
-    ##
     def user_page(self):
         from user_se import UserSettings
 
@@ -309,3 +279,56 @@ class Settings(QMainWindow):
         self.anim.setEndValue(QPoint(0, 0))
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.anim.start()
+    ##
+    def open_login_with_animation(self):
+        from first_login import Main_login
+
+        # ساخت پنجره لاگین
+        login_window = Main_login()
+        login_window.setWindowOpacity(0)
+        login_window.showMaximized()
+
+        # اجرای انیمیشن
+        animation = QPropertyAnimation(login_window, b"windowOpacity")
+        animation.setDuration(700)
+        animation.setStartValue(0)
+        animation.setEndValue(1)
+        animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        animation.start()
+
+        # حذف کامل و فوری تمام چهارچوب پنجره فعلی
+        self.window().destroy()
+
+    ##images
+    def get_asset_path(self, filename):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        image_path = os.path.join(project_root, "assets", filename)
+        if os.path.exists(image_path):
+            return image_path
+        else:
+            print(f"⚠ فایل یافت نشد: {image_path}")
+            return None
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass  
+
+
+        
+        

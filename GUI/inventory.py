@@ -682,13 +682,10 @@ class Inventory(QFrame):
         self.run_data_loader()
     ##
     def run_data_loader(self):
-        from fixdes import FixThread
         self.thread = DataLoaderThread()
-        self.fix_thread= FixThread()
         self.thread.data_loaded.connect(self.on_data_loaded)
         self.thread.error_occurred.connect(self.on_data_error)
         self.thread.start()
-        self.fix_thread.start()
 
     ##
     def get_db_config(self):
@@ -1103,7 +1100,7 @@ class Inventory(QFrame):
     def start_synced_to_server(self):
         self.synced_timer= QTimer(self)
         self.synced_timer.timeout.connect(self.start_synced_to_thread)
-        self.synced_timer.start(40 *1000)
+        self.synced_timer.start( 20*1000)
 
     def start_synced_to_thread(self):
         from add_p import AddProduct

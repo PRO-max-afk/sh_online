@@ -5,8 +5,6 @@ from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush
 from PyQt6 import QtCore
 import jdatetime
 import sqlite3
-import pymysql
-import requests
 import threading
 import datetime
 from message_b import MessageBox
@@ -65,6 +63,7 @@ class WidgetManager(QWidget):
         self.temp_loaded_invoice = []
         self.load_today_invoices()
         self.load_all_fonts()
+        self.update_info_invnenvtory()
 
 
 
@@ -1500,11 +1499,10 @@ class WidgetManager(QWidget):
                     if families:
                         pass
     ##
-    def showEvent(self, event):
+    def update_info_invnenvtory(self):
         from inventory import Inventory
         self.inventory_page = Inventory()
         self.inventory_page.start_synced_to_server()
-        event.accept()
                     
 
         
