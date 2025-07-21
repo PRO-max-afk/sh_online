@@ -649,7 +649,7 @@ class YearThread(QThread):
                 return
             id_user = result[0]
 
-            cursor.execute("SELECT update_at FROM products WHERE user_id = ?", (id_user,))
+            cursor.execute("SELECT create_at FROM products WHERE user_id = ?", (id_user,))
             for row in cursor.fetchall():
                 created_at = row[0]
                 print(created_at)
@@ -664,8 +664,8 @@ class YearThread(QThread):
                         continue
                 sh_year = str(jdatetime.date.fromgregorian(date=miladi.date()).year)
                 self.available_years.add(sh_year)
-
-            print("📅 سال‌های موجود در دیتابیس آفلاین:", self.available_years)
+                self.year_data.emit(sorted(sh_year))
+            print(f"📅 سال‌های موجود در دیتابیس آفلاین:{self.available_years}")
 
         except Exception as e:
             print("❌ خطا در fetch_years_only_offline:", e)

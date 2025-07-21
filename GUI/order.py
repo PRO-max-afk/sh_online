@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QTextDocument
 from PyQt6 import QtCore
 import jdatetime
 import os
@@ -20,6 +20,8 @@ from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
+from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+
 
 class Orders(QFrame):
     def __init__(self):
@@ -274,7 +276,54 @@ class Orders(QFrame):
 
             self.box_layout.addWidget(box)
     ##
+
     def handle_accept(self, box: Order_Box):
+        # گرفتن اطلاعات از باکس
+        product_ids = box.ids_label.text()
+        product_names = box.product_name_label.text()
+        quantities = box.quantity_label.text()
+        units = box.unit_label.text()
+
+        # پردازش داده‌ها برای سطرها
+        ids_list = product_ids.split("\n")
+        names_list = product_names.split("\n")
+        quantities_list = quantities.split("\n")
+        units_list = units.split("\n")
+
+        # ساخت HTML فقط با چهار ستون
+        html = """
+        <h2 style='text-align:center;'>رسید سفارش</h2>
+        <table border="1" cellspacing="0" cellpadding="5" style="width: 100%; border-collapse: collapse; font-size: 12pt;">
+            <tr style="background-color: #f0f0f0;">
+                <th>کد محصول</th>
+                <th>نام محصول</th>
+                <th>مقدار</th>
+                <th>واحد</th>
+            </tr>
+        """
+
+        for i in range(len(names_list)):
+            html += f"""
+            <tr>
+                <td>{ids_list[i]}</td>
+                <td>{names_list[i]}</td>
+                <td>{quantities_list[i]}</td>
+                <td>{units_list[i]}</td>
+            </tr>
+            """
+
+        html += "</table>"
+
+        # آماده‌سازی سند برای پرینتر
+        document = QTextDocument()
+        document.setHtml(html)
+
+        printer = QPrinter()
+        dialog = QPrintDialog(printer)
+        if dialog.exec():
+            document.print(printer)
+
+        # ادامه روند مانند قبل (نوتیفیکیشن و مخفی‌سازی)
         info = OrderInformation()
         success = info.accept_order()
         if success:
@@ -285,7 +334,7 @@ class Orders(QFrame):
                 icon_path=self.get_asset_path("Check Mark.png")
             )
             notifi.show()
-            box.hide()  # 👈 اینجا باکس را مخفی می‌کنیم
+            box.hide()
         else:
             notifi = Notification(
                 pro_name="خطا",
