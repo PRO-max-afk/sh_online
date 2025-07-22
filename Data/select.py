@@ -8,7 +8,7 @@ cursor= conn.cursor()
 cursor.execute('''
 SELECT *
 FROM products
-WHERE is_synced=1;
+WHERE is_synced=0;
 
 ''')
 rows = cursor.fetchall()

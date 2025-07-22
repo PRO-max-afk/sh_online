@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QTextDocument
 from PyQt6 import QtCore
 import jdatetime
 import os
@@ -20,6 +20,8 @@ from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
+from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+
 
 class Orders(QFrame):
     def __init__(self):
@@ -27,8 +29,6 @@ class Orders(QFrame):
         self.spinner= None
         self.init_ui()
         self.label_UI()
-        self.button_UI()
-        self.field_UI()
         self.set_today_date()
         self.set_today_time()
         self.start_notification_checker()
@@ -72,12 +72,8 @@ class Orders(QFrame):
         top_layout = QHBoxLayout()
         ##widgets
         self.label = QLabel("لیست سفارشات", self)
-        self.search_line = QLineEdit(self)
-        self.serach_btn = QPushButton("جستجو", self)
         ##
         self.label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-        self.search_line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.serach_btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         datetime_layout = QVBoxLayout()
         self.date_label = QLabel(self)
@@ -88,8 +84,8 @@ class Orders(QFrame):
 
         top_layout.addLayout(datetime_layout)
         top_layout.addStretch(1)
-        top_layout.addWidget(self.serach_btn)
-        top_layout.addWidget(self.search_line, 3)
+        #top_layout.addWidget(self.serach_btn)
+        #top_layout.addWidget(self.search_line, 3)
         top_layout.addWidget(self.label, 1)
     
         # لایه جعبه‌ها
@@ -126,53 +122,6 @@ class Orders(QFrame):
             margin-top: 5px;
         ''')
 
-    def field_UI(self):
-        self.search_line.setMinimumHeight(60)
-        self.search_line.setMaximumHeight(70)
-        self.search_line.setMaximumWidth(700)
-        self.search_line.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        #self.search_line.textChanged.connect(self.show_spinner_and_load_dataes)
-        self.search_line.setPlaceholderText("جستجو محصولات...")
-        self.search_line.setStyleSheet('''
-            font-size: 17px;
-            color: black;
-            font-family: B Nazanin;
-            font-weight: bold;
-            background-color: white;
-            border: 5px solid transparent;
-            border-radius: 30px;
-            padding: 5px;
-            margin-right: 50px;
-        ''')
-        #
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(25)
-        shadow.setXOffset(0)
-        shadow.setYOffset(5)
-        shadow.setColor(QColor(0, 0, 0, 70))
-        self.search_line.setGraphicsEffect(shadow)
-
-    def button_UI(self):
-        self.serach_btn.setMinimumSize(100, 30)
-        self.serach_btn.setMaximumSize(140, 40)
-        #self.serach_btn.clicked.connect(self.show_notification)
-        self.serach_btn.setStyleSheet('''
-            QPushButton {
-                background-color: #2251DB;
-                font-family: "B Nazanin";
-                font-size: 18px;
-                font-weight: bold;
-                border-radius: 10px;
-                text-align: center;
-                padding: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: #498bf5;  
-            }
-            QPushButton:pressed {
-                background-color: #2251DB;
-            }
-        ''')
     ##
     def set_today_date(self):
         today_jalali = jdatetime.date.today().strftime("%Y/%m/%d")
@@ -327,7 +276,54 @@ class Orders(QFrame):
 
             self.box_layout.addWidget(box)
     ##
+
     def handle_accept(self, box: Order_Box):
+        # گرفتن اطلاعات از باکس
+        product_ids = box.ids_label.text()
+        product_names = box.product_name_label.text()
+        quantities = box.quantity_label.text()
+        units = box.unit_label.text()
+
+        # پردازش داده‌ها برای سطرها
+        ids_list = product_ids.split("\n")
+        names_list = product_names.split("\n")
+        quantities_list = quantities.split("\n")
+        units_list = units.split("\n")
+
+        # ساخت HTML فقط با چهار ستون
+        html = """
+        <h2 style='text-align:center;'>رسید سفارش</h2>
+        <table border="1" cellspacing="0" cellpadding="5" style="width: 100%; border-collapse: collapse; font-size: 12pt;">
+            <tr style="background-color: #f0f0f0;">
+                <th>کد محصول</th>
+                <th>نام محصول</th>
+                <th>مقدار</th>
+                <th>واحد</th>
+            </tr>
+        """
+
+        for i in range(len(names_list)):
+            html += f"""
+            <tr>
+                <td>{ids_list[i]}</td>
+                <td>{names_list[i]}</td>
+                <td>{quantities_list[i]}</td>
+                <td>{units_list[i]}</td>
+            </tr>
+            """
+
+        html += "</table>"
+
+        # آماده‌سازی سند برای پرینتر
+        document = QTextDocument()
+        document.setHtml(html)
+
+        printer = QPrinter()
+        dialog = QPrintDialog(printer)
+        if dialog.exec():
+            document.print(printer)
+
+        # ادامه روند مانند قبل (نوتیفیکیشن و مخفی‌سازی)
         info = OrderInformation()
         success = info.accept_order()
         if success:
@@ -338,7 +334,7 @@ class Orders(QFrame):
                 icon_path=self.get_asset_path("Check Mark.png")
             )
             notifi.show()
-            box.hide()  # 👈 اینجا باکس را مخفی می‌کنیم
+            box.hide()
         else:
             notifi = Notification(
                 pro_name="خطا",

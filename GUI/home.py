@@ -1,18 +1,16 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+    QGraphicsDropShadowEffect, QSizePolicy,QCompleter,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QThread,QEvent
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush
 from PyQt6 import QtCore
 import jdatetime
 import sqlite3
-import pymysql
-import requests
 import threading
 import datetime
 from message_b import MessageBox
 from switch import ToggleSwitch
 import os
-from PyQt6.QtGui import QFont, QTextDocument
+from PyQt6.QtGui import QTextDocument
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from notification import Frame2
 from dasboard import Dashboard
@@ -22,7 +20,6 @@ from inventory import Inventory
 from settings import Settings
 from PyQt6.QtWidgets import QStyledItemDelegate
 from PyQt6.QtGui import QColor, QPalette
-from functools import partial
 from db_connection import Connection
 
 class BlackTextDelegate(QStyledItemDelegate):
@@ -52,6 +49,9 @@ class WidgetManager(QWidget):
         self.create_frame1()
         self.invoice_counter = 1
         self.invoices = {}
+        self.barcode_searching = False
+        self.barcode= None
+
        
         
         self.label_ui()
@@ -65,8 +65,8 @@ class WidgetManager(QWidget):
         self.temp_loaded_invoice = []
         self.load_today_invoices()
         self.load_all_fonts()
-
-
+        self.update_info_invnenvtory()
+        self.select_name_products()
 
 
     def create_frame1(self):
@@ -190,7 +190,9 @@ class WidgetManager(QWidget):
                 min-height: 20px;
                 border-radius: 5px;
             }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.table.setItemDelegate(BlackTextDelegate())   QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
             QScrollBar::handle:vertical:hover {
@@ -198,9 +200,7 @@ class WidgetManager(QWidget):
             }
         """)
 
-        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.table.setItemDelegate(BlackTextDelegate())
+        
         self.table.itemChanged.connect(self.calculate_total_price)
         ###
         table_layout.addLayout(self.factor_layout)
@@ -232,10 +232,11 @@ class WidgetManager(QWidget):
         
         self.barcode_input= QLineEdit()
         self.barcode_input.setPlaceholderText("بارکد محصول")
-       # self.barcode_input.textChanged.connect(self.auto_search)
+        # self.barcode_input.textChanged.connect(self.auto_search)
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("نام محصول")
+        self.name_input.textChanged.connect(self.auto_search_name)
 
         self.qty_input = QLineEdit()
         self.qty_input.setPlaceholderText("تعداد")
@@ -590,10 +591,58 @@ class WidgetManager(QWidget):
     
     ##search_action:
     def search_barcode(self):
-        barcode= self.barcode_input.text().strip()
-        is_switch_on = self.switch.isChecked()
+        self.barcode_searching = True  # شروع پردازش بارکد
+
+        barcode = self.barcode_input.text().strip()
         if not barcode:
-            MessageBox("لطفاً بارکد محصول را وارد کنید",title="یادآوری",type="warning").show()
+            self.barcode_searching = False
+            return
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            print("Database not found.")
+            self.barcode_searching = False
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            is_switch_on = self.switch.isChecked()
+
+            if is_switch_on:
+                cursor.execute("SELECT name, big_price,barcode FROM products WHERE barcode = ?", (barcode,))
+            else:
+                cursor.execute("SELECT name, sale_price,barcode FROM products WHERE barcode = ?", (barcode,))
+
+            result = cursor.fetchone()
+
+            if result:
+                name, price,barcode = result
+                self.name_input.setText(name)
+                self.unit_price_input.setText(str(price))
+                self.barcode= str(barcode)
+            else:
+                self.name_input.setText('')
+                self.unit_price_input.setText('')
+
+        except sqlite3.Error as e:
+            print(f"Database error during barcode search: {e}")
+
+        finally:
+            conn.close()
+            self.barcode_searching = False  # پایان پردازش بارکد
+
+
+    ##
+    def search_name_pro(self):
+        name= self.name_input.text().strip()
+        is_switch_on = self.switch.isChecked()
+        if not name:
+            MessageBox("لطفاً نام محصول را وارد کنید",title="یادآوری",type="warning").show()
         conn_sq=None
         cursor_sq= None
 
@@ -612,65 +661,84 @@ class WidgetManager(QWidget):
                 conn_sq = sqlite3.connect(db_path)
                 cursor_sq = conn_sq.cursor()
                 cursor_sq.execute('''
-                select name,big_price,barcode
-                From products WHERE  barcode=?''',(barcode,))
+                select barcode,big_price,name
+                From products WHERE  TRIM(name)=?''',(name,))
                 result= cursor_sq.fetchone()
             else:
                 conn_sq = sqlite3.connect(db_path)
                 cursor_sq = conn_sq.cursor()
                 cursor_sq.execute('''
-                select name,sale_price,barcode
-                From products WHERE  barcode=?''',(barcode,))
+                select barcode,sale_price,name
+                From products WHERE  TRIM(name)=?''',(name,))
                 result= cursor_sq.fetchone()
             
             if result:
-                    self.name_input.clear()
-                    self.name_input.insert(str(result[0]))
-                    print(f"{result[0]}: name")
+                    self.barcode_input.clear()
+                    self.barcode_input.insert(str(result[0]))
+                    print(f"{result[0]}: barcode")
+                    self.barcode= result[0]
                     ##
                     self.unit_price_input.clear()
                     self.unit_price_input.insert(str(result[1]))
                     ##
                     self.qty_input.setText(str(1))
-                    self.barocde= str(result[2])
 
     
         except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
+    ##
+    def auto_search_name(self):
+        text = self.name_input.text().strip()
+        if text:  # اگر حتی یک حرف نوشته شده باشد
+            self.search_name_pro()
     ##
     def eventFilter(self, source, event):
         if event.type() == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
 
             if source == self.barcode_input:
                 self.barcode_input.selectAll()
-                # اگر قبلاً آماده شده (متن انتخاب شده)، مستقیماً محصول را اضافه کن
                 if getattr(self, 'barcode_ready', False) and self.barcode_input.hasSelectedText():
                     self.add_product()
-                    self.barcode_ready = False  # ریست برای بعدی
+                    self.barcode_ready = False
                     return True
 
-                # بار اول: جستجو و آماده‌سازی
                 self.search_barcode()
                 self.barcode_input.selectAll()
-                self.barcode_ready = True  # آماده برای بار دوم
+                self.barcode_ready = True
 
-                # اگر بعد از ۳ ثانیه هنوز کاربر در barcode_input بود، add_product را اجرا کن
                 def delayed_add():
                     if self.barcode_input.hasSelectedText() and self.barcode_input.hasFocus():
                         self.add_product()
-                        self.barcode_ready = False  # ریست بعد از اجرا
+                        self.barcode_ready = False
 
                 QTimer.singleShot(3000, delayed_add)
                 return True
 
-            elif source in [self.qty_input, self.unit_price_input, self.discount_input, self.name_input]:
-                name = self.name_input.text().strip()
+            elif source == self.name_input:
+                self.name_input.selectAll()
+                if getattr(self, 'name_ready',False) and self.name_input.hasSelectedText():
+                    self.add_product()
+                    self.name_ready= False
+                    return True
+                self.search_name_pro()
+                self.name_input.selectAll()
+                self.name_ready= True
+                
+                def delay_product():
+                    if self.name_input.hasSelectedText() and self.name_input.hasFocus():
+                        self.add_product()
+                        self.name_ready= False
+                QTimer.singleShot(3000,delay_product)
+                return True
+
+            elif source in [self.qty_input, self.unit_price_input, self.discount_input]:
                 qty = self.qty_input.text().strip()
-                if name or qty:
+                if qty:
                     self.add_product()
                 return True
 
         return super().eventFilter(source, event)
+
     ##
     def auto_search(self):
         text= self.barcode_input.text().strip()
@@ -686,6 +754,8 @@ class WidgetManager(QWidget):
         discount = self.discount_input.text()
         total_price = self.total_price_input.text()
         is_switch_on = self.switch.isChecked()
+        total_profit= 0
+        item_price= 0
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
         # رفتن یک سطح بالاتر از پوشه GUI
@@ -701,26 +771,32 @@ class WidgetManager(QWidget):
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
 
-                cursor.execute("SELECT big_category, quantity,sale_unit, big_quantity FROM products WHERE barcode = ?", (barcode,))
+                cursor.execute("SELECT big_category, quantity,sale_unit, big_quantity,big_price,buy_price FROM products WHERE barcode = ?", (barcode,))
                 product_info = cursor.fetchone()
                 if not product_info:
                     MessageBox("محصول یافت نشد!", title="خطا", type="error").show()
                     return
+                self.barcode= barcode
 
-                big_category, stock_quantity,sale_unit, big_quantity = product_info
+                big_category, stock_quantity,sale_unit, big_quantity,big_price,buy_price = product_info
                 print(sale_unit)
                 unit_price = float(unit_price or 0)
                 qty = float(qty or 1)
                 discount = float(discount or 0)
+                item_price= float(buy_price/big_quantity)
+                print(f"قمیت فی دانه :{item_price}")
 
                 if is_switch_on:
                     s_type = big_category
                     quantity = qty * float(big_quantity or 1)
                     sale_type = "عمده"
+                    total_profit = float((big_price - buy_price - discount) * qty)
                 else:
                     s_type = sale_unit
                     quantity = qty
                     sale_type = "پرچون"
+                    total_profit= float((unit_price - item_price - discount) * qty)
+                print(f"total_profit: {total_profit} ")
 
                 # بررسی موجودی انبار:
                 if quantity > float(stock_quantity):
@@ -791,6 +867,7 @@ class WidgetManager(QWidget):
                     "s_type": s_type,
                     "sale_type": sale_type,
                     "discount": discount,
+                    "profit" : total_profit,
                     "total": float(total_price),
                 })
 
@@ -826,7 +903,8 @@ class WidgetManager(QWidget):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
 
-        barcode = self.barocde
+        barcode = self.barcode
+        print(barcode)
         factor_number = self.factor_value
         date = datetime.date.today().strftime("%Y/%m/%d")
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
@@ -858,6 +936,7 @@ class WidgetManager(QWidget):
                 sale_type = product['sale_type']
                 discount_val = product['discount']
                 final_total = product['total']
+                profit= product['profit']
 
                 cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
                 product_quantity_row = cursor.fetchone()
@@ -869,11 +948,11 @@ class WidgetManager(QWidget):
                 is_synced=0
                 cursor.execute('''
                     INSERT INTO sale_factor (barcode, product_name, factor_number, sale_price, sale_date, quantity,
-                        product_type, sale_type, discount, total, created_at, user_id, is_synced)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        product_type, sale_type, discount, profit,total, created_at, user_id, is_synced)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
                 ''', (
                     barcode, name, factor_number, unit_price, date, quantity, s_type, sale_type,
-                    discount_val, final_total, date_ent, id_user, is_synced
+                    discount_val, profit,final_total, date_ent, id_user, is_synced
                 ))
 
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
@@ -963,7 +1042,7 @@ class WidgetManager(QWidget):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
 
-        barcode = self.barocde
+        barcode = self.barcode
         factor_number = self.factor_value
         date = datetime.date.today().strftime("%Y/%m/%d")
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
@@ -995,6 +1074,7 @@ class WidgetManager(QWidget):
                 sale_type = product['sale_type']
                 discount_val = product['discount']
                 final_total = product['total']
+                profit= product['profit']
 
                 cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
                 product_quantity_row = cursor.fetchone()
@@ -1006,11 +1086,11 @@ class WidgetManager(QWidget):
 
                 cursor.execute('''
                     INSERT INTO sale_factor (barcode, product_name, factor_number, sale_price, sale_date, quantity,
-                        product_type, sale_type, discount, total, created_at, user_id, is_synced)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        product_type, sale_type, discount, profit,total, created_at, user_id, is_synced)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
                 ''', (
                     barcode, name, factor_number, unit_price, date, quantity, s_type, sale_type,
-                    discount_val, final_total, date_ent, id_user, 0
+                    discount_val,profit, final_total, date_ent, id_user, 0
                 ))
 
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
@@ -1174,7 +1254,7 @@ class WidgetManager(QWidget):
         cursor_sq.execute('''
             SELECT product_name, factor_number, barcode,
                 sale_date, sale_price, quantity, product_type,
-                sale_type, discount, total, user_id,created_at
+                sale_type, discount,profit,total, user_id,created_at
             FROM sale_factor WHERE is_synced = 0
         ''')
 
@@ -1186,16 +1266,16 @@ class WidgetManager(QWidget):
     
             for product in unsynced_products:
                 (product_name, factor_number, barcode, sale_date, sale_price,
-                quantity, product_type, sale_type, discount, total, user_id, created_at) = product
+                quantity, product_type, sale_type, discount, profit,total, user_id, created_at) = product
 
 
                 cursor.execute('''
                         INSERT INTO sale_factor(product_name, barcode, factor_number, sale_date, sale_price,
-                            quantity, product_type, sale_type, discount, total, user_id, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            quantity, product_type, sale_type, discount, profit,total, user_id, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s)
                     ''', (
                         product_name, barcode, factor_number, sale_date, sale_price,
-                        quantity, product_type, sale_type, discount, total, user_id, created_at
+                        quantity, product_type, sale_type, discount,profit, total, user_id, created_at
                     ))
                 print(f"✅ item {barcode}  added")
                 ## update products
@@ -1479,6 +1559,53 @@ class WidgetManager(QWidget):
             MessageBox(f"{e} : خطا در حذف یا بروزرسانی محصول", title="خطای دیتابیس", type="error").show()
         finally:
             conn.close()
+    ##
+    def select_name_products(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            print("no such file")
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT DISTINCT name FROM products')
+            result = cursor.fetchall()
+
+            name_list = [row[0] for row in result if row[0]]
+
+            completer = QCompleter(name_list, self.name_input)
+            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+            completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            completer.popup().setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+            completer.popup().setStyleSheet('''
+                QListView {
+                    background-color: white;
+                    color: black;
+                    font-size: 14px;
+                    font-family: 'B Nazanin';
+                    border: 1px solid gray;
+                    padding: 4px;
+                    selection-background-color: white;
+                    selection-color: white;
+                }
+            ''')
+
+            def show_completer_if_focused(text):
+                if not self.barcode_searching:
+                    completer.complete()
+
+            self.name_input.textEdited.connect(show_completer_if_focused)
+            self.name_input.setCompleter(completer)
+
+        except sqlite3.Error as e:
+            print(f"{e}: failed searching names")
+        finally:
+            conn.close()
+
 
     ##fonts
     def load_all_fonts(self):
@@ -1500,11 +1627,10 @@ class WidgetManager(QWidget):
                     if families:
                         pass
     ##
-    def showEvent(self, event):
+    def update_info_invnenvtory(self):
         from inventory import Inventory
         self.inventory_page = Inventory()
         self.inventory_page.start_synced_to_server()
-        event.accept()
                     
 
         

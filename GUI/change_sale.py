@@ -83,11 +83,11 @@ class ChangingFactor(QMainWindow):
 
         frame_layout.addWidget(frame_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
-        self.frame_search_input = QLineEdit()
-        self.frame_search_input.setContentsMargins(0, 0, 30, 0)
-        self.frame_search_input.setPlaceholderText("نمبر فاکتور...")
-        self.frame_search_input.setFixedSize(200, 40)
-        self.frame_search_input.setStyleSheet("""
+        frame_search_input = QLineEdit()
+        frame_search_input.setContentsMargins(0, 0, 30, 0)
+        frame_search_input.setPlaceholderText("نمبر فاکتور...")
+        frame_search_input.setFixedSize(200, 40)
+        frame_search_input.setStyleSheet("""
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -97,15 +97,45 @@ class ChangingFactor(QMainWindow):
             font-weight: bold;
             padding: 5px;
         """)
-        frame_layout.addWidget(self.frame_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        frame_layout.addStretch()
+        frame_layout.addWidget(frame_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(8)
         shadow.setXOffset(0)
         shadow.setYOffset(5)
         shadow.setColor(QColor(0, 0, 0, 70))
-        self.frame_search_input.setGraphicsEffect(shadow)
+        frame_search_input.setGraphicsEffect(shadow)
+
+        table = QTableWidget(0, 7)
+        table.setHorizontalHeaderLabels(["نام", "بارکد", "تاریخ", "قیمت", "تعداد", "تخفیف", "مجموعه"])
+        table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
+        table.verticalHeader().setVisible(False)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setFixedWidth(1100)  # این قسمت عرض جدول را محدود می‌کند
+        table.setStyleSheet("""
+            QTableWidget {
+                border: 2px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 14px;
+                font-weight: bold;
+                gridline-color: black;
+            }
+            QHeaderView::section {
+                background-color: transparent;
+                border: 1px solid black;
+                color: black;
+                font-family: B Nazanin;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        """)
+        table.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        
+        frame_layout.addWidget(table)
+        frame_layout.addStretch()
 
         frame.setLayout(frame_layout)
 

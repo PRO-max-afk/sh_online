@@ -13,7 +13,7 @@ from profile_picture import ProfileImage
 from message_b import MessageBox
 from switch import ToggleSwitch
 import os
-import sys
+from db_connection import Connection
 
 
 class ShopSettings(QMainWindow):
@@ -151,7 +151,75 @@ class ShopSettings(QMainWindow):
         ##
 
         empty_frame= QFrame()
-        empty_frame.setStyleSheet("background-color: transparent;")
+        empty_frame.setStyleSheet("background-color: white; border-radius: 12px;")
+
+        shadow= QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(12)
+        shadow.setXOffset(0)
+        shadow.setYOffset(5)
+        shadow.setColor(QColor(0, 0, 0, 70))
+        empty_frame.setGraphicsEffect(shadow)
+        ##
+        frame2_layout= QVBoxLayout(empty_frame)
+        ##
+        right_layout= QVBoxLayout()
+        right_layout.setAlignment(Qt.AlignmentFlag.AlignTop |Qt.AlignmentFlag.AlignRight)
+        ##
+        top_title_ee= QHBoxLayout()
+        self.tie_label= QLabel("تغییرات اطلاعات کاربری")
+        self.tie_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        top_title_ee.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        top_title_ee.addWidget(self.tie_label)
+        ##
+        user_label= QHBoxLayout()
+        self.user_lb= QLabel("نام کاربری جدید:")
+        self.user_line= QLineEdit()
+        user_label.addStretch(5)
+        user_label.addWidget(self.user_line)
+        user_label.addWidget(self.user_lb)
+        
+        ##
+        old_pass= QHBoxLayout()
+        self.old_lb= QLabel("پسورد فعلی:      ")
+        self.old_line= QLineEdit()
+        old_pass.addStretch(5)
+        old_pass.addWidget(self.old_line)
+        old_pass.addWidget(self.old_lb)
+        ##
+        new_pass= QHBoxLayout()
+        self.new_lb= QLabel("پسوردجدید:      ")
+        self.new_pass_line= QLineEdit()
+        self.new_pass_line.setEchoMode(QLineEdit.EchoMode.Password)
+        new_pass.addStretch(5)
+        self.hide_btn= QPushButton(self.new_pass_line)
+        # موقعیت دکمه در گوشه راست QLineEdit
+        self.update_icon_position()
+        self.new_pass_line.resizeEvent = self.resize_event_with_icon
+        ##
+        new_pass.addWidget(self.new_pass_line)
+        new_pass.addWidget(self.new_lb)
+        ##
+        repeat_password= QHBoxLayout()
+        self.repeat_lb= QLabel("تکرارپسورد:      ")
+        self.repeat_line= QLineEdit()
+        self.repeat_line.setEchoMode(QLineEdit.EchoMode.Password)
+        repeat_password.addStretch(2)
+        repeat_password.addWidget(self.repeat_line)
+        repeat_password.addWidget(self.repeat_lb)
+        ##
+        self.save_button = QPushButton("ذخیره تغییرات")
+        ##
+        right_layout.addLayout(top_title_ee)
+        right_layout.addLayout(user_label)
+        right_layout.addLayout(old_pass)
+        right_layout.addLayout(new_pass)
+        right_layout.addLayout(repeat_password)
+        right_layout.addWidget(self.save_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        ##
+        frame2_layout.addLayout(right_layout)
+      
+
+
 
         ####
         middle_layout.addWidget(user_frame,1,1)
@@ -193,13 +261,27 @@ class ShopSettings(QMainWindow):
             color: black;
             font-family: Mirza;
         ''')
-
-        for title in (self.tite_label,self.logo_title,self.name_label):
+        ##
+        for title in (self.tite_label,self.tie_label):
             title.setMaximumHeight(40)
             title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             title.setStyleSheet('''
+                background-color: #4c5159;
+                font-size: 18px;
+                font-weight: bold; 
+                color: white;
+                font-family: B Nazanin;
+                padding: 8px;
+                border-radius: 5px;
+                ''')
+        ##
+        for title in (self.logo_title,self.name_label,self.user_lb,self.old_lb,self.new_lb,self.repeat_lb):
+            title.setMaximumHeight(40)
+            title.setMaximumWidth(115)
+            title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            title.setStyleSheet('''
                     background-color: transparent;
-                    font-size: 18px;
+                    font-size: 16px;
                     font-weight: bold; 
                     color: black;
                     font-family: B Nazanin;
@@ -299,7 +381,41 @@ class ShopSettings(QMainWindow):
             background-color: #11BD36;
                                     }
         ''')
-      
+        ##
+        
+        self.hide_icon= QIcon(self.get_asset_path("Invisible.png"))
+        self.hide_btn.setIcon(self.hide_icon)
+        self.hide_btn.setIconSize(QtCore.QSize(25,25))
+        self.hide_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.hide_btn.clicked.connect(self.un_hide)
+        self.hide_btn.setStyleSheet('''
+        background-color: transparent;
+        ''')
+        ##
+        
+        self.save_button.setFixedSize(120, 40)
+        self.save_button.setIcon(QIcon(self.get_asset_path("Bookmark.png")))
+        self.save_button.setIconSize(QtCore.QSize(24, 24))
+        self.save_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self.save_button.clicked.connect(self.update_password)
+        self.save_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #00C853;
+                    color: white;
+                    border-radius: 8px;
+                    font-family: B Nazanin;
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #00B44A;
+                }
+                QPushButton:Pressed{
+                    background-color: #00C853;
+                                      }
+            """)
+
+            # آیکون وسط
 
     ##
     def feild_UI(self):
@@ -322,6 +438,26 @@ class ShopSettings(QMainWindow):
                 color: #e3e4e6;
             }
         ''')
+        for input in (self.user_line,self.old_line,self.new_pass_line,self.repeat_line):
+            input.setMaximumSize(350,40)
+            input.setMinimumSize(250,30)
+            input.setPlaceholderText("Enter...")
+            input.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Maximum)
+            input.setStyleSheet('''
+                QLineEdit {
+                background-color: white;
+                font-family:Roboto,'arial';
+                font-weight: bold;
+                font-size: 14px;
+                color: black;
+                border: 1px solid #c2c2c2;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QLineEdit::placeholder {
+                color: #e3e4e6;
+            }
+        ''')
         
         # تنظیم ترتیب فوکوس به صورت راست به چپ
        # self.setTabOrder(self.name_line, self.last_line)
@@ -332,8 +468,20 @@ class ShopSettings(QMainWindow):
         if event.key() in (Qt.Key.Key_Return,Qt.Key.Key_Enter):
             if any(line.hasFocus() for line in [self.name_line]):
                 self.add_user()
-                return
+            elif any(line.hasFocus() for line in[
+                self.new_pass_line,self.repeat_line,self.user_line,self.old_line
+            ]):
+                self.update_password()
+    ##
+    def update_icon_position(self):
+        btn_size = self.hide_btn.sizeHint()
+        line_width = self.new_pass_line.width()
+        self.hide_btn.move(line_width - btn_size.width() - 5, (self.new_pass_line.height() - btn_size.height()) // 2)
 
+    ##
+    def resize_event_with_icon(self, event):
+        self.update_icon_position()
+        QLineEdit.resizeEvent(self.new_pass_line, event)
 
     ##images
     def get_asset_path(self, filename):
@@ -366,29 +514,95 @@ class ShopSettings(QMainWindow):
         self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animate.start()
 
+    ##
+    def un_hide(self):
+        if self.btn_mode:
+            self.hide_btn.setIcon(QIcon(self.get_asset_path("Eye.png")))
+            self.new_pass_line.setEchoMode(QLineEdit.EchoMode.Normal)
+            self.repeat_line.setEchoMode(QLineEdit.EchoMode.Normal)
+        else:
+            self.hide_btn.setIcon(QIcon(self.get_asset_path("Invisible.png")))
+            self.new_pass_line.setEchoMode(QLineEdit.EchoMode.Password)
+            self.repeat_line.setEchoMode(QLineEdit.EchoMode.Password)
 
+        self.btn_mode = not self.btn_mode
+    ##
+    
+    def update_password(self):
+        self.db_data = Connection().get_connection()
+        user_name= self.user_line.text()
+        old = self.old_line.text()
+        new = self.new_pass_line.text()
+        confirm = self.repeat_line.text()
 
-  
-    ##fonts
-    def load_all_fonts(self):
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        fonts_folder = os.path.join(project_root, "fonts")
-
-        if not os.path.exists(fonts_folder):
-            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+        if not all([old, new, confirm,user_name]):
+            MessageBox(text="لطفاً برای تغییر پسورد اطلاعات پسورد خود را وارد کنید", type="warning", title="هشدار").show()
             return
 
-        for filename in os.listdir(fonts_folder):
-            if filename.lower().endswith((".ttf", ".otf",".TTF")):
-                font_path = os.path.join(fonts_folder, filename)
-                font_id = QFontDatabase.addApplicationFont(font_path)
-                if font_id == -1:
-                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
-                else:
-                    families = QFontDatabase.applicationFontFamilies(font_id)
-                    if families:
-                        pass
-    ##
+        if not self.db_data:
+            print("خطا در اتصال به دیتابیس")
+            return
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # رفتن یک سطح بالاتر از پوشه GUI
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT id FROM users;")
+            res_id = cursor_sq.fetchone()
+            if not res_id:
+                MessageBox(text="یوزر محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
+            id_user = res_id[0]
+        except Exception as e:
+            MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
+            return
+
+        try:
+            curosr = self.db_data.cursor()
+            curosr.execute("SELECT password FROM user_s WHERE id = %s AND password = %s", (id_user, old))
+            result = curosr.fetchone()
+            old_pass= result[0]
+            if old_pass != old:
+                MessageBox(text="پسورد قدیمی اشتباه است", title="هشدار", type="warning").show()
+                return
+
+            if new != confirm:
+                MessageBox(text="پسورد جدید و تایید آن مطابقت ندارند", type="error", title="خطا").show()
+                self.new_p_line.setEchoMode(QLineEdit.EchoMode.Normal)
+                self.confirm_p_line.setEchoMode(QLineEdit.EchoMode.Normal)
+                return
+
+            # بروزرسانی پسورد
+            curosr.execute("UPDATE user_s SET password = %s, username= %s WHERE id = %s and password=%s", (new, user_name,id_user,old))
+            self.db_data.commit()
+
+            notif = Notification(
+                message="پسورد موفقانه تغییر کرد",
+                icon_path=self.get_asset_path("Check Mark.png"),
+                pro_name="!موفقانه",
+                parent_frame=self.notification_frame
+            )
+            notif.show()
+            
+
+            # پاک‌سازی فیلدها
+            self.old_line.clear()
+            self.new_pass_line.clear()
+            self.repeat_line.clear()
+            self.user_line.clear()
+
+        except pymysql.Error as e:
+            print(f"{e}: خطا در دیتابیس")
+  
+  
     def upload_logo_to_db(self):
         from app_signals import global_signals  # ایمپورت در داخل تابع یا بالای فایل
 
@@ -460,4 +674,24 @@ class ShopSettings(QMainWindow):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
-    ##
+    
+    ##fonts
+    def load_all_fonts(self):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fonts_folder = os.path.join(project_root, "fonts")
+
+        if not os.path.exists(fonts_folder):
+            print(f"⚠ پوشه فونت‌ها یافت نشد: {fonts_folder}")
+            return
+
+        for filename in os.listdir(fonts_folder):
+            if filename.lower().endswith((".ttf", ".otf",".TTF")):
+                font_path = os.path.join(fonts_folder, filename)
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id == -1:
+                    print(f"⚠ خطا در بارگذاری فونت: {filename}")
+                else:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        pass
+    

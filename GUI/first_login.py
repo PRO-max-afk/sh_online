@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLayout, QFrame, QSpacerItem, QSizePolicy, QLineEdit,QPushButton,QMainWindow
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QFrame, QSpacerItem, QSizePolicy, QLineEdit,QPushButton,QMainWindow,QApplication
 from PyQt6.QtCore import Qt, QPropertyAnimation, QPoint,QEasingCurve
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 from PyQt6.QtGui import QPixmap, QFontDatabase, QPalette, QFont,QColor
@@ -6,20 +6,20 @@ import os
 import sys
 from security_qustion import Security_login
 from message_b import MessageBox
-import requests
 import sqlite3
 import pymysql
 import ntplib
 import pytz
 from datetime import datetime
-from main import mainwindow
+
+
 
 class Main_login(QMainWindow):
     def __init__(self):
         super().__init__()
 
         # تنظیمات پنجره
-        screen = QApplication.primaryScreen().geometry()
+        screen = QApplication.instance().primaryScreen().geometry()
         self.setGeometry(screen.x(), screen.y(), screen.width(), screen.height())
         self.setMinimumSize(1200, 600)
         self.setWindowTitle("برنامه فروشگاه")
@@ -353,6 +353,7 @@ class Main_login(QMainWindow):
             self.user_login()
     ##
     def open_mainwindow_with_animation(self):
+        from main import mainwindow
         self.new_window = mainwindow()  # ساخت نمونه‌ای از صفحه اصلی
         self.new_window.setWindowOpacity(0)  # شفافیت اولیه صفر
 
@@ -570,3 +571,4 @@ if __name__ == "__main__":
     window = Main_login()
     window.show()
     sys.exit(app.exec())
+
