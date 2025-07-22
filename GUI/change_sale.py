@@ -64,7 +64,7 @@ class ChangingFactor(QMainWindow):
     
     def create_frame(self):
         frame = QFrame()
-        frame.setMaximumHeight(400)
+        frame.setMaximumHeight(450)
         frame.setStyleSheet("QFrame { background-color: white; border-radius: 10px; }")
 
         frame_shadow= QGraphicsDropShadowEffect(self)
@@ -136,6 +136,54 @@ class ChangingFactor(QMainWindow):
         
         frame_layout.addWidget(table, alignment=Qt.AlignmentFlag.AlignCenter)
         frame_layout.addStretch()
+
+        button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(20, 10, 20, 10)
+        button_layout.setSpacing(10)
+        button_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        print_button = QPushButton("پرنت")
+        print_button.setIcon(QIcon(self.get_asset_path('print.png')))
+        print_button.setIconSize(QSize(24, 24))
+        print_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        print_button.setFixedSize(100, 40)
+        print_button.setStyleSheet("""
+            QPushButton {
+                background-color: #0047ab;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 5px;
+                font-family: 'B Nazanin';
+            }
+            QPushButton:hover {
+                background-color: #003b91;
+            }
+        """)
+
+        save_button = QPushButton("ذخیره تغییرات")
+        save_button.setIcon(QIcon(self.get_asset_path('Bookmark.png')))
+        save_button.setIconSize(QSize(24, 24))
+        save_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        save_button.setFixedSize(120, 40)
+        save_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00cc66;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 5px;
+                font-family: 'B Nazanin';
+            }
+            QPushButton:hover {
+                background-color: #00b359;
+            }
+        """)
+
+        button_layout.addWidget(print_button)
+        button_layout.addWidget(save_button)
+
+        frame_layout.addLayout(button_layout)
 
         frame.setLayout(frame_layout)
 
