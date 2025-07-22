@@ -108,11 +108,11 @@ class ChangingFactor(QMainWindow):
 
         table = QTableWidget(0, 7)
         table.setHorizontalHeaderLabels(["نام", "بارکد", "تاریخ", "قیمت", "تعداد", "تخفیف", "مجموعه"])
-        table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         table.verticalHeader().setVisible(False)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        table.setFixedWidth(1100)  # این قسمت عرض جدول را محدود می‌کند
+        table.setFixedWidth(1000)  # این قسمت عرض جدول را محدود می‌کند
+        table.setFixedHeight(300)
         table.setStyleSheet("""
             QTableWidget {
                 border: 2px solid black;
@@ -134,7 +134,7 @@ class ChangingFactor(QMainWindow):
         table.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         
-        frame_layout.addWidget(table)
+        frame_layout.addWidget(table, alignment=Qt.AlignmentFlag.AlignCenter)
         frame_layout.addStretch()
 
         frame.setLayout(frame_layout)
