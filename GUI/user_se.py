@@ -526,7 +526,10 @@ class UserSettings(QMainWindow):
             self.ca_passwor_line.setEchoMode(QLineEdit.EchoMode.Password)
 
         self.btn_mode = not self.btn_mode
-
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)
     ##
     def update_icon_position(self):
         btn_size = self.hide_btn.sizeHint()

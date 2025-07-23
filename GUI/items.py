@@ -42,6 +42,12 @@ class ItemsSettings(QMainWindow):
         main_layout.addWidget(self.create_frame3()) # برای بلند تنظیم دو فریم بالا فریم سوم را ساختم
       
         self.setLayout(main_layout)
+        # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
+        self.notification_frame = QFrame(self.itms_page)
+        self.notification_frame.setStyleSheet("background: transparent;")
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.notification_frame.raise_()
         self.stack_items.addWidget(self.itms_page)
 
     def create_top_bar(self):
@@ -505,7 +511,6 @@ class ItemsSettings(QMainWindow):
         buy_price= self.line_frame1[2].text()
         sale_price= self.line_frame1[3].text()
         big_price= self.line_frame1[4].text()
-        number= self.line_frame1[5].text()
         big_sub= self.line_frame1[5].text()
         big_quantity= self.line_frame1[6].text()
         buy_date= self.line_frame1[7].text()
@@ -520,70 +525,50 @@ class ItemsSettings(QMainWindow):
             print("no offline db")
             return
         try:
-            number = float(number) if number else 0
-            buy_price = float(buy_price) if buy_price else 0
+            big_quantity = int(big_quantity) if big_quantity else 0
+            big_sub= float(big_sub) if big_sub else 0.0
+            buy_price= float(buy_price) if buy_price else 0.0
 
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
 
-            # واکشی مقدار قبلی
+            
+            ## مجموعه محصول
+            new_quantity= big_sub * big_quantity
+            total= float(new_quantity * buy_price)
+            print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
+
+
+            is_synced = 0
             cursor_sq.execute("""
-                SELECT big_sub, buy_price,big_quantity
-                FROM products 
-                WHERE barcode = ?
-            """, (barcode,))
-            row = cursor_sq.fetchone()
-
-            if row:
-                old_quantity = float(row[0]) if row[0] else 0
-                old_price = float(row[1]) if row[1] else 0
-                bg_quantity= float(row[2]) if row[2] else 0
-
-                updated_quantity = old_quantity + number
-
-                if updated_quantity > 0:
-                    new_avg_price = ((old_price * old_quantity) + (buy_price * number)) / updated_quantity
-                else:
-                    new_avg_price = buy_price
-
-                total = ((old_price * old_quantity) + (buy_price * number))
-                ## مجموعه محصول
-                big_quantity= updated_quantity * bg_quantity
-                print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
-
-
-                is_synced = 0
-                cursor_sq.execute("""
                     UPDATE products 
                     SET name=?, barcode=?, quantity = ?, buy_price = ?, update_date = ?, 
-                        new_quantity = ?,expire_date = ?, big_sub=?,
+                        big_quantity = ?,expire_date = ?, big_sub=?,
                         sale_price = ?, big_price = ?, 
                         total = ?, is_synced = ?,type_save=?,update_at=?
                     WHERE barcode = ?
                 """, (
-                    name, barcode,big_quantity, new_avg_price, buy_date, number,
+                    name, barcode,new_quantity, buy_price, buy_date, big_quantity,
                     expir_date,big_sub, sale_price,big_price,
                     total, is_synced,type_save,date_ent, barcode
                 ))
 
-                conn_sq.commit()
+            conn_sq.commit()
 
-                # پیام موفقیت واضح
-                MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()
-                print("✅ تغییرات در جدول products ثبت شد.")
-                self.line_frame1[0].clear()
-                self.line_frame1[1].clear()
-                self.line_frame1[2].clear()
-                self.line_frame1[3].clear()
-                self.line_frame1[4].clear()
-                self.line_frame1[5].clear()
-                self.line_frame1[6].clear()
-                self.line_frame1[7].clear()
-                self.line_frame1[8].clear()
-                self.frame1_search_input.clear()
-                self.center_icon.clear()
-            else:
-                MessageBox("محصولی با این نام یافت نشد!", title="❗ خطا", type="warning").show()
+            # پیام موفقیت واضح
+            MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()
+            print("✅ تغییرات در جدول products ثبت شد.")
+            self.line_frame1[0].clear()
+            self.line_frame1[1].clear()
+            self.line_frame1[2].clear()
+            self.line_frame1[3].clear()
+            self.line_frame1[4].clear()
+            self.line_frame1[5].clear()
+            self.line_frame1[6].clear()
+            self.line_frame1[7].clear()
+            self.line_frame1[8].clear()
+            self.frame1_search_input.clear()
+            self.center_icon.clear()
 
         except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در پایگاه داده", title="❌ خطا", type="error").show()
@@ -649,10 +634,8 @@ class ItemsSettings(QMainWindow):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
-    
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = ItemsSettings()
-    window.show()
-    sys.exit(app.exec())

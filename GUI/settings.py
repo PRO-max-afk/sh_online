@@ -328,7 +328,10 @@ class Settings(QMainWindow):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass  
-
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)
 
         
         

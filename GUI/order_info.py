@@ -36,8 +36,8 @@ class Order_Box(QWidget):
         table_layout.setContentsMargins(0,0,0,0)
         table_layout.setSpacing(0)
         ##
-        self.table = QTableWidget(4, 4)
-        self.table.setHorizontalHeaderLabels(["عملیات","واحد","مقدار", "نام"])
+        self.table = QTableWidget(5, 5)
+        self.table.setHorizontalHeaderLabels(["عملیات","واحد","مقدار","قمیت", "نام"])
         self.table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -202,7 +202,7 @@ class Order_Box(QWidget):
         hbox.setAlignment(Qt.AlignmentFlag.AlignRight)
         return hbox
     ##
-    def set_product_info(self, name, number, address, plaged, phone, unit,ids, image_path="default.png", product_name="", quantity=""):
+    def set_product_info(self, name, number, address, plaged, phone, unit,ids, image_path="default.png", product_name="", price="",quantity=""):
         self.na_lb.setText(name)
         self.number.setText(str(number))
         self.address.setText(address)
@@ -214,18 +214,19 @@ class Order_Box(QWidget):
 
         # تبدیل رشته‌ها به لیست
         product_names = product_name.split("\n")
+        prices= price.split("\n")
         quantities = quantity.split("\n")
         units = unit.split("\n")
         product_ids = ids.split("\n")  # 👈 لیست آیدی‌ها (رشته‌ی ورودی به صورت "12\n13\n..." باشد)
         # بررسی تطابق تعداد عناصر
-        if not (len(product_names) == len(quantities) == len(units) == len(product_ids)):
+        if not (len(product_names) == len(prices)==len(quantities) == len(units) == len(product_ids)):
             print("❌ تعداد عناصر لیست‌ها برابر نیست:")
             print(f"نام‌ها: {len(product_names)}, مقدارها: {len(quantities)}, واحدها: {len(units)}, آیدی‌ها: {len(product_ids)}")
             return  # یا raise Exception("تطابق ندارند")
 
         row_count = len(product_names)
         self.table.setRowCount(row_count)
-        self.table.setColumnCount(5)  # 👈 حالا جدول 5 ستون دارد (دکمه، واحد، مقدار، نام، آیدی)
+        self.table.setColumnCount(6)  # 👈 حالا جدول 5 ستون دارد (دکمه، واحد، مقدار، نام، آیدی)
 
         self.denied_buttons = []
 
@@ -243,14 +244,15 @@ class Order_Box(QWidget):
             self.table.setCellWidget(i, 0, denied_btn)
             self.table.setItem(i, 1, QTableWidgetItem(self._make_cell(units[i])))
             self.table.setItem(i, 2, QTableWidgetItem(self._make_cell(quantities[i])))
-            self.table.setItem(i, 3, QTableWidgetItem(self._make_cell(product_names[i])))
+            self.table.setItem(i,3,QTableWidgetItem(self._make_cell(prices[i])))
+            self.table.setItem(i, 4, QTableWidgetItem(self._make_cell(product_names[i])))
 
             # 👇 افزودن ستون آیدی (ستون 4)
             id_item = QTableWidgetItem(str(product_ids[i]))
-            self.table.setItem(i, 4, id_item)
+            self.table.setItem(i, 5, id_item)
 
         # 👇 پنهان کردن ستون آیدی
-        self.table.setColumnHidden(4, True)
+        self.table.setColumnHidden(5, True)
 
 
         # تنظیم تصویر

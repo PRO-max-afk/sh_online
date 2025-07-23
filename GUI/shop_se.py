@@ -247,7 +247,6 @@ class ShopSettings(QMainWindow):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_frame.raise_()
-        ###
         
         ##
         self.stack_widget.addWidget(self.user_settings)
@@ -526,8 +525,11 @@ class ShopSettings(QMainWindow):
             self.repeat_line.setEchoMode(QLineEdit.EchoMode.Password)
 
         self.btn_mode = not self.btn_mode
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)
     ##
-    
     def update_password(self):
         self.db_data = Connection().get_connection()
         user_name= self.user_line.text()

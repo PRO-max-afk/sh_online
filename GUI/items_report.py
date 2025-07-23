@@ -930,7 +930,10 @@ class ItemReport(QMainWindow):
             message= f"ذخیر ه شد {file_path} فایل به مسیر " ,
             parent_frame= self.notification_frame)
         notifi.show()
-
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -959,4 +962,7 @@ class ItemReport(QMainWindow):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
-    
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)

@@ -6,9 +6,8 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-SELECT *
+SELECT image_path
 FROM products
-WHERE is_synced=0;
 
 ''')
 rows = cursor.fetchall()

@@ -60,6 +60,47 @@ class DataLoaderThread(QThread):
 
         ## 
     ##
+    def download_image_from_url(self, image_path):
+        try:
+            if not image_path:
+                raise ValueError("image_path is empty or None")
+
+            # اگر مسیر نسبی بود، URL کامل بساز
+            if not image_path.startswith("http"):
+                base_url = "https://ihr.blg.mybluehost.me/storage/"
+                full_url = base_url + image_path.lstrip("/")
+            else:
+                full_url = image_path
+
+            print(f"📥 دانلود از: {full_url}")
+
+            # مسیر ذخیره آفلاین
+            local_dir = os.path.join(os.getcwd(), "temp_images")
+            os.makedirs(local_dir, exist_ok=True)
+            filename = os.path.basename(image_path)
+            local_path = os.path.join(local_dir, filename)
+
+            # اگر فایل قبلاً ذخیره شده باشد
+            if os.path.exists(local_path):
+                print("📦 از کش محلی:", local_path)
+                return local_path
+
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(full_url, headers=headers, timeout=20)
+            response.raise_for_status()
+
+            with open(local_path, 'wb') as f:
+                f.write(response.content)
+
+            print("✅ ذخیره موفق:", local_path)
+            return local_path
+
+        except Exception as e:
+            print("❌ خطا:", e)
+            default_path = os.path.join(os.getcwd(), "default.png")
+            return default_path if os.path.exists(default_path) else None
+
+    ##
     def load_all_data(self):
         self.db_data = self.get_db_config()
         if not self.db_data:
@@ -113,7 +154,7 @@ class DataLoaderThread(QThread):
             product_list = []
             for product in products:
                 name, barcode,category, sub_category,buy_date,buy_price, sale_price,big_category,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display, sale_unit,total,created_at= product
-
+                image_path_local= self.download_image_from_url(image_path)
                 product_info = {
                     "name": name,
                     "barcode": barcode,
@@ -125,7 +166,7 @@ class DataLoaderThread(QThread):
                     "big_category": big_category,
                     "quantity": float(quantity) if isinstance(quantity, Decimal) else quantity,
                     "expire_date": exp_date,
-                    "image_path": image_path,
+                    "image_path": image_path_local,
                     "user_id": id_user,
                     "store_name": store_name,
                     "new_price": float(new_price) if isinstance(new_price, Decimal) else new_price,
@@ -774,53 +815,48 @@ class Inventory(QFrame):
     def show_error_message(self, error):
         # نمایش پیام خطا در صورت بروز مشکل
         print(f"خطا: {error}")
-        ##
+    
     ##
     def download_image_from_url(self, image_path):
         try:
             if not image_path:
                 raise ValueError("image_path is empty or None")
 
+            # اگر مسیر نسبی بود، URL کامل بساز
             if not image_path.startswith("http"):
                 base_url = "https://ihr.blg.mybluehost.me/storage/"
-                image_path = base_url + image_path.lstrip("/")
+                full_url = base_url + image_path.lstrip("/")
+            else:
+                full_url = image_path
 
-            print(f"📥 در حال تلاش برای دریافت تصویر از: {image_path}")
+            print(f"📥 دانلود از: {full_url}")
 
+            # مسیر ذخیره آفلاین
             local_dir = os.path.join(os.getcwd(), "temp_images")
             os.makedirs(local_dir, exist_ok=True)
-
             filename = os.path.basename(image_path)
             local_path = os.path.join(local_dir, filename)
 
-            # ✅ بررسی کش - اگر فایل قبلاً دانلود شده باشد، مستقیماً بازگردانده می‌شود
+            # اگر فایل قبلاً ذخیره شده باشد
             if os.path.exists(local_path):
-                print("📦 تصویر قبلاً دانلود شده. بارگیری از حافظه محلی:", local_path)
+                print("📦 از کش محلی:", local_path)
                 return local_path
 
-            # اضافه کردن هدرهای مناسب برای درخواست
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-
-            response = requests.get(image_path, headers=headers, timeout=20)
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(full_url, headers=headers, timeout=20)
             response.raise_for_status()
 
             with open(local_path, 'wb') as f:
                 f.write(response.content)
 
-            print("✅ تصویر با موفقیت دانلود شد:", local_path)
+            print("✅ ذخیره موفق:", local_path)
             return local_path
 
         except Exception as e:
-            print("❌ خطا در دریافت تصویر از URL:", e)
-            default_image_path = os.path.join(os.getcwd(), "default.png")
-            if os.path.exists(default_image_path):
-                print("🔁 بازگشت به تصویر پیش‌فرض:", default_image_path)
-                return default_image_path
-            else:
-                print("⚠️ تصویر پیش‌فرض پیدا نشد.")
-                return None
+            print("❌ خطا:", e)
+            default_path = os.path.join(os.getcwd(), "default.png")
+            return default_path if os.path.exists(default_path) else None
+
     ##
     def load_image_from_temp(self, image_relative_path):
         """

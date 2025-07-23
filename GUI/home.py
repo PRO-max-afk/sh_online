@@ -1179,7 +1179,7 @@ class WidgetManager(QWidget):
             </head>
             <body>
             <div class="container">
-                <h3>فاکتور فروش</h3>
+                <h1>فاکتور فروش</h1 >
                 <table>
                     <tr>
                         <td colspan="7">
@@ -1606,7 +1606,10 @@ class WidgetManager(QWidget):
         finally:
             conn.close()
 
-
+    ##notifications
+    def resizeEvent(self, event):
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        return super().resizeEvent(event)
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

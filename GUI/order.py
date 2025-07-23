@@ -21,7 +21,8 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
-
+from jdatetime import date
+from decimal import Decimal
 
 class Orders(QFrame):
     def __init__(self):
@@ -249,72 +250,132 @@ class Orders(QFrame):
             image = self.get_asset_path("Hourglass.png")
 
             product_names = "\n".join(p["product_name"] for p in order.get("products", []))
+            number= str(order.get("sale_number", ""))
             quantities = "\n".join(str(p["quantity"]) for p in order.get("products", []))
             units = "\n".join(p["unit"] for p in order.get("products", []))
+            prices = "\n".join(str(p["price"]) for p in order.get("products", []))  # <- اصلاح شده
             product_ids = "\n".join(str(p["id"]) for p in order.get("products", [])) 
 
             box.set_product_info(
-                ids= product_ids,
+                ids=product_ids,
                 number=str(order.get("sale_number", "")),
                 name=order.get("customer_name", ""),
                 address=order.get("area", ""),
                 plaged=str(order.get("home_number", "")),
                 phone=str(order.get("phone", "")),
                 product_name=product_names,
+                price=prices,
                 quantity=quantities,
                 unit=units,
                 image_path=image
             )
 
+            # ذخیره اطلاعات برای استفاده داخلی
+            box.product_ids = product_ids
+            box.product_names = product_names
+            box.prices = prices
+            box.number= number
+            box.quantities = quantities
+            box.units = units
+
             box.accept_btn.clicked.connect(lambda _, b=box: self.handle_accept(b))
             box.reject_btn.clicked.connect(lambda _, b=box: self.handle_reject(b))
 
-            # اتصال هر دکمه denied به remove_row مربوط به خودش با index صحیح
             for row_index, btn in enumerate(box.denied_buttons):
                 btn.clicked.connect(partial(self.remove_row, row_index, box))
 
-
             self.box_layout.addWidget(box)
+
+
     ##
-
     def handle_accept(self, box: Order_Box):
-        # گرفتن اطلاعات از باکس
-        product_ids = box.ids_label.text()
-        product_names = box.product_name_label.text()
-        quantities = box.quantity_label.text()
-        units = box.unit_label.text()
-
-        # پردازش داده‌ها برای سطرها
-        ids_list = product_ids.split("\n")
-        names_list = product_names.split("\n")
-        quantities_list = quantities.split("\n")
-        units_list = units.split("\n")
+        # گرفتن اطلاعات از متغیرهای ذخیره‌شده
+        number = box.number
+        names_list = box.product_names.split("\n")
+        quantities_list = box.quantities.split("\n")
+        units_list = box.units.split("\n")
+        price= box.prices.split("\n")
+        date= jdatetime.date.today().strftime("%Y/%m/%d")
+        
 
         # ساخت HTML فقط با چهار ستون
-        html = """
-        <h2 style='text-align:center;'>رسید سفارش</h2>
-        <table border="1" cellspacing="0" cellpadding="5" style="width: 100%; border-collapse: collapse; font-size: 12pt;">
-            <tr style="background-color: #f0f0f0;">
-                <th>کد محصول</th>
-                <th>نام محصول</th>
-                <th>مقدار</th>
-                <th>واحد</th>
-            </tr>
-        """
-
+        html = f"""
+            <html>
+            <head>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: 'B Nazanin', Mirza;
+                    direction: rtl;
+                    background-color: white;
+                    margin: 0;
+                    padding: 20px;
+                }}
+                .container {{
+                    text-align: center;
+                }}
+                table {{
+                    width: 80%;
+                    margin: 0 auto;
+                    border-collapse: collapse;
+                    font-size: 16pt;
+                }}
+                th, td {{
+                    border: 1px solid black;
+                    padding: 12px;
+                    text-align: center;
+                }}
+                h2 {{
+                    font-size: 22pt;
+                    margin-bottom: 20px;
+                }}
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <h1>فاکتور فروش</h1>
+                <table>
+                    <tr>
+                        <td colspan="5">
+                            <b>شماره فاکتور</b> {number}
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                            <b>تاریخ</b> {date}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>واحد</th>
+                        <th>تعداد</th>
+                        <th>قیمت</th>
+                        <th>نام</th>
+                        <th>شماره</th>
+                    </tr>
+            """
+        total_sum= sum(float(p) for p in price)
         for i in range(len(names_list)):
+            
             html += f"""
             <tr>
-                <td>{ids_list[i]}</td>
-                <td>{names_list[i]}</td>
-                <td>{quantities_list[i]}</td>
                 <td>{units_list[i]}</td>
+                <td>{quantities_list[i]}</td>
+                <td> {price[i]} </td>
+                <td>{names_list[i]}</td>
+                <td> {i +1 } </td>
+                
+                
             </tr>
             """
 
-        html += "</table>"
+        html += f"""
+                    <tr>
+                        <td colspan="5"> {total_sum} <b>:مجموع کل</b> </td>
+                    </tr>
+                </table>
+            </div>
+            </body>
+            </html>
+            """
 
-        # آماده‌سازی سند برای پرینتر
+        # پرینت
         document = QTextDocument()
         document.setHtml(html)
 
@@ -323,7 +384,7 @@ class Orders(QFrame):
         if dialog.exec():
             document.print(printer)
 
-        # ادامه روند مانند قبل (نوتیفیکیشن و مخفی‌سازی)
+        # تایید سفارش
         info = OrderInformation()
         success = info.accept_order()
         if success:
@@ -343,6 +404,7 @@ class Orders(QFrame):
                 icon_path=self.get_asset_path("MacOS Close.png")
             )
             notifi.show()
+
     ##
     def handle_reject(self, box: Order_Box):
         info = OrderInformation()

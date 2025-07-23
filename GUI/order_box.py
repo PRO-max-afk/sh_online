@@ -55,7 +55,7 @@ class OrderInformation(QThread):
                 cursor = conn.cursor()
 
                 cursor.execute("""
-                    SELECT id,sale_number, customer_name, product_name, quantity, area, home_number, phone, product_unit
+                    SELECT id,sale_number, customer_name, product_name, quantity, area, home_number, phone, product_unit,price
                     FROM orders
                     WHERE approve=0 and denied=0 and user_id = %s
                 """, (id_user,))
@@ -96,7 +96,7 @@ class OrderInformation(QThread):
                 orders = {}
 
                 for row in results:
-                    order_id, sale_number, name, product_name, quantity, area, home_number, phone, unit = row
+                    order_id, sale_number, name, product_name, quantity, area, home_number, phone, unit,price = row
 
                     if sale_number not in orders:
                         orders[sale_number] = {
@@ -112,7 +112,8 @@ class OrderInformation(QThread):
                         "id": order_id,  # 👈 اضافه کردن آیدی خاص هر ردیف
                         "product_name": product_name,
                         "quantity": quantity,
-                        "unit": unit
+                        "unit": unit,
+                        "price" : price
                     })
 
 
