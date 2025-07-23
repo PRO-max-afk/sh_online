@@ -19,7 +19,7 @@ class ClickableLineEdit(QLineEdit):
 class ItemsSettings(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setStyleSheet("background-color: #D9D9D9")
+        self.setStyleSheet("background-color: #D9D9D9;")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.setup_ui()
         self.load_all_fonts()
