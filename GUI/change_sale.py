@@ -1,14 +1,12 @@
 from PyQt6.QtWidgets import (QApplication,QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
     QGraphicsDropShadowEffect, QFileDialog,QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,pyqtSignal,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
+from PyQt6.QtCore import Qt,QTimer,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPixmap
 import sqlite3
 from message_b import MessageBox
-from barcode import EAN13
-from barcode.writer import ImageWriter
-import os,random
-import datetime
-import sys
+import os,threading
+from db_connection import Connection
+
 
 
 class ChangingFactor(QMainWindow):
@@ -18,6 +16,10 @@ class ChangingFactor(QMainWindow):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.setup_ui()
         self.load_all_fonts()
+        self.auto_search()
+        self.auto_sync()
+        self.sale_ids= []
+        self.sale_list= []
 
     def setup_ui(self):
         self.stack_items = QStackedWidget()
@@ -41,11 +43,13 @@ class ChangingFactor(QMainWindow):
 
         title_label = QLabel("تغییرات فاکتور")
         title_label.setStyleSheet("color: black; font-family: Mirza; font-size: 20px; font-weight: bold;")
+        title_label.setMinimumHeight(50)
 
         back_button = QPushButton()
         back_button.setIcon(QIcon(self.get_asset_path('left.png')))
         back_button.setIconSize(QSize(40, 40))
         back_button.setFixedSize(50, 50)
+        back_button.clicked.connect(self.back_settings)
         back_button.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
@@ -83,11 +87,11 @@ class ChangingFactor(QMainWindow):
 
         frame_layout.addWidget(frame_title_label, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
-        frame_search_input = QLineEdit()
-        frame_search_input.setContentsMargins(0, 0, 30, 0)
-        frame_search_input.setPlaceholderText("نمبر فاکتور...")
-        frame_search_input.setFixedSize(200, 40)
-        frame_search_input.setStyleSheet("""
+        self.frame_search_input = QLineEdit()
+        self.frame_search_input.setContentsMargins(0, 0, 30, 0)
+        self.frame_search_input.setPlaceholderText("نمبر فاکتور...")
+        self.frame_search_input.setFixedSize(200, 40)
+        self.frame_search_input.setStyleSheet("""
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -97,23 +101,23 @@ class ChangingFactor(QMainWindow):
             font-weight: bold;
             padding: 5px;
         """)
-        frame_layout.addWidget(frame_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.frame_search_input.textChanged.connect(self.auto_search)
+        frame_layout.addWidget(self.frame_search_input, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(8)
         shadow.setXOffset(0)
         shadow.setYOffset(5)
         shadow.setColor(QColor(0, 0, 0, 70))
-        frame_search_input.setGraphicsEffect(shadow)
-
-        table = QTableWidget(0, 7)
-        table.setHorizontalHeaderLabels(["نام", "بارکد", "تاریخ", "قیمت", "تعداد", "تخفیف", "مجموعه"])
-        table.verticalHeader().setVisible(False)
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        table.setFixedWidth(1000)  # این قسمت عرض جدول را محدود می‌کند
-        table.setFixedHeight(300)
-        table.setStyleSheet("""
+        self.frame_search_input.setGraphicsEffect(shadow)
+        ##
+        table_layout= QVBoxLayout()
+        self.table = QTableWidget(0, 9)
+        self.table.setHorizontalHeaderLabels(["نام", "بارکد", "تاریخ", "قیمت", "تعداد", "واحد","تخفیف", "مجموعه","عملیات"])
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setStyleSheet("""
             QTableWidget {
                 border: 2px solid black;
                 color: black;
@@ -131,10 +135,16 @@ class ChangingFactor(QMainWindow):
                 font-weight: bold;
             }
         """)
-        table.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        # responsive size policy (both horizontal and vertical expanding)
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.table.itemChanged.connect(self.calculate_total_price)
+        table_layout.setContentsMargins(20,0,20,0)
+
+        # اضافه کردن بدون alignment برای اجازه رشد کامل
+        table_layout.addWidget(self.table)
         
-        frame_layout.addWidget(table, alignment=Qt.AlignmentFlag.AlignCenter)
+        frame_layout.addLayout(table_layout)
         frame_layout.addStretch()
 
         button_layout = QHBoxLayout()
@@ -166,6 +176,7 @@ class ChangingFactor(QMainWindow):
         save_button.setIconSize(QSize(24, 24))
         save_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         save_button.setFixedSize(120, 40)
+        save_button.clicked.connect(self.change_factor)
         save_button.setStyleSheet("""
             QPushButton {
                 background-color: #00cc66;
@@ -201,7 +212,320 @@ class ChangingFactor(QMainWindow):
         invisible_frame_layout.addWidget(invisible_frame)
 
         return invisible_frame
+    ##
+    def back_settings(self):
+        from settings import Settings
+        self.settings_main= Settings()
+        self.stack_items.addWidget(self.settings_main)
+        self.stack_items.setCurrentWidget(self.settings_main)
+        self.settings_main.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        
+        ##animation:
+        start_pos= QPoint(-self.width(),0)
+        end_pos= QPoint(0,0)
+        self.settings_main.move(start_pos)
+        ##
+        animation= QPropertyAnimation(self.settings_main, b'pos',self)
+        animation.setDuration(700)
+        animation.setStartValue(start_pos)
+        animation.setEndValue(end_pos)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        animation.start() 
+    ##
+    def auto_search(self):
+        text= self.frame_search_input.text().strip()
+        if text:
+            self.search_factor()
+    def keyPressEvent(self, event):
+        pass
+    ##
+    def _make_cell(self, text):
+        item = QTableWidgetItem(text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item.setForeground(Qt.GlobalColor.black)
+        return item
+    ##
+    def search_factor(self):
+        search= str(self.frame_search_input.text())
+        real_quantity=0
+        item_price=0
+        if not search:
+            MessageBox(text="لطفاً نمبر فاکتور را وارد کنید",title="هشدار",type="warning").show()
+            return
+        base_dir= os.path.dirname(os.path.abspath(__file__))
+        root_dir= os.path.dirname(base_dir)
+        db_path= os.path.join(root_dir, "Data","sh_online.db")
+        if not os.path.exists(db_path):
+            print("مسیر یافت نشد")
+            return
+        try:
+            conn= sqlite3.connect(db_path)
+            cursor= conn.cursor()
+            
+            cursor.execute('''
+                SELECT sale_id,product_name,barcode,sale_date,sale_price,quantity,product_type,sale_type,discount,total
+                    FROM sale_factor WHERE factor_number= ?
+            ''',(search,))
+            search_result= cursor.fetchall()
+            self.denied_buttons= []
+            list_sa= {}
+            self.table.setRowCount(0)
+            if search_result:
+                for (sale_id,product_name,barcode,sale_date,sale_price,quantity,product_type,sale_type,discount,total) in search_result:
+                    cursor.execute("select big_quantity,buy_price,big_price from products where barcode = ?",(barcode,))
+                    reuslt= cursor.fetchone()
+                    big_qunatity= reuslt[0]
+                    buy_price= reuslt[1]
+                    big_price= reuslt[2]
+                    buy_price =float(buy_price) if buy_price else 0
+                    big_price= float(big_price) if big_price else 0
+                    item_price= float(buy_price / big_qunatity)
+                    
+                    self.sale_ids.append(sale_id)
+                    if sale_type== "عمده":
+                        real_quantity= quantity / big_qunatity
+                    elif sale_type== "پرچون":
+                        real_quantity = quantity
+                    print(f"qunatity in search:{real_quantity}")
+                    row= self.table.rowCount()
+                    self.table.insertRow(row)
+                    self.table.setItem(row,0,QTableWidgetItem(self._make_cell(product_name)))
+                    self.table.setItem(row,1, QTableWidgetItem(self._make_cell(str(barcode))))
+                    self.table.setItem(row,2,QTableWidgetItem(self._make_cell(sale_date)))
+                    self.table.setItem(row,3, QTableWidgetItem(self._make_cell(str(sale_price))))
+                    self.table.setItem(row,4, QTableWidgetItem(self._make_cell(str(real_quantity))))
+                    self.table.setItem(row,5,QTableWidgetItem(self._make_cell(product_type)))
+                    self.table.setItem(row,6, QTableWidgetItem(self._make_cell(str(discount))))
+                    self.table.setItem(row,7, QTableWidgetItem(self._make_cell(str(total))))
+                    # ایجاد دیکشنری اطلاعات فقط برای همین سطر
+                    list_sa = {
+                        "sale_id" : sale_id,
+                        "buy_price" : buy_price,
+                        "sale_type": sale_type,
+                        "item_price" : item_price,
+                        "big_price" : big_price,
+                        "big_quantity" : big_qunatity
+                    }
+                    self.sale_list.append(list_sa)
+                    
+                    ##
+                    self.edit_btn= QPushButton()
+                    self.edit_btn.setIcon(QIcon(self.get_asset_path("Edit.png")))
+                    self.edit_btn.setIconSize(QSize(25,25))
+                    self.edit_btn.setStyleSheet('background-color: transparent;')
+                    #
+                    self.reject_btn= QPushButton()
+                    self.reject_btn.setIcon(QIcon(self.get_asset_path("MacOS Close.png")))
+                    self.reject_btn.setIconSize(QSize(25,25))
+                    self.reject_btn.setStyleSheet('''
+                        QPushButton {
+                        background-color: transparent;
+                            }
+                        ''')
+                    # ویجت و لایه برای دکمه‌ها
+                    btn_widget = QWidget()
+                    btn_layout = QHBoxLayout(btn_widget)
+                    btn_layout.setContentsMargins(0, 0, 0, 0)
+                    btn_layout.setSpacing(5)
+                    btn_layout.addWidget(self.reject_btn)
+                    btn_layout.addWidget(self.edit_btn)
+                    btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    btn_widget.setStyleSheet('background-color: transparent;')
+                    self.table.setCellWidget(row,8,btn_widget)
+                    
+                    self.edit_btn.clicked.connect(self.enable_edit_mode)
+                    self.denied_buttons.append(self.reject_btn)
+                    self.denied_buttons.append(self.edit_btn)
+                else:
+                    MessageBox(text="فاکتور پیدا نشد",title="مشکل",type="error")
 
+
+        except sqlite3.Error as e:
+            print(f"problem db search:{e}")
+        
+    ##
+    def calculate_total_price(self, item):
+        row = item.row()
+        col = item.column()
+
+        # فقط اگر ستون قیمت (1)، تعداد (2) یا تخفیف (4) تغییر کرد
+        if col in [3, 4, 6]:
+            try:
+                price = float(self.table.item(row, 3).text())
+                count = float(self.table.item(row, 4).text())
+                discount = float(self.table.item(row, 6).text())
+
+                total = (price * count) - discount
+                total_item = QTableWidgetItem(self._make_cell(str(round(total, 2))))
+                total_item.setFlags(total_item.flags() ^ Qt.ItemFlag.ItemIsEditable)  # غیرفعال‌سازی ویرایش برای قیمت کل
+                total_item.setForeground(QBrush(Qt.GlobalColor.black))  # متن سیاه
+                self.table.setItem(row, 7, total_item)
+
+            except Exception as e:
+                print("خطا در محاسبه قیمت کل:", e)
+    ##
+    def enable_edit_mode(self):
+        button = self.sender()  # دکمه‌ای که کلیک شده
+
+        for row in range(self.table.rowCount()):
+            cell_widget = self.table.cellWidget(row, 8)  # ستون 8 = ویجت دکمه‌ها
+            if cell_widget:
+                # بررسی اینکه این دکمه داخل این ویجت هست یا نه
+                if button in cell_widget.findChildren(QPushButton):
+                    # فعال‌سازی حالت ویرایش
+                    self.table.setEditTriggers(QAbstractItemView.EditTrigger.AllEditTriggers)
+
+                    # انتخاب ردیف و سلول اول
+                    self.table.setCurrentCell(row, 0)
+                    item = self.table.item(row, 0)
+                    if item:
+                        self.table.editItem(item)
+                    break
+
+
+    ##
+    def change_factor(self):
+        selected_row = self.table.currentRow()
+        total_profit = 0
+        real_quantity= 0
+
+        if selected_row < 0:
+            MessageBox(text="هیچ ردیفی برای بروزرسانی انتخاب نشده", title="اخطار", type="warning").show()
+            return
+
+        if selected_row >= len(self.sale_ids):
+            MessageBox(text="شناسه فاکتور یافت نشد", title="خطا", type="warning").show()
+            return
+
+        sale_id = self.sale_ids[selected_row]
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, "Data", "sh_online.db")
+
+        if not os.path.exists(db_path):
+            print("مسیر پایگاه‌داده یافت نشد")
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            sale_date = self.table.item(selected_row, 2).text()
+            price = float(self.table.item(selected_row, 3).text())
+            quantity = float(self.table.item(selected_row, 4).text())
+            discount = float(self.table.item(selected_row, 6).text())
+            total = float(self.table.item(selected_row, 7).text())
+
+            # فیلتر لیست برای آیتم‌های همین فاکتور
+            item_list = [i for i in self.sale_list if i['sale_id'] == sale_id]
+
+            for profit_co in item_list:
+                buy_price = profit_co['buy_price']
+                sale_type = profit_co['sale_type'].strip() if profit_co['sale_type'] else ""
+                item_price = profit_co['item_price']
+                big_price= profit_co['big_price']
+                big_quantity= profit_co['big_quantity']
+
+                print(f"[DEBUG] sale_type: '{sale_type}'")  # بررسی مقدار واقعی
+
+                
+                if sale_type == "عمده":
+                    print(f"price={price}, buy_price={buy_price}, discount={discount}, quantity={quantity}")
+                    part_profit = float((big_price - buy_price - discount) * quantity)
+                    print(f"سود جزئی: {part_profit}")
+                    total_profit += part_profit
+                    real_quantity = float(quantity * big_quantity)
+                elif sale_type =="پرچون":
+                    total_profit += float((price - item_price - discount) * quantity)
+                    real_quantity = quantity
+
+                
+
+            print(f"total profit: {total_profit}")
+
+            cursor.execute('''
+                UPDATE sale_factor SET 
+                    sale_date=?, sale_price=?, quantity=?, discount=?, profit=?, total=?, sync=0
+                WHERE sale_id=? AND sale_type= ?
+            ''', (sale_date, price, real_quantity, discount, total_profit, total, sale_id,sale_type))
+            conn.commit()
+
+            MessageBox(text="اطلاعات فاکتور موفقانه تغییر کرد", title="موفقانه", type="info").show()
+            self.frame_search_input.clear()
+            self.table.setRowCount(0)
+
+        except sqlite3.Error as e:
+            print(f"خطا هنگام بروزرسانی پایگاه‌داده: {e}")
+
+    ##
+    def syncs_to_server(self):
+        db_data = Connection().get_connection()
+        if not db_data:
+            print("no online connection!")
+            return
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, "Data", "sh_online.db")
+
+        if not os.path.exists(db_path):
+            print("مسیر پایگاه‌داده یافت نشد")
+            return
+
+        try:
+            # اتصال آفلاین
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+
+            cursor_sq.execute('''
+                SELECT
+                    barcode,sale_date, sale_price, quantity,
+                    discount, profit, total, user_id,sale_type
+                FROM sale_factor
+                WHERE sync=0
+            ''')
+            unsynced_products = cursor_sq.fetchall()
+
+            cursor_online = db_data.cursor()
+            for product in unsynced_products:
+                (barcode,sale_date, sale_price, quantity,
+                discount, profit, total, user_id,sale_type) = product
+
+                cursor_online.execute('''
+                    UPDATE sale_factor SET
+                    sale_date=%s, sale_price=%s,quantity=%s,
+                    discount=%s,profit=%s,total=%s
+                    WHERE user_id=%s AND barcode=%s AND sale_type= %s
+                ''', (sale_date, sale_price, quantity,
+                    discount, profit, total, user_id,barcode,sale_type))
+                ## update products
+                cursor_sq.execute("UPDATE products SET is_synced=0 where barcode=?",(barcode,))
+                print(f"✅ همگام‌سازی موفق بود{barcode}")
+
+            db_data.commit()
+
+            # بعد از موفقیت، جدول آفلاین را بروز کن
+            
+            cursor_sq.execute("UPDATE sale_factor SET sync = 1 WHERE sync = 0")
+            conn_sq.commit()
+
+            
+
+        except Exception as e:
+            print(f"❌ خطا در همگام‌سازی داده‌های آفلاین و آنلاین: {e}")
+
+    ##
+    def auto_sync(self):
+        self.syc_timer= QTimer(self)
+        self.syc_timer.timeout.connect(self.start_sync)
+        self.syc_timer.start(12*1000)
+    def start_sync(self):
+        sync_thread= threading.Thread(target=self.syncs_to_server)
+        sync_thread.setDaemon(True)
+        sync_thread.start()
+
+    ##
 
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -231,8 +555,3 @@ class ChangingFactor(QMainWindow):
                     if families:
                         pass
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = ChangingFactor()
-    window.show()
-    sys.exit(app.exec())

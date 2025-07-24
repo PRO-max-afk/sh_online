@@ -5,6 +5,7 @@ import time
 import os
 import requests
 from message_b import MessageBox
+from db_connection import Connection
 
 class OrderInformation(QThread):
     new_order_info = pyqtSignal(list)  # لیستی از دیکشنری‌ها شامل اطلاعات محصولات
@@ -19,7 +20,7 @@ class OrderInformation(QThread):
 
     def run(self):
         while self.running:
-            db_config = self.get_db_config()
+            db_config = Connection().get_connection()
             if not db_config:
                 time.sleep(5)
                 continue
@@ -134,7 +135,7 @@ class OrderInformation(QThread):
     ##
     def accept_order(self):
         try:
-            db_check = self.get_db_config()
+            db_check =Connection().get_connection()
             if not db_check:
                 return False
             
@@ -160,19 +161,13 @@ class OrderInformation(QThread):
             id_user = res_id[0]
             sale_number= sal_num[0]
 
-            conn = pymysql.connect(
-                host=db_check["host"],
-                user=db_check["user"],
-                password=db_check["password"],
-                database=db_check["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_check.cursor()
             print("✔️ sale_number:", self.sale_number)
 
             cursor.execute("UPDATE orders SET approve=1 WHERE user_id=%s AND sale_number=%s", (id_user, sale_number))
             print("📝 تعداد رکوردهای به‌روز شده:", cursor.rowcount)
-            conn.commit()
-            conn.close()
+            db_check.commit()
+            db_check.close()
             return True
         except Exception as e:
             print(f"{e}: خطا در تایید سفارش")
@@ -180,7 +175,7 @@ class OrderInformation(QThread):
     ##
     def denied_order(self):
         try:
-            db_check = self.get_db_config()
+            db_check = Connection().get_connection()
             if not db_check:
                 return False
             
@@ -206,16 +201,10 @@ class OrderInformation(QThread):
             id_user = res_id[0]
             sale_number= sal_num[0]
 
-            conn = pymysql.connect(
-                host=db_check["host"],
-                user=db_check["user"],
-                password=db_check["password"],
-                database=db_check["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_check.cursor()
             cursor.execute("UPDATE orders SET denied=1 WHERE user_id=%s AND sale_number=%s", (id_user, sale_number))
-            conn.commit()
-            conn.close()
+            db_check.commit()
+            db_check.close()
             return True
         except Exception as e:
             print(f"{e}: خطا در تایید سفارش")
@@ -224,7 +213,7 @@ class OrderInformation(QThread):
     def reject_order(self, product_id: int) -> bool:
         try:
             # بررسی فایل کانفیگ اتصال آنلاین
-            db_check = self.get_db_config()
+            db_check = Connection().get_connection()
             if not db_check:
                 print("❌ تنظیمات دیتابیس یافت نشد.")
                 return False
@@ -253,13 +242,7 @@ class OrderInformation(QThread):
             message= "محصول از طرف فروشگاه رد شد"
 
             # اتصال به MySQL
-            conn = pymysql.connect(
-                host=db_check["host"],
-                user=db_check["user"],
-                password=db_check["password"],
-                database=db_check["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_check.cursor()
 
             # بررسی اینکه آیا این سفارش وجود دارد و قابل رد شدن هست یا نه
             cursor.execute("""
@@ -270,7 +253,7 @@ class OrderInformation(QThread):
 
             if result:
                 cursor.execute("UPDATE orders SET message= %s, denied=1 WHERE id=%s", (message,product_id))
-                conn.commit()
+                db_check.commit()
                 print(f"⛔ رد سفارش با ID = {product_id}")
                 return True
             else:
@@ -283,42 +266,8 @@ class OrderInformation(QThread):
 
         finally:
             try:
-                conn.close()
+                db_check.close()
             except:
                 pass
 
-    ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
+    

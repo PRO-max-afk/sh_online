@@ -190,8 +190,8 @@ class WidgetManager(QWidget):
                 min-height: 20px;
                 border-radius: 5px;
             }
-         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+
+        
         self.table.setItemDelegate(BlackTextDelegate())   QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
@@ -200,7 +200,8 @@ class WidgetManager(QWidget):
             }
         """)
 
-        
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.table.itemChanged.connect(self.calculate_total_price)
         ###
         table_layout.addLayout(self.factor_layout)

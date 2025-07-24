@@ -12,6 +12,7 @@ import datetime
 from message_b import MessageBox
 import os
 import requests
+from db_connection import Connection
 
 
 class BuyThread(QThread):
@@ -37,7 +38,8 @@ class BuyThread(QThread):
         
 
     def run(self):
-        if self.get_db_config():
+        self.db_connect= Connection().get_connection()
+        if self.db_connect():
             # اول ماهانه، اگر تنظیم شده
             if self.selected_month:
                 self.month_buy()
@@ -62,7 +64,7 @@ class BuyThread(QThread):
     
     ###
     def month_buy(self):
-        db_data = self.get_db_config()
+        db_data = Connection().get_connection()
         if not db_data:
             print("server errors😣")
             return
@@ -88,14 +90,7 @@ class BuyThread(QThread):
             return
 
         try:
-            # اتصال به دیتابیس آنلاین
-            conn = pymysql.connect(
-                host=db_data["host"],
-                user=db_data["user"],
-                password=db_data["password"],
-                database=db_data["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_data.cursor()
 
             # دریافت خریدهای آنلاین
             cursor.execute('''
@@ -283,19 +278,13 @@ class BuyThread(QThread):
             print("❌ user_id یافت نشد.")
             return
 
-        db_data = self.get_db_config()
+        db_data = Connection().get_connection()
         if not db_data:
             print("❌ تنظیمات اتصال دیتابیس یافت نشد.")
             return
 
         try:
-            conn = pymysql.connect(
-                host=db_data["host"],
-                user=db_data["user"],
-                password=db_data["password"],
-                database=db_data["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_data.cursor()
 
             cursor.execute("""
                 SELECT buy_date, total 
@@ -406,18 +395,12 @@ class BuyThread(QThread):
         if not user_id:
             return
 
-        db_data = self.get_db_config()
+        db_data = Connection().get_connection()
         if not db_data or not self.selected_month:
             return
 
         try:
-            conn = pymysql.connect(
-                host=db_data["host"],
-                user=db_data["user"],
-                password=db_data["password"],
-                database=db_data["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_data.cursor()
             cursor.execute("""
                 SELECT buy_date, total 
                 FROM inventory_log 
@@ -520,40 +503,3 @@ class BuyThread(QThread):
         })
 
     
-    
-    ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-

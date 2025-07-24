@@ -12,6 +12,7 @@ import datetime
 from message_b import MessageBox
 import os
 import requests
+from db_connection import Connection
 
 
 class SaleThread(QThread):
@@ -37,7 +38,8 @@ class SaleThread(QThread):
         
 
     def run(self):
-        if self.get_db_config():
+        self.db_data= Connection().get_connection()
+        if self.db_data():
             # اول ماهانه، اگر تنظیم شده
             if self.selected_month:
                 self.month_sale()
@@ -56,7 +58,7 @@ class SaleThread(QThread):
     
     ###
     def month_sale(self):
-        db_data= self.get_db_config()
+        db_data= Connection().get_connection()
         if not db_data:
             print("server errors😣")
             return
@@ -79,13 +81,7 @@ class SaleThread(QThread):
             return
         
         try:
-            conn = pymysql.connect(
-                host=db_data["host"],
-                user=db_data["user"],
-                password=db_data["password"],
-                database=db_data["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_data.cursor()
 
             # 🔹 آفلاین (بدون استفاده از پارامتر اشتباه)
             cursor.execute('''
@@ -304,7 +300,7 @@ class SaleThread(QThread):
             print(f"❌ خطای دیتابیس آفلاین: {e}")
     ##
     def week_sale_off(self):
-        db_data = self.get_db_config()
+        db_data = Connection().get_connection()
         if not db_data:
             print("server errors😣")
             return
@@ -329,13 +325,8 @@ class SaleThread(QThread):
             return
 
         try:
-            conn = pymysql.connect(
-                host=db_data["host"],
-                user=db_data["user"],
-                password=db_data["password"],
-                database=db_data["database"]
-            )
-            cursor = conn.cursor()
+            
+            cursor = db_data.cursor()
 
             # دریافت داده‌های آفلاین
             cursor.execute('''
@@ -520,7 +511,7 @@ class SaleThread(QThread):
 
     ##
     def day_off(self):
-        db_data = self.get_db_config()
+        db_data = Connection().get_connection()
         if not db_data:
             print("server errors😣")
             return
@@ -544,13 +535,7 @@ class SaleThread(QThread):
             return
 
         try:
-            conn = pymysql.connect(
-                host=db_data["host"],
-                user=db_data["user"],
-                password=db_data["password"],
-                database=db_data["database"]
-            )
-            cursor = conn.cursor()
+            cursor = db_data.cursor()
 
             cursor.execute('''
                 SELECT sale_date, total, profit
@@ -725,39 +710,4 @@ class SaleThread(QThread):
 
         except sqlite3.Error as e:
             print(f"❌ خطای دیتابیس آفلاین: {e}")
-    ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
+    

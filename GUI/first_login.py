@@ -11,6 +11,7 @@ import pymysql
 import ntplib
 import pytz
 from datetime import datetime
+from db_connection import Connection
 
 
 
@@ -167,7 +168,7 @@ class Main_login(QMainWindow):
         self.frame.setLayout(frame_layout)
 
         self.InUI()
-        self.db_data= self.get_db_config()
+        self.db_data= Connection().get_connection()
         self.load_all_fonts()
         
     
@@ -408,44 +409,7 @@ class Main_login(QMainWindow):
         except Exception:
             base_path = os.path.abspath(".")
         return os.path.join(base_path, relative_path)
-    # دریافت اطلاعات دیتابیس از سرور
-    def get_db_config(self):
-        import requests
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
-    ## 
+    ##
     def user_login(self):
         username = self.username_input.line_edit.text()
         password = self.password_input.line_edit.text()
@@ -458,7 +422,7 @@ class Main_login(QMainWindow):
             MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
             return False
 
-        conn = None
+        conn = Connection().get_connection()
         cursor = None
         conn_sq = None
         cursor_sq = None
@@ -481,13 +445,7 @@ class Main_login(QMainWindow):
             kabul_time = pytz.utc.localize(utc_time).astimezone(kabul_tz)
             expire_date = kabul_time.strftime('%Y-%m-%d %H:%M:%S')
 
-            # اتصال به دیتابیس اصلی (MySQL)
-            conn = pymysql.connect(
-                host=self.db_data["host"],
-                user=self.db_data["user"],
-                password=self.db_data["password"],
-                database=self.db_data["database"]
-            )
+           
             cursor = conn.cursor()
 
             # چک کردن اطلاعات کاربر
@@ -571,4 +529,3 @@ if __name__ == "__main__":
     window = Main_login()
     window.show()
     sys.exit(app.exec())
-

@@ -15,7 +15,7 @@ from switch import ToggleSwitch
 from message_b import MessageBox
 from switch import ToggleSwitch
 import os
-import sys
+from db_connection import Connection
 
 class BlackTextDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -124,6 +124,13 @@ class Harvest(QMainWindow):
         main_layout.addLayout(top_layout)
         main_layout.addLayout(middle_layout, 3)
         main_layout.addWidget(table_frame,2)
+        # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
+        self.notification_frame = QFrame(self)
+        self.notification_frame.setStyleSheet("background: transparent;")
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.notification_frame.raise_()
+        
         self.stack_harvest.addWidget(self.harvest_page)
         
     ###  
@@ -450,6 +457,7 @@ class Harvest(QMainWindow):
 
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
         return chart_view
     ##
     def keyPressEvent(self, event):
@@ -523,44 +531,8 @@ class Harvest(QMainWindow):
             conn.close()
 
     ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
-    ##
     def synced_harvest_to_server(self):
-        data= self.get_db_config()
+        data= Connection().get_connection()
         if not data:
             print("no connection to the server to send info")
             return
@@ -577,20 +549,14 @@ class Harvest(QMainWindow):
         ''')
         un_synced= cursor_sq.fetchall()
         try:
-            conn= pymysql.connect(
-                host= data["host"],
-                user= data["user"],
-                password= data["password"],
-                database= data["database"]
-            )
-            cursor= conn.cursor()
+            cursor= data.cursor()
             for row in un_synced:
                 (name,amount,har_type,date,description,user_id)= row
 
                 cursor.execute("INSERT INTO harvest (name,amount,har_type,date,description,user_id) VALUES(%s,%s,%s,%s,%s,%s)",
                                (name,amount,har_type,date,description,user_id))
                 print("info harvest successfully entered to server ✅")
-                conn.commit()
+                data.commit()
 
                 cursor_sq.execute('UPDATE harvest set is_synced = 1 WHERE is_synced=0')
                 conn_sq.commit()

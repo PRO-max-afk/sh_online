@@ -9,6 +9,7 @@ import sqlite3
 from message_b import MessageBox
 import os
 import requests
+from db_connection import Connection
 
 class YearThread(QThread):
     year_data= pyqtSignal(list)
@@ -22,7 +23,8 @@ class YearThread(QThread):
         self.year_selected= selected_year
     ##
     def run(self):
-        if self.get_db_config():
+        self.db_connect= Connection().get_connection()
+        if self.db_connect:
             if self.year_selected:
                 self.year_datas()
             else:
@@ -44,7 +46,7 @@ class YearThread(QThread):
         from datetime import datetime
         import jdatetime
 
-        data = self.get_db_config()
+        data = Connection().get_connection()
         if not data:
             self.year_datas_offline()
             print("خطا در اتصال به سرور")
@@ -71,13 +73,8 @@ class YearThread(QThread):
             return
 
         try:
-            conn = pymysql.connect(
-                host=data["host"],
-                user=data["user"],
-                password=data["password"],
-                database=data["database"]
-            )
-            cursor = conn.cursor()
+            
+            cursor = data.cursor()
 
             years_inventories = set()
             cursor.execute("SELECT created_at FROM inventories WHERE user_id = %s", (id_user,))
@@ -347,7 +344,7 @@ class YearThread(QThread):
 
     ###
     def full_data(self):
-        data= self.get_db_config()
+        data= Connection().get_connection()
         if not data:
             self.full_data_offline()
             print("خطا در اتصال به سرور")
@@ -374,12 +371,7 @@ class YearThread(QThread):
         
         ##online db
         try:
-            conn= pymysql.connect(
-                host= data["host"],
-                user= data["user"],
-                password= data["password"],
-                database= data["database"])
-            cursor= conn.cursor()
+            cursor= data.cursor()
             
             cursor.execute('''
             SELECT SUM(total) FROM sale_factor WHERE user_id = %s
@@ -542,46 +534,12 @@ class YearThread(QThread):
             print("❌ خطا در full_data_offline:", e)
 
     ##
-    def get_db_config(self):
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-    ##
     def fetch_years_only(self):
         from datetime import datetime
         import jdatetime
 
         self.available_years = set()
-        data = self.get_db_config()
+        data = Connection().get_connection()
         if not data:
             self.fetch_years_only_offline()
             return
@@ -604,13 +562,7 @@ class YearThread(QThread):
             return
 
         try:
-            conn = pymysql.connect(
-                host=data["host"],
-                user=data["user"],
-                password=data["password"],
-                database=data["database"]
-            )
-            cursor = conn.cursor()
+            cursor = data.cursor()
             cursor.execute("SELECT created_at FROM inventories WHERE user_id = %s", (id_user,))
             for row in cursor.fetchall():
                 created_at = row[0]

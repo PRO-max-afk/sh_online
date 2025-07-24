@@ -1,15 +1,13 @@
-from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QToolButton,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
-from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal,QPoint,QPropertyAnimation,QEasingCurve
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase
+from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout,QToolButton,
+    QSizePolicy,QScrollArea,QWidget,QGridLayout)
+from PyQt6.QtCore import Qt,QPoint,QPropertyAnimation,QEasingCurve
+from PyQt6.QtGui import QIcon,QFontDatabase
 from PyQt6 import QtCore
 import jdatetime
 import os
-from decimal import Decimal
-import threading
 from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
-    QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
+    QLabel,QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
 
 
@@ -137,7 +135,7 @@ class Settings(QMainWindow):
         self.store_settings.clicked.connect(self.shop_se_page)
         self.item_settings.clicked.connect(self.item_page)
         self.log_out.clicked.connect(self.open_login_with_animation)
-        
+        self.sale_settings.clicked.connect(self.sale_change)        
         # آیکون و متن‌ها
         buttons_info = [
             (self.store_settings, "grocery-store_16893316.png", "تنظیمات فروشگاه"),
@@ -279,6 +277,20 @@ class Settings(QMainWindow):
         self.anim.setEndValue(QPoint(0, 0))
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.anim.start()
+    ##
+    def sale_change(self):
+        from change_sale import ChangingFactor
+        self.ch_sale= ChangingFactor()
+        self.stack.addWidget(self.ch_sale)
+        
+        self.user_settings.move(self.width(), 0)
+        self.stack.setCurrentWidget(self.ch_sale)
+        animation= QPropertyAnimation(self.ch_sale, b"pos",self)
+        animation.setDuration(700)
+        animation.setStartValue(QPoint(self.stack.width(), 0))
+        animation.setEndValue(QPoint(0,0))
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        animation.start() 
     ##
     def open_login_with_animation(self):
         from first_login import Main_login

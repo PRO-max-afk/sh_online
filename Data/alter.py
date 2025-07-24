@@ -3,6 +3,6 @@ import sqlite3
 conn= sqlite3.connect('D:\\projects\\sh_online\\Data\\sh_online.db')
 cursor= conn.cursor()
 
-cursor.execute("alter table products add column type_save Text;")
+cursor.execute("alter table sale_factor add column sync INTEGER;")
 conn.commit()
 conn.close()

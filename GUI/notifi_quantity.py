@@ -13,6 +13,7 @@ import time
 import os
 import requests
 from message_b import MessageBox
+from db_connection import Connection
 
 class NotificationQuantity(QThread):
     new_message = pyqtSignal(str, str)  # ارسال همزمان product_name و message
@@ -26,7 +27,7 @@ class NotificationQuantity(QThread):
 
     def run(self):
         while self.running:
-            db_config = self.get_db_config()
+            db_config = Connection().get_connection()
             if not db_config:
                 time.sleep(5)
                 continue
@@ -51,13 +52,8 @@ class NotificationQuantity(QThread):
                 return
 
             try:
-                conn = pymysql.connect(
-                    host=db_config["host"],
-                    user=db_config["user"],
-                    passwd=db_config["password"],
-                    database=db_config["database"]
-                )
-                cursor = conn.cursor()
+                
+                cursor = db_config.cursor()
 
                 # پیام محصول
                 cursor.execute("""
@@ -99,44 +95,10 @@ class NotificationQuantity(QThread):
                         self.shown_messages.add(unique_key)
                         self.new_message.emit(pro_name, message)
 
-                conn.close()
+                db_config.close()
             except pymysql.MySQLError as e:
                 print(f"{e} : خطا در اتصال یا کوئری به دیتابیس")
 
             time.sleep(2)
 
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
+   

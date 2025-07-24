@@ -145,13 +145,12 @@ class Dashboard(QMainWindow):
         self.main_layout.addLayout(top_layout)
         self.main_layout.addLayout(middle_layout)
         #self.main_layout.addLayout(self.run_layout)
-
-    
-        ###
-        self.stack_widget.addWidget(self.sell_r_page)
-
-
-       
+        # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
+        self.notification_frame = QFrame(self)
+        self.notification_frame.setStyleSheet("background: transparent;")
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.notification_frame.raise_()
         ###
         self.stack_widget.addWidget(self.sell_r_page)
 

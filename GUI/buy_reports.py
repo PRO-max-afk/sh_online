@@ -347,6 +347,13 @@ class BuyDashboard(QMainWindow):
         self.week_layout.addWidget(self.week_chart_view)
         self.day_layout.addWidget(self.day_chart)
         ###
+        # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
+        self.notification_frame = QFrame(self)
+        self.notification_frame.setStyleSheet("background: transparent;")
+        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.notification_frame.raise_()
+        ###
         self.stack_widget.addWidget(self.sell_r_page)
 
     ##

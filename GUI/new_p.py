@@ -23,6 +23,7 @@ import sqlite3
 from  ftplib import FTP
 import ntpath
 from PIL import Image
+from db_connection import Connection
 
 class ProductForm(QDialog):
     def __init__(self,inventory_page):
@@ -716,44 +717,7 @@ class ProductForm(QDialog):
             self.img_preveiw.setPixmap(QPixmap(webp_path))
             self.image_path = webp_path
 
-        # دریافت اطلاعات دیتابیس از سرور
-   ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
-    ##
+ 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
             self.insert_product()
@@ -871,7 +835,7 @@ class ProductForm(QDialog):
             big_s = self.big_quantity
             print(self.big_quantity)
         ##
-        db_connection = self.get_db_config()
+        db_connection = Connection().get_connection()
 
         if f_ch == "انتخاب" and s_ch == "انتخاب":
             MessageBox(text="لطفاً اطلاعات را از باکس‌های انتخابی وارد کنید", title="هشدار", type="warning").show()
@@ -1020,13 +984,8 @@ class ProductForm(QDialog):
         synced = 0
         if db_connection and uploaded_to_ftp:
             try:
-                conn = pymysql.connect(
-                    host=db_connection["host"],
-                    user=db_connection["user"],
-                    password=db_connection["password"],
-                    database=db_connection["database"]
-                )
-                cursor = conn.cursor()
+                
+                cursor = db_connection.cursor()
 
                 cursor.execute('''
                     INSERT INTO inventories (barcode, product_name, category,sub_category,buy_date,buy_price, sell_price, big_price, big_category,quantity, expiration_dates, big_quantity,big_sub,
@@ -1044,15 +1003,15 @@ class ProductForm(QDialog):
                                more_detail,keep_place,invent_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
             ''',(weight,pro_date,brand,palce,status,data,place,invent_id))
                 
-                conn.commit()
+                db_connection.commit()
                 inserted_online = True
                 synced = 1
                 MessageBox("✅ محصول در سرور ذخیره شد", title="موفقانه", type="info").show()
             except Exception as e:
                 print("❌ خطا در اتصال به سرور:", e)
             finally:
-                if conn:
-                    conn.close()
+                if db_connection:
+                    db_connection.close()
 
         # ذخیره در دیتابیس آفلاین اگر سرور در دسترس نبود یا آپلود تصویر ناموفق بود
         if not inserted_online:
@@ -1122,7 +1081,7 @@ class ProductForm(QDialog):
    
     ##
     def sync_to_server(self):
-        db_connect = self.get_db_config()
+        db_connect = Connection().get_connection()
         if not db_connect:
             return
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1145,13 +1104,8 @@ class ProductForm(QDialog):
         unsynced_products = cursor_sq.fetchall()
 
         try:
-            conn = pymysql.connect(
-                host=db_connect["host"],
-                user=db_connect["user"],
-                password=db_connect["password"],
-                database=db_connect["database"]
-            )
-            cursor = conn.cursor()
+            
+            cursor = db_connect.cursor()
 
             for product in unsynced_products:
                 (local_product_id, barcode, name, category, sub_category, buy_date, buy_price,
@@ -1227,7 +1181,7 @@ class ProductForm(QDialog):
                             status, description, keep_place, invent_id
                         ))
 
-            conn.commit()
+            db_connect.commit()
             print("✅ همگام‌سازی با موفقیت انجام شد")
 
             # به‌روزرسانی SQLite
@@ -1240,8 +1194,8 @@ class ProductForm(QDialog):
 
         finally:
             conn_sq.close()
-            if conn:
-                conn.close()
+            if db_connect:
+                db_connect.close()
 
    
     

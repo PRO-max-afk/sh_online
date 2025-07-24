@@ -19,47 +19,12 @@ from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
+from db_connection import Connection
 
 class DataLoaderThread(QThread):
     data_loaded = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
-    ##
-    def get_db_config(self):
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
-        ## 
-    ##
+    
     def download_image_from_url(self, image_path):
         try:
             if not image_path:
@@ -102,21 +67,14 @@ class DataLoaderThread(QThread):
 
     ##
     def load_all_data(self):
-        self.db_data = self.get_db_config()
+        self.db_data = Connection().get_connection()
         if not self.db_data:
             self.error_occurred.emit("لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود")
             return
 
-        conn = None
+        conn = Connection().get_connection()
         conn_sq = None
         try:
-            # اتصال به دیتابیس اصلی (MySQL)
-            conn = pymysql.connect(
-                host=self.db_data["host"],
-                user=self.db_data["user"],
-                password=self.db_data["password"],
-                database=self.db_data["database"]
-            )
             cursor = conn.cursor()
             ###db address
             base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -349,7 +307,7 @@ class DataLoaderThread(QThread):
 
     ##
     def run(self):
-        if self.get_db_config():
+        if self.db_data():
             self.load_all_data()  # حالت آنلاین
         else:
             self.load_from_local_db()  # حالت آفلاین
@@ -732,46 +690,9 @@ class Inventory(QFrame):
         self.thread.start()
 
     ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
-    
-    ##
     def on_data_loaded(self, product_list):
         # زمانی که داده‌ها بارگذاری شدند
-        has_internet = self.get_db_config() is not None
+        has_internet = Connection().get_connection()
 
         for index, data in enumerate(product_list):
             product_box = ProductBox()

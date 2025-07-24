@@ -12,11 +12,11 @@ from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 import os
 from c_calendar import Calendar
-import requests
 import pymysql
 import sqlite3
 from  ftplib import FTP
 from list_p import ProductListPopup
+from db_connection import Connection
 
 
 class AddProduct(QDialog):
@@ -457,44 +457,6 @@ class AddProduct(QDialog):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
-
-        # دریافت اطلاعات دیتابیس از سرور
-    ##
-    def get_db_config(self):
-
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
     ##
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -751,7 +713,7 @@ class AddProduct(QDialog):
 
     ##
     def synced_to_server(self):
-        db_connect = self.get_db_config()
+        db_connect = Connection().get_connection()
         if not db_connect:
             return
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -774,13 +736,8 @@ class AddProduct(QDialog):
         unsynced_products = cursor_sq.fetchall()
 
         try:
-            conn = pymysql.connect(
-                host=db_connect["host"],
-                user=db_connect["user"],
-                password=db_connect["password"],
-                database=db_connect["database"]
-            )
-            cursor = conn.cursor()
+            
+            cursor = db_connect.cursor()
 
             for product in unsynced_products:
                 (name,barcode, buy_date, buy_price,
@@ -820,7 +777,7 @@ class AddProduct(QDialog):
                 else:
                     print(f"⚠️ محصول {barcode} در سرور پیدا نشد")
 
-            conn.commit()
+            db_connect.commit()
 
 
             # بروزرسانی SQLite
@@ -832,8 +789,8 @@ class AddProduct(QDialog):
 
         finally:
             conn_sq.close()
-            if conn:
-                conn.close()
+            if db_connect:
+                db_connect.close()
     ##
     def closeEvent(self, event):
         if self.inventory_page:
@@ -845,9 +802,6 @@ class AddProduct(QDialog):
         from discount import ProductDiscount
         discount= ProductDiscount()
         discount.exec()
-
-
-
 
 
 

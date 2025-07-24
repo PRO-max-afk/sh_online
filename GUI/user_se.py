@@ -15,6 +15,7 @@ from message_b import MessageBox
 from switch import ToggleSwitch
 import os
 import sys
+from db_connection import Connection
 
 class UserSettings(QMainWindow):
     def __init__(self):
@@ -550,7 +551,7 @@ class UserSettings(QMainWindow):
         confirm = self.ca_passwor_line.text()
 
         # دریافت اطلاعات اتصال
-        data = self.get_db_config()
+        data = Connection().get_connection()
 
         # بررسی خالی نبودن فیلدها
         if not all([name, last_name, username, passwrod, confirm]):
@@ -585,13 +586,8 @@ class UserSettings(QMainWindow):
             MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
             return
         try:
-            conn = pymysql.connect(
-                host=data["host"],
-                user=data["user"],
-                password=data["password"],
-                database=data["database"]
-            )
-            cursor = conn.cursor()
+            cursor = data.cursor()
+
             cursor.execute("SELECT limit_reach From user_s where id=%s",(id_user,))
             reach=cursor.fetchone()
             limit_reach= reach[0]
@@ -610,7 +606,7 @@ class UserSettings(QMainWindow):
                     "UPDATE mobile_user SET approve=1 WHERE username=%s",
                     (username,)
                 )
-                conn.commit()
+                data.commit()
                 self.name_line.clear()
                 self.last_line.clear()
                 self.user_line.clear()
@@ -641,7 +637,7 @@ class UserSettings(QMainWindow):
             print(f"{e}: خطا در اتصال به سرور")
     ##
     def update_password(self):
-        db_data = self.get_db_config()
+        db_data = Connection().get_connection()
         old = self.old_line.text()
         new = self.new_p_line.text()
         confirm = self.confirm_p_line.text()
@@ -677,13 +673,7 @@ class UserSettings(QMainWindow):
             return
 
         try:
-            conn = pymysql.connect(
-                host=db_data["host"],
-                user=db_data["user"],
-                password=db_data["password"],
-                database=db_data["database"]
-            )
-            curosr = conn.cursor()
+            curosr = db_data.cursor()
             curosr.execute("SELECT password FROM mobile_user WHERE user_id = %s AND password = %s", (id_user, old))
             result = curosr.fetchone()
             old_pass= result[0]
@@ -699,7 +689,7 @@ class UserSettings(QMainWindow):
 
             # بروزرسانی پسورد
             curosr.execute("UPDATE mobile_user SET password = %s WHERE user_id = %s and password=%s", (new, id_user,old))
-            conn.commit()
+            db_data.commit()
 
             notif = Notification(
                 message="پسورد موفقانه تغییر کرد",
@@ -717,41 +707,6 @@ class UserSettings(QMainWindow):
 
         except pymysql.Error as e:
             print(f"{e}: خطا در دیتابیس")
-    ##
-    def get_db_config(self):
-        url = "https://aryaict.com/connect.php"
-
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        cookies = {
-            'humans_21909': '1'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-
-            if response.status_code != 200:
-                print("⚠️ خطای ارتباطی:", response.status_code, response.text)
-                response.raise_for_status()
-
-            if "application/json" not in response.headers.get('Content-Type', ''):
-                raise ValueError("پاسخ سرور JSON نیست! محتوای پاسخ:\n" + response.text)
-
-            data = response.json()
-            required_keys = ("host", "user", "password", "database")
-            if not all(k in data for k in required_keys):
-                raise ValueError("پاسخ JSON ناقص است:\n" + str(data))
-
-            return data
-
-        except Exception as e:
-            print("❌ خطا در دریافت کانفیگ:", e)
-            return None
-
     ##
     def show_first_spinner(self):
         self.show_spinner_and_load_data()
@@ -800,15 +755,9 @@ class UserSettings(QMainWindow):
 
             def make_handler(uid, uname, switch_obj):
                 def handle_switch_toggled(state):
-                    db_info = self.get_db_config()
+                    db_info = Connection().get_connection()
                     try:
-                        conn = pymysql.connect(
-                            host=db_info["host"],
-                            user=db_info["user"],
-                            password=db_info["password"],
-                            database=db_info["database"]
-                        )
-                        cursor = conn.cursor()
+                        cursor = db_info.cursor()
                         if state:
                             cursor.execute("UPDATE mobile_user SET approve=1, denied=0 WHERE id=%s AND username=%s", (uid, uname))
                             msg = "کاربر فعال شد"
@@ -818,8 +767,8 @@ class UserSettings(QMainWindow):
                             msg = "کاربر غیر فعال شد"
                             icon = "alarm.png"
 
-                        conn.commit()
-                        conn.close()
+                        db_info.commit()
+                        db_info.close()
 
                         notif = Notification(
                             message=msg,

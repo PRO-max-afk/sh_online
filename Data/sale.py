@@ -20,6 +20,7 @@ Create TABLE IF NOT EXISTS sale_factor(
             total REAL NOT NULL,
             created_at TEXT,
             updated_at TEXT,
+            sync INTEGER,
             is_synced INTEGER DEFAULT 0
                )
 ''')
