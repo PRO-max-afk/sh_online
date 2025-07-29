@@ -628,6 +628,7 @@ class AddProduct(QDialog):
         date = datetime.date.today().strftime("%Y/%m/%d")
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
         type_save= "inventory"
+        final_total=0
 
         # بررسی کامل اعتبارسنجی فیلدها
         if not all([barcode, name, quantity, number, expire_date, buy_price, sale_price, big_sale]):
@@ -671,6 +672,7 @@ class AddProduct(QDialog):
                     new_avg_price = buy_price
 
                 total = ((old_price * old_quantity) + (buy_price * number))
+                final_total= total
                 ## مجموعه محصول
                 big_quantity= updated_quantity * bg_quantity
                 print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
@@ -682,12 +684,12 @@ class AddProduct(QDialog):
                     SET quantity = ?, buy_price = ?, update_date = ?, 
                         new_quantity = ?, expire_date = ?, big_sub=?,
                         sale_price = ?, big_price = ?, 
-                        total = ?, is_synced = ?,type_save=?,update_at=?
+                        total = ?,final_total=?, is_synced = ?,type_save=?,update_at=?
                     WHERE barcode = ?
                 """, (
                     big_quantity, new_avg_price, date, number,
                     expire_date,updated_quantity, sale_price, big_sale,
-                    total, is_synced,type_save,date_ent, barcode
+                    total,final_total, is_synced,type_save,date_ent, barcode
                 ))
 
                 conn_sq.commit()
@@ -730,7 +732,7 @@ class AddProduct(QDialog):
 
         cursor_sq.execute('''SELECT name,barcode,
                             buy_date, buy_price, sale_price, big_price,
-                            quantity, expire_date,new_price,discount_percent,expire_discount,big_sub, total,type_save,user_id,update_at
+                            quantity, expire_date,new_price,discount_percent,expire_discount,big_sub, total,final_total,type_save,user_id,update_at
                             FROM products WHERE is_synced = 0''')
 
         unsynced_products = cursor_sq.fetchall()
@@ -742,7 +744,7 @@ class AddProduct(QDialog):
             for product in unsynced_products:
                 (name,barcode, buy_date, buy_price,
                 sale_price, big_price, quantity, expire_date,new_price,discount_percent,expire_discount,big_sub,
-                total, type_save,user_id,update_at) = product
+                total,final_total, type_save,user_id,update_at) = product
 
                 # بررسی وجود محصول
                 cursor.execute("SELECT COUNT(*) FROM inventories WHERE barcode = %s AND user_id = %s", (barcode, user_id))
@@ -765,13 +767,14 @@ class AddProduct(QDialog):
                             expir_discount = %s,
                             big_sub= %s,
                             total = %s,
+                            final_total= %s,
                             type_save= %s,
                             updated_at = %s
                         WHERE barcode = %s AND user_id = %s
                     ''', (
                         name,barcode,quantity, buy_price, buy_date,
                         sale_price, big_price, expire_date,new_price,discount_percent,expire_discount,big_sub,
-                        total,type_save,update_at ,barcode, user_id
+                        total,final_total,type_save,update_at ,barcode, user_id
                     ))
                     print(f"✅ محصول {barcode} بروزرسانی شد")
                 else:

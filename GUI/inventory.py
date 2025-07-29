@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
+    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QStackedWidget,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase
 from PyQt6 import QtCore
@@ -11,7 +11,6 @@ from message_b import MessageBox
 from notifi_box import Notification
 from circle import CircularSpinner
 from notifi_check import NotificationChecker
-import pymysql
 from info_box import ProductBox
 from decimal import Decimal
 import threading
@@ -102,7 +101,7 @@ class DataLoaderThread(QThread):
             cursor.execute('''
                 SELECT product_name, barcode,category,sub_category,buy_date,buy_price, sell_price,
                            big_category,quantity, expiration_dates, product_image,store_name, 
-                           new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display,sale_unit, total,created_at
+                           new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display,sale_unit, total,final_total,created_at
                 FROM inventories
                 WHERE quantity > 0 and user_id = %s 
                 ORDER BY invent_id DESC
@@ -111,7 +110,7 @@ class DataLoaderThread(QThread):
 
             product_list = []
             for product in products:
-                name, barcode,category, sub_category,buy_date,buy_price, sale_price,big_category,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display, sale_unit,total,created_at= product
+                name, barcode,category, sub_category,buy_date,buy_price, sale_price,big_category,quantity, exp_date, image_path, store_name, new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display, sale_unit,total,final_total,created_at= product
                 image_path_local= self.download_image_from_url(image_path)
                 product_info = {
                     "name": name,
@@ -135,6 +134,7 @@ class DataLoaderThread(QThread):
                     "big_sub_display" : big_sub_display,
                     "sale_unit" : sale_unit,
                     "total": float(total) if isinstance(total, Decimal) else total,
+                    "final_total" : float(final_total) if isinstance(final_total,Decimal) else final_total,
                     "created_at" :created_at
                 }
                 product_list.append(product_info)
@@ -167,10 +167,10 @@ class DataLoaderThread(QThread):
         cursor = conn.cursor()
 
         for product in product_list:
-            if all(key in product for key in ["barcode", "name", "category","sub_category","buy_date","buy_price", "sale_price","big_category","store_name", "new_price", "discount_percent", "big_price","big_quantity" ,"big_sub","big_sub_display","total","sale_unit","quantity", "expire_date", "image_path", "user_id","created_at"]):
+            if all(key in product for key in ["barcode", "name", "category","sub_category","buy_date","buy_price", "sale_price","big_category","store_name", "new_price", "discount_percent", "big_price","big_quantity" ,"big_sub","big_sub_display","total","final_total","sale_unit","quantity", "expire_date", "image_path", "user_id","created_at"]):
                 
                 # بررسی وجود محصول با barcode
-                cursor.execute("SELECT COUNT(*) FROM products WHERE barcode = ?", (product["barcode"],))
+                cursor.execute("SELECT COUNT(*) FROM products WHERE barcode = ? AND user_id = ?", (product["barcode"], product["user_id"]))
                 exists = cursor.fetchone()[0]
 
                 if exists:
@@ -178,7 +178,7 @@ class DataLoaderThread(QThread):
                     cursor.execute('''
                         UPDATE products SET
                             barcode=?,name = ?, category=?,sub_category=?,buy_date=?,buy_price = ?, sale_price = ?, store_name = ?, new_price = ?, 
-                            discount_percent = ?, big_price = ?,big_quantity=?,big_sub=?, big_sub_display=?,total = ?, sale_unit=?,quantity = ?, expire_date = ?, 
+                            discount_percent = ?, big_price = ?,big_quantity=?,big_sub=?, big_sub_display=?,total = ?, final_total=?,sale_unit=?,quantity = ?, expire_date = ?, 
                             image_path = ?, user_id = ?,create_at =?
                         WHERE barcode = ?
                     ''', (
@@ -198,6 +198,7 @@ class DataLoaderThread(QThread):
                         product["big_sub"],
                         product["big_sub_display"],
                         product["total"],
+                        product["final_total"],
                         product["sale_unit"],
                         product["quantity"],
                         product["expire_date"],
@@ -205,13 +206,14 @@ class DataLoaderThread(QThread):
                         product["user_id"],
                         product["created_at"]
                     ))
+
                 else:
                     # اگر وجود نداشت: درج کن
                     cursor.execute('''
                         INSERT INTO products (barcode, name, category,sub_category,buy_date,
                                    buy_price, sale_price,big_category,store_name, new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display,
-                                    total, sale_unit,quantity, expire_date, image_path, user_id,create_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?,?,?,?)
+                                    total,final_total, sale_unit,quantity, expire_date, image_path, user_id,create_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?,?,?,?,?)
                     ''', (
                         product["barcode"],
                         product["name"],
@@ -229,6 +231,7 @@ class DataLoaderThread(QThread):
                         product["big_sub"],
                         product["big_sub_display"],
                         product["total"],
+                        product["final_total"],
                         product["sale_unit"],
                         product["quantity"],
                         product["expire_date"],
@@ -346,7 +349,7 @@ class SearchThread(QThread):
             cursor.execute('''
                 SELECT name, barcode, buy_price, sale_price, quantity, expire_date,big_price,big_sub_display, image_path
                 FROM products
-                WHERE quantity > 0 and user_id = ? and name LIKE ?
+                WHERE quantity > 0 and user_id = ? and TRIM(name) LIKE ?
             ''', (id_user,'%' + self.search_text + '%',))
             products = cursor.fetchall()
 
@@ -480,10 +483,19 @@ class Inventory(QFrame):
         scroll_layout.addSpacing(20)
 
         # لایه جعبه‌ها
-        self.box_layout = QGridLayout()
+       # این بخش را نگه می‌داریم
+        self.product_container = QWidget()
+        self.product_container.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+
+        self.box_layout = QGridLayout(self.product_container)
         self.box_layout.setSpacing(10)
-        scroll_layout.addLayout(self.box_layout)
+
+        self.product_container_wrapper = QStackedWidget()  # لایه تعویض‌پذیر بین باکس‌ها و spinner
+        self.product_container_wrapper.addWidget(self.product_container)
+
+        scroll_layout.addWidget(self.product_container_wrapper)
         scroll_layout.addStretch()
+
 
         # افزودن ویجت‌ها به main_layout
         main_layout.addLayout(top_layout)
@@ -666,9 +678,16 @@ class Inventory(QFrame):
         self.show_spinner_and_load_data()
    ##
     def show_spinner_and_load_data(self):
-        # نمایش spinner
-        spinner_wrapper = QWidget()
-        spinner_layout = QVBoxLayout(spinner_wrapper)
+        self.clear_products()
+
+        # حذف spinner قبلی اگر هست
+        if hasattr(self, 'spinner_widget') and self.spinner_widget:
+            self.product_container_wrapper.removeWidget(self.spinner_widget)
+            self.spinner_widget.deleteLater()
+            self.spinner_widget = None
+
+        self.spinner_widget = QWidget()
+        spinner_layout = QVBoxLayout(self.spinner_widget)
         spinner_layout.setContentsMargins(0, 100, 0, 100)
         spinner_layout.addStretch()
 
@@ -676,10 +695,13 @@ class Inventory(QFrame):
         spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
         spinner_layout.addStretch()
 
-        self.box_layout.addWidget(spinner_wrapper, 0, 0, 1, 2)
+        self.product_container_wrapper.addWidget(self.spinner_widget)
+        self.product_container_wrapper.setCurrentWidget(self.spinner_widget)
 
-        # شروع بارگذاری داده‌ها
         QTimer.singleShot(0, self.late_thread)
+
+
+
     ##
     def late_thread(self):
         self.run_data_loader()
@@ -692,10 +714,19 @@ class Inventory(QFrame):
 
     ##
     def on_data_loaded(self, product_list):
-        # زمانی که داده‌ها بارگذاری شدند
-        has_internet = Connection().get_connection()
+        # حذف spinner_wrapper در صورت وجود
+        if hasattr(self, "spinner_wrapper") and self.spinner_wrapper:
+            self.box_layout.removeWidget(self.spinner_wrapper)
+            self.spinner_wrapper.setParent(None)
+            self.spinner_wrapper.deleteLater()
+            self.spinner_wrapper = None
+        self.product_container_wrapper.setCurrentWidget(self.product_container)
 
-        for index, data in enumerate(product_list):
+        has_internet = Connection().get_connection()
+        row = 0
+        col = 0
+
+        for data in product_list:
             product_box = ProductBox()
 
             image_path = None
@@ -703,7 +734,6 @@ class Inventory(QFrame):
                 if has_internet:
                     image_path = self.download_image_from_url(data["image_path"])
                     if image_path is None:
-                        # اگر دانلود موفق نبود، از فولدر temp_images استفاده کن
                         image_path = self.load_image_from_temp(data["image_path"])
                 else:
                     image_path = self.load_image_from_temp(data["image_path"])
@@ -715,16 +745,19 @@ class Inventory(QFrame):
                 sale_price=data["sale_price"],
                 number=data["quantity"],
                 expire_date=data["expire_date"],
-                big_sub= data["big_sub_display"],
-                big_price= data["big_price"],
+                big_sub=data["big_sub_display"],
+                big_price=data["big_price"],
                 image_path=image_path
             )
 
-            row, col = divmod(index, 4)
             self.box_layout.addWidget(product_box, row, col)
+            col += 1
+            if col >= 4:
+                col = 0
+                row += 1
 
-        # متوقف کردن spinner بعد از بارگذاری داده‌ها
         self.spinner.stop()
+
     ##
     def on_data_error(self, error):
         # در صورت بروز خطا، spinner را متوقف کنید
@@ -812,25 +845,28 @@ class Inventory(QFrame):
     def show_spinner_and_load_dataes(self):
         text = self.search_line.text().strip()
 
-        # اگر متن خالی است و سرچ هنوز آغاز نشده، جلوی اجرا را بگیر
         if not text:
             if not hasattr(self, 'search_initialized'):
                 self.search_initialized = False
 
             if not self.search_initialized:
-                return  # 👈 جلوی اجرای اولیه هنگام باز شدن برنامه را می‌گیرد
+                return
 
             self.clear_products()
             self.load_all_products(show_spinner=False)
             return
 
-        # اکنون سرچ فعال می‌شود چون کاربر چیزی تایپ کرده
         self.search_initialized = True
-
         self.clear_products()
 
-        self.spinner_wrapper = QWidget()
-        spinner_layout = QVBoxLayout(self.spinner_wrapper)
+        # حذف spinner قبلی
+        if hasattr(self, 'spinner_widget') and self.spinner_widget:
+            self.product_container_wrapper.removeWidget(self.spinner_widget)
+            self.spinner_widget.deleteLater()
+            self.spinner_widget = None
+
+        self.spinner_widget = QWidget()
+        spinner_layout = QVBoxLayout(self.spinner_widget)
         spinner_layout.setContentsMargins(0, 100, 0, 100)
         spinner_layout.addStretch()
 
@@ -838,9 +874,12 @@ class Inventory(QFrame):
         spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
         spinner_layout.addStretch()
 
-        self.box_layout.addWidget(self.spinner_wrapper, 0, 0, 1, 2)
+        self.product_container_wrapper.addWidget(self.spinner_widget)
+        self.product_container_wrapper.setCurrentWidget(self.spinner_widget)
 
         QTimer.singleShot(100, self.live_search)
+
+
 
     def live_search(self):
         text = self.search_line.text().strip()
@@ -854,16 +893,19 @@ class Inventory(QFrame):
 
 
     def show_products(self, product_list):
-        # حذف اسپینر
-        if self.spinner_wrapper:
+        row = 0
+        col = 0
+
+        # حذف spinner_wrapper در صورت وجود
+        if hasattr(self, "spinner_wrapper") and self.spinner_wrapper:
+            self.box_layout.removeWidget(self.spinner_wrapper)
             self.spinner_wrapper.setParent(None)
             self.spinner_wrapper.deleteLater()
             self.spinner_wrapper = None
+        self.product_container_wrapper.setCurrentWidget(self.product_container)
 
-        for index, data in enumerate(product_list):
-            image_path = None
-            if data["image_path"]:
-                image_path = data["image_path"]  # فقط استفاده از مسیر ذخیره‌شده در temp_images
+        for data in product_list:
+            image_path = data["image_path"] if data["image_path"] else None
 
             product_box = ProductBox()
             product_box.set_product_info(
@@ -873,12 +915,17 @@ class Inventory(QFrame):
                 sale_price=data["sale_price"],
                 number=data["quantity"],
                 expire_date=data["expire_date"],
-                big_sub= data["big_sub_display"],
-                big_price= data["big_price"],
+                big_sub=data["big_sub_display"],
+                big_price=data["big_price"],
                 image_path=image_path
             )
-            row, col = divmod(index, 4)
+
             self.box_layout.addWidget(product_box, row, col)
+            col += 1
+            if col >= 4:
+                col = 0
+                row += 1
+
 
 
     def show_error(self, msg):
@@ -960,52 +1007,67 @@ class Inventory(QFrame):
                 conn.close()
 
     ##
-    def Full_data_load(self,product_list): 
-        # حذف اسپینر
-        if self.spinner_wrapper:
+    def Full_data_load(self, product_list):
+        row = 0
+        col = 0
+
+        # حذف spinner_wrapper در صورت وجود
+        if hasattr(self, "spinner_wrapper") and self.spinner_wrapper:
+            self.box_layout.removeWidget(self.spinner_wrapper)
             self.spinner_wrapper.setParent(None)
             self.spinner_wrapper.deleteLater()
             self.spinner_wrapper = None
-        
-        for index, data in enumerate(product_list):
-                    image_path = None
-                    if data["image_path"]:
-                        image_path = data["image_path"]  # فقط استفاده از مسیر ذخیره‌شده در temp_images
+        self.product_container_wrapper.setCurrentWidget(self.product_container)
 
-                    product_box = ProductBox()
-                    product_box.set_product_info(
-                        name=data["name"],
-                        barcode=data["barcode"],
-                        buy_price=data["buy_price"],
-                        sale_price=data["sale_price"],
-                        number=data["quantity"],
-                        expire_date=data["expire_date"],
-                        big_sub= data["big_sub_display"],
-                        big_price= data["big_price"],
-                        image_path=image_path
-                    )
-                    row, col = divmod(index, 4)
-                    self.box_layout.addWidget(product_box, row, col)
+        for data in product_list:
+            image_path = data["image_path"] if data["image_path"] else None
+
+            product_box = ProductBox()
+            product_box.set_product_info(
+                name=data["name"],
+                barcode=data["barcode"],
+                buy_price=data["buy_price"],
+                sale_price=data["sale_price"],
+                number=data["quantity"],
+                expire_date=data["expire_date"],
+                big_sub=data["big_sub_display"],
+                big_price=data["big_price"],
+                image_path=image_path
+            )
+
+            self.box_layout.addWidget(product_box, row, col)
+            col += 1
+            if col >= 4:
+                col = 0
+                row += 1
+
 
 
     def clear_products(self):
-        while self.box_layout.count():
-            child = self.box_layout.takeAt(0)
-            widget = child.widget()
-            if widget:
-                if hasattr(widget, 'image_path') and widget.image_path and os.path.exists(widget.image_path):
-                    try:
-                        os.remove(widget.image_path)
-                    except Exception as e:
-                        print("حذف فایل ناموفق:", e)
+        for i in reversed(range(self.box_layout.count())):
+            item = self.box_layout.itemAt(i)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
                 widget.deleteLater()
+
+        self.spinner_widget = None
+
+
+
+
 
     def load_all_products(self, show_spinner=True):
         self.clear_products()
 
         if show_spinner:
-            self.spinner_wrapper = QWidget()
-            spinner_layout = QVBoxLayout(self.spinner_wrapper)
+            if hasattr(self, 'spinner_widget') and self.spinner_widget:
+                self.product_container_wrapper.removeWidget(self.spinner_widget)
+                self.spinner_widget.deleteLater()
+                self.spinner_widget = None
+
+            self.spinner_widget = QWidget()
+            spinner_layout = QVBoxLayout(self.spinner_widget)
             spinner_layout.setContentsMargins(0, 100, 0, 100)
             spinner_layout.addStretch()
 
@@ -1013,9 +1075,11 @@ class Inventory(QFrame):
             spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
             spinner_layout.addStretch()
 
-            self.box_layout.addWidget(self.spinner_wrapper, 0, 0, 1, 2)
+            self.product_container_wrapper.addWidget(self.spinner_widget)
+            self.product_container_wrapper.setCurrentWidget(self.spinner_widget)
 
         self.data_full_loaded()
+
 
     ##
     def on_data_error(self, error_message):

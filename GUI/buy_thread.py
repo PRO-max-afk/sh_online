@@ -94,9 +94,9 @@ class BuyThread(QThread):
 
             # دریافت خریدهای آنلاین
             cursor.execute('''
-                SELECT DATE_FORMAT(buy_date, '%%Y/%%m/%%d') AS buy_date, SUM(total)
-                FROM inventory_log
-                WHERE user_id = %s and type_save= 'inventory'
+                SELECT DATE_FORMAT(buy_date, '%%Y/%%m/%%d') AS buy_date, SUM(final_total)
+                FROM inventories
+                WHERE user_id = %s
                 GROUP BY buy_date
             ''', (id_user,))
             on_result = cursor.fetchall()
@@ -194,9 +194,9 @@ class BuyThread(QThread):
             id_user = result[0]
 
             cursor.execute('''
-                SELECT buy_date, total
-                FROM products
-                WHERE user_id = ? AND type_save = 'sale'
+                SELECT sale_date, total
+                FROM sale_factor
+                WHERE user_id = ?
             ''', (id_user,))
             results = cursor.fetchall()
 
@@ -287,9 +287,9 @@ class BuyThread(QThread):
             cursor = db_data.cursor()
 
             cursor.execute("""
-                SELECT buy_date, total 
-                FROM inventory_log 
-                WHERE user_id = %s AND type_save = 'inventory'
+                SELECT buy_date, final_total 
+                FROM inventories 
+                WHERE user_id = %s
             """, (user_id,))
             rows = cursor.fetchall()
 
@@ -360,7 +360,7 @@ class BuyThread(QThread):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT buy_date, total FROM products WHERE user_id = ?
+            SELECT buy_date, final_total FROM products WHERE user_id = ?
         """, (user_id,))
         rows = cursor.fetchall()
 
@@ -402,9 +402,9 @@ class BuyThread(QThread):
         try:
             cursor = db_data.cursor()
             cursor.execute("""
-                SELECT buy_date, total 
-                FROM inventory_log 
-                WHERE user_id = %s AND type_save = 'inventory'
+                SELECT buy_date, final_total 
+                FROM inventories 
+                WHERE user_id = %s
             """, (user_id,))
             rows = cursor.fetchall()
         except:
@@ -464,7 +464,7 @@ class BuyThread(QThread):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT buy_date, total FROM products WHERE user_id = ?
+            SELECT buy_date, final_total FROM products WHERE user_id = ?
         """, (user_id,))
         rows = cursor.fetchall()
 

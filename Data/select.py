@@ -7,7 +7,7 @@ cursor= conn.cursor()
 
 cursor.execute('''
 SELECT *
-FROM printer
+FROM products
 
 ''')
 rows = cursor.fetchall()

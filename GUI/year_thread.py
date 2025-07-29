@@ -156,7 +156,7 @@ class YearThread(QThread):
 
             # inventories
             cursor.execute("""
-                SELECT created_at, total
+                SELECT created_at, final_total
                 FROM inventories
                 WHERE user_id = %s
             """, (id_user,))
@@ -173,7 +173,7 @@ class YearThread(QThread):
                 if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
                     total_buy += float(total) if total else 0
             ##harvest
-            cursor.execute("SELECT date, amount from barrow where user_id = %s",(id_user,))
+            cursor.execute("SELECT date, amount from harvest where user_id = %s",(id_user,))
             for date_str,amount in cursor.fetchall():
                 if not date_str:
                     continue
@@ -280,7 +280,7 @@ class YearThread(QThread):
                 total_profit += float(profit) if profit else 0
 
         # products
-        cursor.execute("SELECT create_at, total FROM products WHERE user_id = ?", (id_user,))
+        cursor.execute("SELECT create_at, final_total FROM products WHERE user_id = ?", (id_user,))
         for created_at, total in cursor.fetchall():
             if not created_at:
                 continue
@@ -394,7 +394,7 @@ class YearThread(QThread):
             ##
             total_sale= total_sale_f + total_sale_on
             ##
-            cursor.execute("SELECT SUM(total) FROM inventories WHERE user_id= %s",(id_user,))
+            cursor.execute("SELECT SUM(final_total) FROM inventories WHERE user_id= %s",(id_user,))
             buy_result= cursor.fetchone()
             total_buy=0
             if buy_result:
@@ -491,7 +491,7 @@ class YearThread(QThread):
             total_sale = total_sale_f + total_sale_on
 
             # inventories
-            cursor.execute("SELECT SUM(total) FROM products WHERE user_id = ?", (id_user,))
+            cursor.execute("SELECT SUM(final_total) FROM products WHERE user_id = ?", (id_user,))
             res = cursor.fetchone()
             if res:
                 total_buy = float(res[0]) if res[0] else 0
@@ -577,8 +577,8 @@ class YearThread(QThread):
                         continue
                 sh_year = str(jdatetime.date.fromgregorian(date=miladi.date()).year)
                 self.available_years.add(sh_year)
-        except:
-            pass
+        except pymysql.Error as e:
+            print(f"online inventory problem:{e}")
     ##
     def fetch_years_only_offline(self):
         from datetime import datetime

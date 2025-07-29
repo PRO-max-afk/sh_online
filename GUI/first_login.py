@@ -11,7 +11,8 @@ import pymysql
 import ntplib
 import pytz
 from datetime import datetime
-from db_connection import Connection
+from db_connection_f import Connection
+
 
 
 
@@ -430,22 +431,22 @@ class Main_login(QMainWindow):
 
         try:
             try:
-                # دریافت زمان از NTP سرور
+                # تلاش برای دریافت زمان از سرور NTP با تایم‌اوت کم (۲ ثانیه)
                 ntp_client = ntplib.NTPClient()
-                response = ntp_client.request('pool.ntp.org', version=3)
+                response = ntp_client.request('pool.ntp.org', version=3, timeout=2)
                 utc_time = datetime.utcfromtimestamp(response.tx_time)
-
+                print("✅ زمان از NTP دریافت شد.")
             except Exception as e:
-                # اگر نتوانست دریافت کند، از زمان سیستم استفاده کند
-                print(f"NTP Server error: {e}, using local system time instead.")
+                # در صورت خطا (مثلاً نبود اینترنت)، استفاده از زمان سیستم
+                print(f"⚠️ NTP Server error: {e} — استفاده از زمان سیستم.")
                 utc_time = datetime.utcnow()
 
-            # ادامه کار
+            # تبدیل به زمان کابل
             kabul_tz = pytz.timezone('Asia/Kabul')
             kabul_time = pytz.utc.localize(utc_time).astimezone(kabul_tz)
-            expire_date = kabul_time.strftime('%Y-%m-%d %H:%M:%S')
+            expire_date=kabul_time.strftime('%Y-%m-%d %H:%M:%S')
 
-           
+            
             cursor = conn.cursor()
 
             # چک کردن اطلاعات کاربر
@@ -501,7 +502,6 @@ class Main_login(QMainWindow):
                 cursor_sq.close()
             if conn_sq:
                 conn_sq.close()
-
     
     ##fonts
     def load_all_fonts(self):

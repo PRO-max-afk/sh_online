@@ -615,6 +615,7 @@ class ChangingFactor(QMainWindow):
         selected_row = self.table.currentRow()
         total_profit = 0
         real_quantity = 0
+        final_total=0
 
         if selected_row < 0:
             MessageBox(text="هیچ ردیفی برای بروزرسانی انتخاب نشده", title="اخطار", type="warning").show()
@@ -644,6 +645,7 @@ class ChangingFactor(QMainWindow):
 
             stor_name = name_result[0] if name_result else "---"
             address, phone = info_result if info_result else ("---", "---")
+            factor = self.factor
 
             # مقداردهی اولیه
             sale_date = self.table.item(selected_row, 2).text()
@@ -669,19 +671,21 @@ class ChangingFactor(QMainWindow):
                 elif sale_type == "پرچون":
                     total_profit += float((price - item_price - discount) * quantity)
                     real_quantity = quantity
+                final_total= total
 
             cursor.execute('''
                 UPDATE sale_factor SET 
-                    sale_date=?, sale_price=?, quantity=?, discount=?, profit=?, total=?, sync=0
-                WHERE sale_id=? AND sale_type=?
-            ''', (sale_date, price, real_quantity, discount, total_profit, total, sale_id, sale_type))
+                    sale_date=?, sale_price=?, quantity=?, discount=?, profit=?, total=?,sync=0
+                WHERE sale_id=? AND sale_type=? AND factor_number=?
+            ''', (sale_date, price, real_quantity, discount, total_profit, total,sale_id, sale_type,factor))
             conn.commit()
+            print(final_total)
 
             MessageBox(text="اطلاعات فاکتور موفقانه تغییر کرد", title="موفقانه", type="info").show()
 
             # آماده‌سازی self.print_list با کل داده‌های جدول
             self.print_list.clear()
-            factor = self.factor
+            
             row_count = self.table.rowCount()
 
             for row in range(row_count):

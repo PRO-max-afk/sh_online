@@ -30,6 +30,8 @@ class BlackTextDelegate(QStyledItemDelegate):
         editor.setPalette(palette)
         return editor
 
+        
+
 
 class WidgetManager(QWidget):
     def __init__(self, parent):
@@ -957,8 +959,8 @@ class WidgetManager(QWidget):
                 ))
 
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
-            type_save= "sale"
-            cursor.execute("update products set type_save=? where barcode=?",(type_save,barcode))
+            #type_save= "sale"
+            #cursor.execute("update products set type_save=? where barcode=?",(type_save,barcode))
             conn.commit()
             MessageBox(text="اطلاعات موفقانه ذخیره شد✅",title="موفقانه",type="info").show()
 
@@ -1095,8 +1097,8 @@ class WidgetManager(QWidget):
                 ))
 
             cursor.execute("INSERT INTO factor_number(sale_id) VALUES (?)", (factor_number,))
-            type_save= "sale"
-            cursor.execute("update products set type_save=? where barcode=?",(type_save,barcode))
+            #type_save= "sale"
+            #cursor.execute("update products set type_save=? where barcode=?",(type_save,barcode))
             conn.commit()
 
             # بازخوانی فاکتورهای امروز برای نمایش
@@ -1281,13 +1283,15 @@ class WidgetManager(QWidget):
                 print(f"✅ item {barcode}  added")
                 ## update products
                 cursor_sq.execute("UPDATE products SET is_synced=0 where barcode=?",(barcode,))
+                print(f"✅ اطلاعات با موفقیت به {barcode} رسید")
 
 
             db_connect.commit()
-            #print("✅ اطلاعات با موفقیت به فروش رسید")
+            
 
             cursor_sq.execute("UPDATE sale_factor SET is_synced = 1 WHERE is_synced = 0")
             conn_sq.commit()
+            
 
         except Exception as e:
             print("❌ خطا در همگام‌سازی:", e)
@@ -1632,9 +1636,16 @@ class WidgetManager(QWidget):
                         pass
     ##
     def update_info_invnenvtory(self):
-        from inventory import Inventory
-        self.inventory_page = Inventory()
-        self.inventory_page.start_synced_to_server()
+        from synce_updated import UpdateThread
+        self.thread_to_server = UpdateThread()
+        self.thread_to_server.start()
+
+        # ⏱ فقط یکبار تایمر بساز (اگر از قبل ساخته نشده باشد)
+        if not hasattr(self, 'update_timer'):
+            self.update_timer = QTimer(self)
+            self.update_timer.timeout.connect(self.update_info_invnenvtory)
+            self.update_timer.start(15 * 1000)  # هر ۱۵ ثانیه
+
                     
 
         

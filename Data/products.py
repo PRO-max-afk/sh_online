@@ -25,6 +25,7 @@ cursor.execute('''
             new_price REAL,
             store_name TEXT,
             total REAL,
+            final_total REAL,
             big_quantity INTEGER,
             is_synced INTEGER DEFAULT 0,
             expire_date TEXT,
