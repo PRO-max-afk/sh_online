@@ -43,5 +43,12 @@ Create TABLE IF NOT EXISTS order_number(
 cursor.execute('''
 Create TABLE IF NOT EXISTS logo(
             image text,
-               store_name text );
+            store_name text );
 ''')
+
+cursor.execute('''
+Create TABLE IF NOT EXISTS printer(
+            address Text,
+            phone Text );
+''')
+

@@ -1,11 +1,13 @@
 from PyQt6.QtWidgets import (QApplication,QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
     QGraphicsDropShadowEffect, QFileDialog,QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPixmap
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QTextDocument,QBrush,QPixmap
 import sqlite3
 from message_b import MessageBox
 import os,threading
 from db_connection import Connection
+from PyQt6.QtPrintSupport import QPrinter,QPrintDialog
+import jdatetime
 
 
 
@@ -20,6 +22,7 @@ class ChangingFactor(QMainWindow):
         self.auto_sync()
         self.sale_ids= []
         self.sale_list= []
+        self.print_list= []
 
     def setup_ui(self):
         self.stack_items = QStackedWidget()
@@ -31,7 +34,8 @@ class ChangingFactor(QMainWindow):
         main_layout.setSpacing(15)
 
         main_layout.addLayout(self.create_top_bar())
-        main_layout.addWidget(self.create_frame())
+        main_layout.addWidget(self.create_frame(),2)
+        main_layout.addWidget(self.visible_frame(),1)
         main_layout.addWidget(self.Invisible_frame())
 
         self.stack_items.addWidget(self.items_page)
@@ -68,7 +72,7 @@ class ChangingFactor(QMainWindow):
     
     def create_frame(self):
         frame = QFrame()
-        frame.setMaximumHeight(450)
+        #frame.setMaximumHeight(400)
         frame.setStyleSheet("QFrame { background-color: white; border-radius: 10px; }")
 
         frame_shadow= QGraphicsDropShadowEffect(self)
@@ -156,6 +160,7 @@ class ChangingFactor(QMainWindow):
         print_button.setIcon(QIcon(self.get_asset_path('print.png')))
         print_button.setIconSize(QSize(24, 24))
         print_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        print_button.clicked.connect(self.print_factor)
         print_button.setFixedSize(100, 40)
         print_button.setStyleSheet("""
             QPushButton {
@@ -200,10 +205,114 @@ class ChangingFactor(QMainWindow):
 
         return frame
     
+    def visible_frame(self):
+        visible_frame = QFrame()
+        #visible_frame.setMaximumHeight(350)
+        visible_frame.setStyleSheet("background-color: white; border-radius: 10px;")
+        
+        shadow= QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(10)
+        shadow.setYOffset(5)
+        shadow.setXOffset(0)
+        shadow.setColor(QColor(0,0,0,70))
+        visible_frame.setGraphicsEffect(shadow)
+        
+        visible_frame_layout = QVBoxLayout(visible_frame)
+        visible_frame_layout.setContentsMargins(0, 0, 0, 0)
+        visible_frame_layout.setSpacing(5)
+
+        ##
+        print_title= QLabel("تغییر در اطلاعات پرنتر")
+        print_title.setStyleSheet('''
+        background-color:transparent; 
+        color: black; font-family: Mirza,'B Nazanin'; 
+        font-size: 18px; font-weight: bold;
+        ''')
+        print_title.setMinimumHeight(30)
+        ##
+        labels= [
+            "آدرس فروشگاه:","شماره تماس:","شماره دیگر:"
+        ]
+
+        self.print_inputs= []
+        for i in range(0, len(labels),3):
+            printer_layout= QHBoxLayout()
+            printer_layout.setSpacing(5)
+            printer_layout.setContentsMargins(0,0,0,0)
+            printer_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            for j in range(3):
+                if i+j < len(labels):
+                    label= QLabel(labels[i+j])
+                    label.setStyleSheet('''
+                        color: black; font-family: B Nazanin; 
+                        font-size: 16px; font-weight: bold;
+                    ''')
+                    label.setMaximumSize(87,20)
+                    label.setMinimumSize(40,10)
+                    line_edit= QLineEdit()
+                    line_edit.setMaximumSize(200,45)
+                    line_edit.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Minimum)
+                    line_edit.setMinimumSize(100,20)
+                    line_edit.setStyleSheet("""
+                        background-color: transparent;
+                        border: 1px solid #ccc;
+                        border-radius: 5px;
+                        padding: 5px;
+                        font-size: 15px;
+                        font-family: Roboto,'B Nazanin';
+                        font-weight: bold;
+                        color: #222;
+                    """)
+                    self.print_inputs.append(line_edit)
+                    pair_layout= QHBoxLayout()
+                    pair_layout.setSpacing(5)
+                    pair_layout.addWidget(label)
+                    pair_layout.addWidget(line_edit)
+                    
+                    pair_container= QWidget()
+                    pair_container.setStyleSheet("background-color: white;")
+                    pair_container.setLayout(pair_layout)
+                    printer_layout.addWidget(pair_container)
+
+        btn_layout= QHBoxLayout()
+        btn_layout.setContentsMargins(10,5,10,5)
+        btn_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        save_button = QPushButton("ذخیره تغییرات")
+        save_button.setIcon(QIcon(self.get_asset_path('Bookmark.png')))
+        save_button.setIconSize(QSize(24, 24))
+        save_button.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        save_button.setFixedSize(120, 40)
+        save_button.clicked.connect(self.change_printer)
+        save_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00cc66;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 5px;
+                font-family: 'B Nazanin';
+            }
+            QPushButton:hover {
+                background-color: #00b359;
+            }
+            QPushButton:Pressed{
+                background-color: #00cc66;
+                                  }
+        """)
+        btn_layout.addWidget(save_button)
+        
+        visible_frame_layout.addWidget(print_title, alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter))
+        visible_frame_layout.addLayout(printer_layout)
+        visible_frame_layout.addLayout(btn_layout)
+        
+        return visible_frame
+    ##
     def Invisible_frame(self):
         invisible_frame = QFrame()
-        invisible_frame.setMaximumHeight(300)
-        invisible_frame.setStyleSheet("background-color: transparent; border: none;")
+        #invisible_frame.setMinimumHeight(50)
+        invisible_frame.setStyleSheet("background-color: transparent; border-radius: 10px;")
+    
         
         invisible_frame_layout = QVBoxLayout()
         invisible_frame_layout.setContentsMargins(0, 0, 0, 0)
@@ -236,8 +345,7 @@ class ChangingFactor(QMainWindow):
         text= self.frame_search_input.text().strip()
         if text:
             self.search_factor()
-    def keyPressEvent(self, event):
-        pass
+
     ##
     def _make_cell(self, text):
         item = QTableWidgetItem(text)
@@ -246,6 +354,7 @@ class ChangingFactor(QMainWindow):
         return item
     ##
     def search_factor(self):
+        self.factor= None
         search= str(self.frame_search_input.text())
         real_quantity=0
         item_price=0
@@ -307,6 +416,7 @@ class ChangingFactor(QMainWindow):
                         "big_quantity" : big_qunatity
                     }
                     self.sale_list.append(list_sa)
+                    self.factor= search
                     
                     ##
                     self.edit_btn= QPushButton()
@@ -342,7 +452,52 @@ class ChangingFactor(QMainWindow):
 
         except sqlite3.Error as e:
             print(f"problem db search:{e}")
-        
+    ##
+    def change_printer(self):
+        address = str(self.print_inputs[0].text()).strip()
+        phone = str(self.print_inputs[1].text()).strip()
+        another = str(self.print_inputs[2].text()).strip()
+
+        if not address or not phone:
+            MessageBox(text="لطفاً فیلدهای لازم را پر کنید", type="warning", title="هشدار").show()
+            return
+
+        complete_phone = f"{phone} - {another}" if another else phone
+
+        # مسیر دیتابیس
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            MessageBox(text="اطلاعات محلی پیدا نشد", type="error", title="هشدار").show()
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # بررسی وجود داده در جدول printer
+            cursor.execute('SELECT address FROM printer LIMIT 1')
+            result = cursor.fetchone()
+
+            if result is None:
+                # اگر هیچ رکوردی وجود ندارد → insert شود
+                cursor.execute('INSERT INTO printer(address, phone) VALUES(?, ?)', (address, complete_phone))
+            else:
+                # اگر رکورد وجود دارد → update شود
+                cursor.execute('UPDATE printer SET address = ?, phone = ?', (address, complete_phone))
+
+            conn.commit()
+
+            MessageBox(text="اطلاعات با موفقیت ذخیره شد", title="موفقیت", type="info").show()
+
+            # پاک‌کردن فیلدهای فرم
+            for field in self.print_inputs:
+                field.clear()
+
+        except sqlite3.Error as e:
+            print(f"خطا در دیتابیس: {e}")
     ##
     def calculate_total_price(self, item):
         row = item.row()
@@ -381,8 +536,6 @@ class ChangingFactor(QMainWindow):
                     if item:
                         self.table.editItem(item)
                     break
-
-
     ##
     def change_factor(self):
         selected_row = self.table.currentRow()
@@ -457,7 +610,277 @@ class ChangingFactor(QMainWindow):
 
         except sqlite3.Error as e:
             print(f"خطا هنگام بروزرسانی پایگاه‌داده: {e}")
+    ##
+    def print_factor(self):
+        selected_row = self.table.currentRow()
+        total_profit = 0
+        real_quantity = 0
 
+        if selected_row < 0:
+            MessageBox(text="هیچ ردیفی برای بروزرسانی انتخاب نشده", title="اخطار", type="warning").show()
+            return
+
+        if selected_row >= len(self.sale_ids):
+            MessageBox(text="شناسه فاکتور یافت نشد", title="خطا", type="warning").show()
+            return
+
+        sale_id = self.sale_ids[selected_row]
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, "Data", "sh_online.db")
+
+        if not os.path.exists(db_path):
+            print("مسیر پایگاه‌داده یافت نشد")
+            return
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT address, phone FROM printer LIMIT 1")
+            info_result = cursor.fetchone()
+            cursor.execute("SELECT store_name FROM logo LIMIT 1")
+            name_result = cursor.fetchone()
+
+            stor_name = name_result[0] if name_result else "---"
+            address, phone = info_result if info_result else ("---", "---")
+
+            # مقداردهی اولیه
+            sale_date = self.table.item(selected_row, 2).text()
+            price = float(self.table.item(selected_row, 3).text())
+            quantity = float(self.table.item(selected_row, 4).text())
+            discount = float(self.table.item(selected_row, 6).text())
+            total = float(self.table.item(selected_row, 7).text())
+
+            # آیتم‌های همین فاکتور
+            item_list = [i for i in self.sale_list if i['sale_id'] == sale_id]
+
+            for profit_co in item_list:
+                buy_price = profit_co['buy_price']
+                sale_type = profit_co['sale_type'].strip() if profit_co['sale_type'] else ""
+                item_price = profit_co['item_price']
+                big_price = profit_co['big_price']
+                big_quantity = profit_co['big_quantity']
+
+                if sale_type == "عمده":
+                    part_profit = float((big_price - buy_price - discount) * quantity)
+                    total_profit += part_profit
+                    real_quantity = float(quantity * big_quantity)
+                elif sale_type == "پرچون":
+                    total_profit += float((price - item_price - discount) * quantity)
+                    real_quantity = quantity
+
+            cursor.execute('''
+                UPDATE sale_factor SET 
+                    sale_date=?, sale_price=?, quantity=?, discount=?, profit=?, total=?, sync=0
+                WHERE sale_id=? AND sale_type=?
+            ''', (sale_date, price, real_quantity, discount, total_profit, total, sale_id, sale_type))
+            conn.commit()
+
+            MessageBox(text="اطلاعات فاکتور موفقانه تغییر کرد", title="موفقانه", type="info").show()
+
+            # آماده‌سازی self.print_list با کل داده‌های جدول
+            self.print_list.clear()
+            factor = self.factor
+            row_count = self.table.rowCount()
+
+            for row in range(row_count):
+                try:
+                    price = float(self.table.item(row, 3).text())
+                    quantity = float(self.table.item(row, 4).text())
+                    discount = float(self.table.item(row, 6).text())
+                    total = float(self.table.item(row, 7).text())
+                    row_sale_id = self.sale_ids[row]
+                    item_list = [i for i in self.sale_list if i['sale_id'] == row_sale_id]
+
+                    real_quantity = quantity
+                    for item in item_list:
+                        sale_type = item['sale_type'].strip() if item['sale_type'] else ""
+                        buy_price = item['buy_price']
+                        item_price = item['item_price']
+                        big_price = item['big_price']
+                        big_quantity = item['big_quantity']
+
+                        if sale_type == "عمده":
+                            real_quantity = quantity * big_quantity
+                        elif sale_type == "پرچون":
+                            real_quantity = quantity
+
+                    self.print_list.append({
+                        "factor_number": factor,
+                        "name": self.table.item(row, 0).text(),
+                        "type": self.table.item(row, 5).text(),
+                        "price": price,
+                        "number": real_quantity,
+                        "discount": discount,
+                        "total": total
+                    })
+                except Exception as e:
+                    print(f"[⚠️ خطا در پردازش ردیف {row}]: {e}")
+
+            print("🧾 لیست چاپ:")
+            for item in self.print_list:
+                print(item)
+
+            self.frame_search_input.clear()
+            self.table.setRowCount(0)
+
+        except sqlite3.Error as e:
+            print(f"خطا هنگام بروزرسانی پایگاه‌داده: {e}")
+
+        # بخش پرینت
+        table_items = self.print_list
+        try:
+            sum_total = sum(float(p['total']) for p in table_items)
+            factor_number = table_items[0].get("factor_number", "---") if table_items else "---"
+            date = jdatetime.date.today().strftime("%Y/%m/%d")
+
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            doc = QTextDocument()
+
+            html = f"""
+                <html>
+                <head>
+                <meta charset="utf-8">
+                <style>
+                    body {{
+                        font-family: 'B Nazanin', Mirza;
+                        direction: rtl;
+                        background-color: white;
+                        margin: 0;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        text-align: center;
+                        display: flex;
+                        justify-content: center;
+                    }}
+                    table {{
+                        width: 90%;
+                        margin-right: 90px;
+                        border-collapse: collapse;
+                        font-size: 14pt;
+                    }}
+                    th, td {{
+                        border: 1px solid black;
+                        padding: 12px;
+                        text-align: center;
+                    }}
+                    h2 {{
+                        font-size: 18pt;
+                        margin-bottom: 10px;
+                    }}
+                    .address {{
+                        font-size: 12pt;
+                        font-family: Roboto, 'B Nazanin';
+                        text-align: right;
+                    }}
+                    .aqsa {{
+                        font-size: 8pt;
+                        font-family: Roboto, 'arial';
+                        text-align: center;
+                    }}
+                    .data {{
+                        font-size: 12pt;
+                        font-family: Roboto, 'B Nazanin';
+                        text-align: center;
+                    }}
+                    .head_title {{
+                        font-size: 14pt;
+                        font-family: Roboto, 'B Nazanin';
+                        text-align: center;
+                    }}
+                    .total{{
+                        font-size: 14pt;
+                        font-family: Roboto, 'B Nazanin';
+                        text-align: center;
+                    }}
+                    .factor{{
+                    font-size: 10pt;
+                    font-family: Roboto, 'B Nazanin';
+                    font-style: normal;
+                    direction: rtl;
+                    }}
+                    .date{{
+                    font-size: 10pt;
+                    font-family: Roboto, 'B Nazanin';
+                    font-style: normal;
+                    direction: rtl;
+                    }}
+                </style>
+                </head>
+                <body>
+                <div class="container">
+                <h2> فاکتور فروش </h2>
+                <table>
+                <tr>
+                    <td colspan="7" class="head_title">
+                    <b class= "factor"> شماره فاکتور: {factor_number} </b> 
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    <b> {stor_name} </b>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    <b class= "date"> تاریخ: {date} </b>
+                    </td>
+                </tr>
+                <tr>
+                    <th>مجموعه</th>
+                    <th>تخفیف</th>
+                    <th>واحد</th>
+                    <th>تعداد</th>
+                    <th>قیمت</th>
+                    <th>نام</th>
+                    <th>شماره</th>
+                </tr>
+            """
+
+            for i, product in enumerate(table_items, 1):
+                name = product['name']
+                product_type = product['type']
+                sell_price = product['price']
+                numer = product['number']
+                t_disc = product['discount']
+                final = product['total']
+
+                html += f""" 
+                    <tr class="data">
+                        <td>{final}</td> 
+                        <td>{t_disc}</td>
+                        <td>{product_type}</td>
+                        <td>{numer}</td>
+                        <td>{sell_price}</td>
+                        <td>{name}</td>
+                        <td>{i}</td>
+                    </tr>
+                """
+
+            html += f""" 
+                <tr>
+                    <td colspan="7" class= "total"> {sum_total} <b> :مجموعه کل </b> </td>
+                </tr>
+                <tr>
+                    <td colspan="7" class="address">
+                    <b> آدرس:</b>  {address} 
+                    <br>
+                    <b> شماره تماس: </b>  {phone}
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="7" class="aqsa">
+                    Powered by - AQSA GROUP
+                    <br>
+                    www.aqsagroup.af
+                    </td>
+                </tr>
+                </table>
+                </body>
+                </html>
+            """
+
+            doc.setHtml(html)
+            doc.print(printer)
+
+        except Exception as e:
+            print(f"[⚠️ خطا در پرینت]: {e}")
     ##
     def syncs_to_server(self):
         db_data = Connection().get_connection()
@@ -514,7 +937,11 @@ class ChangingFactor(QMainWindow):
 
         except Exception as e:
             print(f"❌ خطا در همگام‌سازی داده‌های آفلاین و آنلاین: {e}")
-
+    ##
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return,Qt.Key.Key_Enter):
+            if any(line.hasFocus() for line in self.print_inputs):
+                self.change_printer()
     ##
     def auto_sync(self):
         self.syc_timer= QTimer(self)

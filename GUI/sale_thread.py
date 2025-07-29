@@ -39,7 +39,7 @@ class SaleThread(QThread):
 
     def run(self):
         self.db_data= Connection().get_connection()
-        if self.db_data():
+        if self.db_data:
             # اول ماهانه، اگر تنظیم شده
             if self.selected_month:
                 self.month_sale()
@@ -371,10 +371,18 @@ class SaleThread(QThread):
                             profit_val = 0  # آنلاین profit ندارد در این حالت
 
                         date_str = str(date_str)
-                        if "/" in date_str:
-                            g_date = datetime.datetime.strptime(str(date_str), "%Y/%m/%d").date()
+                        if isinstance(date_str, datetime.datetime):
+                            g_date = date_str.date()
                         else:
-                            g_date = datetime.datetime.strptime(str(date_str), "%Y-%m-%d").date()
+                            date_str = str(date_str)
+                            try:
+                                g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                            except ValueError:
+                                try:
+                                    g_date = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").date()
+                                except ValueError:
+                                    g_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+
 
                         j_date = jdatetime.date.fromgregorian(date=g_date)
                         if j_date.year == j_year and j_date.month == j_month:

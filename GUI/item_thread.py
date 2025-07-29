@@ -630,7 +630,7 @@ class ItemThread(QThread):
                     try:
                         year,month,day= map(int, date_r.split("-"))
                         g_dates= datetime.date(year,month,day)
-                        j_dates= jdatetime.date.fromgregorian(g_dates)
+                        j_dates= jdatetime.date.fromgregorian(date=g_dates)
                         j_years= j_dates.year
                         j_monhts= j_dates.month
                         key= f"{j_years:04d}/{j_monhts:02d}"

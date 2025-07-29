@@ -52,7 +52,7 @@ class Notifi_Discount_Box(QWidget):
         self.na_lb = QLabel("")
         self.number_lb = QLabel("تعداد محصول:")
         self.nu_lb = QLabel("")
-        self.disount_precent= QLabel("فیصدی تخفیف")
+        self.disount_precent= QLabel("فیصدی تخفیف%:")
         self.disc_lb= QLabel("")
         self.nt_lb= QLabel("")
         ##
@@ -139,23 +139,15 @@ class Notifi_Discount_Box(QWidget):
         
         self.disc_lb.setText(str(discount_percent))
         self.disc_lb.adjustSize()
-
+        
+        self.image_label.setFixedSize(80,80)
+        self.image_label.setScaledContents(True)
         if image_path and os.path.exists(image_path):
-            original_pixmap = QPixmap(image_path).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            original_pixmap = QPixmap(image_path)
         else:
-            original_pixmap = QPixmap("default.png").scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            original_pixmap = QPixmap("default.png").scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
-        rounded = QPixmap(80, 80)
-        rounded.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(rounded)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        path = QPainterPath()
-        path.addEllipse(0, 0, 80, 80)
-        painter.setClipPath(path)
-        painter.drawPixmap(0, 0, original_pixmap)
-        painter.end()
-
-        self.image_label.setPixmap(rounded)
+        self.image_label.setPixmap(original_pixmap)
     ##
     def open_discount_form(self):
         from discount import ProductDiscount

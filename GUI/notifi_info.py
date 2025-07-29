@@ -143,8 +143,11 @@ class Notifi_Box(QWidget):
         self.exp_lb.setText(expire_date)
         self.exp_lb.adjustSize()
 
+        self.image_label.setFixedSize(80,80)
+        self.image_label.setScaledContents(True)
+
         if image_path and os.path.exists(image_path):
-            original_pixmap = QPixmap(image_path).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            original_pixmap = QPixmap(image_path)
         else:
             original_pixmap = QPixmap("default.png").scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
 
@@ -158,7 +161,7 @@ class Notifi_Box(QWidget):
         painter.drawPixmap(0, 0, original_pixmap)
         painter.end()
 
-        self.image_label.setPixmap(rounded)
+        self.image_label.setPixmap(original_pixmap)
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

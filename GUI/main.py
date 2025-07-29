@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout,QGraphicsDropShadowEffect,QLabel
+from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout,QLabel
 from PyQt6.QtCore import QPropertyAnimation, QRect, Qt
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase
+from PyQt6.QtGui import QIcon,QFontDatabase
 import sys
 from PyQt6 import QtCore
 from home import WidgetManager  

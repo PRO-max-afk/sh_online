@@ -6,8 +6,8 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-SELECT image_path
-FROM products
+SELECT *
+FROM printer
 
 ''')
 rows = cursor.fetchall()

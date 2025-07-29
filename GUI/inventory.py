@@ -67,7 +67,7 @@ class DataLoaderThread(QThread):
 
     ##
     def load_all_data(self):
-        self.db_data = Connection().get_connection()
+        
         if not self.db_data:
             self.error_occurred.emit("لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود")
             return
@@ -307,7 +307,8 @@ class DataLoaderThread(QThread):
 
     ##
     def run(self):
-        if self.db_data():
+        self.db_data = Connection().get_connection()
+        if self.db_data:
             self.load_all_data()  # حالت آنلاین
         else:
             self.load_from_local_db()  # حالت آفلاین

@@ -73,10 +73,10 @@ class ExpirationNotifier(QThread):
                     })
 
                 count = len(products)
-                if count != self.prev_count:
-                    self.prev_count = count
-                    self.expired_count_signal.emit(count)
-                    self.new_expired_info.emit(products)
+                # حذف شرط و ارسال همیشه
+                self.expired_count_signal.emit(count)
+                self.new_expired_info.emit(products)
+
                 ## empty items number
                 cursor.execute('''
                     SELECT COUNT(quantity) as quanity from inventories WHERE quantity < 0  and user_id= %s

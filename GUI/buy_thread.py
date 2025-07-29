@@ -39,7 +39,7 @@ class BuyThread(QThread):
 
     def run(self):
         self.db_connect= Connection().get_connection()
-        if self.db_connect():
+        if self.db_connect:
             # اول ماهانه، اگر تنظیم شده
             if self.selected_month:
                 self.month_buy()

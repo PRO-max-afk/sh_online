@@ -47,13 +47,8 @@ class OrderInformation(QThread):
                 continue
 
             try:
-                conn = pymysql.connect(
-                    host=db_config["host"],
-                    user=db_config["user"],
-                    passwd=db_config["password"],
-                    database=db_config["database"]
-                )
-                cursor = conn.cursor()
+
+                cursor = db_config.cursor()
 
                 cursor.execute("""
                     SELECT id,sale_number, customer_name, product_name, quantity, area, home_number, phone, product_unit,price
@@ -126,7 +121,7 @@ class OrderInformation(QThread):
                     self.prev_count = count
                     self.order_count_signal.emit(count)
                     self.new_order_info.emit(grouped_orders)
-                conn.close()
+                db_config.close()
             except pymysql.MySQLError as e:
                 print(f"{e}: خطا در کوئری یا اتصال دیتابیس")
 

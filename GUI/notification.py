@@ -31,6 +31,9 @@ class Frame2(QFrame):
     def __init__(self):
         super().__init__()
         self.spinner= None
+        self.expired_data = None
+        self.discount_data = None
+
         self.init_ui()
         self.label_UI()
         self.set_today_date()
@@ -101,6 +104,9 @@ class Frame2(QFrame):
         mini_box.addWidget(self.mini_info)
     
         # لایه جعبه‌ها
+        self.expired_layout= QVBoxLayout()
+        self.disconnect_layout= QVBoxLayout()
+        
         self.box_layout = QGridLayout()
         self.box_layout.setSpacing(10)
         scroll_layout.addLayout(self.box_layout)
@@ -125,10 +131,7 @@ class Frame2(QFrame):
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.notification_frame.raise_()
         ##
-        
 
-
-        
     def label_UI(self):
         self.label.setMinimumSize(200, 40)
         self.label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
@@ -262,46 +265,52 @@ class Frame2(QFrame):
         self.notifier.start()
     ##
     def show_nt(self, products: list):
-        # پاک کردن ویجت‌های قبلی در layout
+        self.expired_data = products
+        self.try_display_notifications()
+
+    ##
+    def show_discount(self, disc_list: list):
+        self.discount_data = disc_list
+        self.try_display_notifications()
+    ##
+    def try_display_notifications(self):
+        if self.expired_data is None or self.discount_data is None:
+            return  # صبر کن تا هر دو سیگنال برسد
+
+        # فقط یک بار اجرا شود، سپس داده‌ها پاک شوند
+        products = self.expired_data
+        discounts = self.discount_data
+
+        self.expired_data = None
+        self.discount_data = None
+
+        # پاک کردن کل layout
         for i in reversed(range(self.box_layout.count())):
             widget = self.box_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
 
-        # اضافه کردن محصولات جدید
+        # نمایش محصولات منقضی‌شده
         for product in products:
             notif = Notifi_Box()
-
-            # دریافت مسیر محلی عکس با استفاده از متد دانلود
             image_path = self.download_image_from_url(product.get("product_image", ""))
-
             notif.set_product_info(
                 name=product.get("product_name", ""),
                 number=str(product.get("quantity", "")),
                 expire_date=str(product.get("expiration_dates", "")),
-                image_path=image_path or ""  # استفاده از تصویر دانلود شده یا مسیر خالی
+                image_path=image_path or ""
             )
-
             self.box_layout.addWidget(notif)
 
-    ##
-    def show_discount(self, disc_list : list):
-      #  today_date= jdatetime.date.today().strftime("%Y/%m/%d")
-        # پاک کردن ویجت‌های قبلی در layout
-        for i in reversed(range(self.box_layout.count())):
-            widget = self.box_layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
-        #
-        for item in disc_list:
-            notfi= Notifi_Discount_Box()
-            image_path= self.download_image_from_url(item.get("product_image", ""))
-            
+        # نمایش تخفیف‌های منقضی‌شده
+        for item in discounts:
+            notfi = Notifi_Discount_Box()
+            image_path = self.download_image_from_url(item.get("product_image", ""))
             notfi.set_product_info(
-                name= item.get("name", ""),
-                number= item.get("quantity", ""),
-                discount_percent= item.get("discount_percent", ""),
-                image_path= image_path or ""          
+                name=item.get("name", ""),
+                number=item.get("quantity", ""),
+                discount_percent=item.get("discount_percent", ""),
+                image_path=image_path or ""
             )
             self.box_layout.addWidget(notfi)
 
