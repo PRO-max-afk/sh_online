@@ -319,7 +319,7 @@ class Harvest(QMainWindow):
             QTableWidget {
                 border: 2px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 14px;
                 font-weight: bold;
                 border-radius: 0px;
@@ -604,9 +604,14 @@ class Harvest(QMainWindow):
             print(f"{e}: error in select db")
     ##
     def synced_auto_timer(self):
-        self.synced_timer= QTimer(self)
-        self.synced_timer.timeout.connect(self.synced_harvest_to_server)
-        self.synced_timer.start(30 *1000)
+        from synced_harvest import HarvestThread
+        self.harvest= HarvestThread()
+        self.harvest.start()
+        
+        if hasattr(self, 'synced_timer'):
+            self.synced_timer= QTimer(self)
+            self.synced_timer.timeout.connect(self.synced_auto_timer)
+            self.synced_timer.start(30 *1000)
     ##
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

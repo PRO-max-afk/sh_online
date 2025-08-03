@@ -1,6 +1,5 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 import pymysql
-import requests
 import sqlite3
 import os
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -47,13 +46,19 @@ class SaleThread(QThread):
                 self.week_sale_off()
             # بعد هفته‌ای، اگر تنظیم شده
             elif self.selected_week:
+                today_j = jdatetime.date.today()
+                self.selected_month = f"{today_j.year:04d}/{today_j.month:02d}"
                 self.week_sale_off()
         else:
-            if self.selected_week:
-                self.week_sale_offline_only()
-            elif self.selected_month:
+            if self.selected_month:
                 self.month_sale_offline_only()
                 self.day_sale_offline_only()
+                self.week_sale_offline_only()
+            elif self.selected_week:
+                today_j = jdatetime.date.today()
+                self.selected_month = f"{today_j.year:04d}/{today_j.month:02d}"
+                self.week_sale_offline_only()
+
             
     
     ###
@@ -584,10 +589,12 @@ class SaleThread(QThread):
                             g_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
 
                         j_date = jdatetime.date.fromgregorian(date=g_date)
-                        # فقط اگر اختلاف کمتر از 7 روز است، پردازش کن
-                        delta_days = (today.togregorian() - j_date.togregorian()).days
-                        if delta_days < 0 or delta_days >= 7:
+                        # فقط اگر در هفته جاری شمسی باشد، پردازش کن
+                        start_of_week = today - jdatetime.timedelta(days=today.weekday())  # شنبه این هفته
+                        end_of_week = start_of_week + jdatetime.timedelta(days=6)          # جمعه این هفته
+                        if not (start_of_week <= j_date <= end_of_week):
                             continue
+
 
                         weekday_index = j_date.weekday()
                         weekday_name = days[weekday_index]
@@ -678,8 +685,10 @@ class SaleThread(QThread):
                     date_str, value, profit = row
                     g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
                     j_date = jdatetime.date.fromgregorian(date=g_date)
-                    delta_days = (today.togregorian() - j_date.togregorian()).days
-                    if delta_days < 0 or delta_days >= 7:
+                    # فقط اگر در هفته جاری شمسی باشد، پردازش کن
+                    start_of_week = today - jdatetime.timedelta(days=today.weekday())  # شنبه این هفته
+                    end_of_week = start_of_week + jdatetime.timedelta(days=6)          # جمعه این هفته
+                    if not (start_of_week <= j_date <= end_of_week):
                         continue
 
                     weekday_name = days[j_date.weekday()]

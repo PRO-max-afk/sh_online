@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fa">
+
+<head>
+  <meta charset="UTF-8">
+  <title>فاکتور خرید</title>
+  <style>
+    @font-face {
+      font-family: 'b-nazanin';
+      src: url('./fonts/B-NAZANIN.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    body {
+      font-family: 'b-nazanin', Tahoma, sans-serif;
+      width: 58mm;
+      margin: 5mm auto;
+      padding: 5mm;
+      background: #fff;
+      color: #000;
+      direction: rtl;
+      font-size: 12px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 26px;
+      margin: 5px 0;
+    }
+
+    .center {
+      text-align: center;
+      margin-bottom: 3px;
+    }
+
+    .date-receipt {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin: 4px 0 8px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    th,
+    td {
+      text-align: right;
+      padding: 4px 2px;
+    }
+
+    #border-dashed {
+      font-weight: bold;
+      border-top: 1px dashed gray;
+    }
+
+    .total-row {
+      
+      border-top: 1px solid gray;
+    }
+
+    .logo {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .logo div {
+      font-size: 16px;
+    }
+
+    .logo span {
+      font-size: 14px;
+    }
+    .discount-row {
+  font-weight: bold  
+}
+
+  </style>
+</head>
+
+<body>
+
+  <h1>فروشگاه تک</h1>
+  <div class="center">هرات - جاده انصاری - مارکت برادران</div>
+  <div class="center">0769423423 - 0792312310</div>
+
+  <div class="date-receipt">
+    <div class="date-receipt">تاریخ: ۱۴۰۴/۰۵/۰۵</div>
+    <div class="date-receipt">شماره: 175</div>
+  </div>
+
+ <table>
+  <thead cla>
+    <tr id="border-dashed">
+      <th>نام کالا</th>
+      <th style="text-align: center;">تعداد</th>
+      <th style="text-align: left;">قیمت</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="total-row">
+      <td>قهوه</td>
+      <td style="text-align: center;">2 عدد</td>
+      <td style="text-align: left;">30.00</td>
+    </tr>
+    <tr>
+      <td>قهوه</td>
+      <td style="text-align: center;">1 بسته</td>
+      <td style="text-align: left;">740.00</td>
+    </tr>
+    <tr class="total-row">
+      <th colspan="2">مجموع کل</th>
+      <th style="text-align: left;">770.00</th>
+    </tr>
+    <tr class="discount-row">
+      <td colspan="2">تخفیف (۳۰٪)</td>
+      <td style="text-align: left;">70.00-</td>
+    </tr>
+    <tr style="border:-none">
+      <th colspan="2">پرداخت شده</th>
+      <th style="text-align: left;">700.00</th>
+    </tr>
+  </tbody>
+</table>
+
+  <div class="logo">
+    <div>//</div>
+    <div>AQSA</div>
+    <span>GROUP</span>
+  </div>
+
+</body>
+
+</html>

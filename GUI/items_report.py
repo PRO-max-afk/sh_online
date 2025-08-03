@@ -467,7 +467,7 @@ class ItemReport(QMainWindow):
             QTableWidget {
                 border: 2px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 14px;
                 font-weight: bold;
                 border-radius: 0px;
@@ -477,7 +477,7 @@ class ItemReport(QMainWindow):
                 background-color: transparent;
                 border: 1px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 16px;
                 font-weight: bold;
                 border-radius: 0px;
@@ -525,7 +525,7 @@ class ItemReport(QMainWindow):
             QTableWidget {
                 border: 2px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 14px;
                 font-weight: bold;
                 border-radius: 0px;
@@ -535,7 +535,7 @@ class ItemReport(QMainWindow):
                 background-color: transparent;
                 border: 1px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 16px;
                 font-weight: bold;
                 border-radius: 0px;

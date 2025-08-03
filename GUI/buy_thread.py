@@ -1,6 +1,5 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 import pymysql
-import requests
 import sqlite3
 import os
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -11,7 +10,6 @@ from datetime import datetime
 import datetime
 from message_b import MessageBox
 import os
-import requests
 from db_connection import Connection
 
 
@@ -38,19 +36,25 @@ class BuyThread(QThread):
         
 
     def run(self):
-        self.db_connect= Connection().get_connection()
+        self.db_connect = Connection().get_connection()
         if self.db_connect:
-            # اول ماهانه، اگر تنظیم شده
             if self.selected_month:
                 self.month_buy()
                 self.day_buy()
                 self.week_buy()
-        else:
-            if self.selected_week:
+            elif self.selected_week:
+                today_j = jdatetime.date.today()
+                self.selected_month = f"{today_j.year:04d}/{today_j.month:02d}"
                 self.week_buy()
-            elif self.selected_month:
+        else:
+            if self.selected_month:
                 self.month_buy_offline_only()
                 self.day_buy_offline()
+                self.week_buy_offline()
+            elif self.selected_week:
+                today_j = jdatetime.date.today()
+                self.selected_month = f"{today_j.year:04d}/{today_j.month:02d}"
+                self.week_buy_offline()
     ##
     def get_user_id(self):
         db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Data', 'sh_online.db')
@@ -357,37 +361,53 @@ class BuyThread(QThread):
             return
 
         db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Data', 'sh_online.db')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT buy_date, final_total FROM products WHERE user_id = ?
-        """, (user_id,))
-        rows = cursor.fetchall()
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT buy_date, final_total FROM products WHERE user_id = ?
+            """, (user_id,))
+            rows = cursor.fetchall()
 
-        j_year, j_month = map(int, self.selected_month.split("/"))
-        week_totals = [0, 0, 0, 0]
-
-        for date_str, value in rows:
             try:
-                g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
-                j_date = jdatetime.date.fromgregorian(date=g_date)
-                if j_date.year == j_year and j_date.month == j_month:
-                    week_index = (j_date.day - 1) // 7
-                    week_totals[week_index] += float(value)
-            except:
-                continue
+                j_year, j_month = map(int, self.selected_month.split("/"))
+            except Exception as e:
+                print(f"❌ selected_month آفلاین نامعتبر است: {e}")
+                return
 
-        total = sum(week_totals)
-        self.weekly_sale.emit(week_totals, total)
-        self.week_sales.emit(total)
-        self.weekly_sa.emit({
-            "first": week_totals[0],
-            "second": week_totals[1],
-            "third": week_totals[2],
-            "fourth": week_totals[3],
-            "total_week": total
-        })
+            week_totals = [0, 0, 0, 0]
+            print("📌 نمونه تاریخ‌های آفلاین:")
+            for r in rows[:5]:
+                print(f"  📅 {r[0]} - 💵 {r[1]}")
 
+            for date_str, value in rows:
+                try:
+                    g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    if j_date.year == j_year and j_date.month == j_month:
+                        week_index = (j_date.day - 1) // 7
+                        week_index = min(week_index, 3)
+                        week_totals[week_index] += float(value) if value else 0
+                except Exception as e:
+                    print(f"⚠️ خطا در تاریخ آفلاین: {e} ← {date_str}")
+                    continue
+
+            total = sum(week_totals)
+            print("✅ اطلاعات خرید هفتگی آفلاین:")
+            for i, amount in enumerate(week_totals):
+                print(f"هفته {i+1}: {amount:,.0f}")
+
+            self.weekly_sale.emit(week_totals, total)
+            self.week_sales.emit(total)
+            self.weekly_sa.emit({
+                "first": week_totals[0],
+                "second": week_totals[1],
+                "third": week_totals[2],
+                "fourth": week_totals[3],
+                "total_week": total
+            })
+        except sqlite3.Error as e:
+            print(f"week buy offline:{e}")
 
     ##
     def day_buy(self):
@@ -396,7 +416,7 @@ class BuyThread(QThread):
             return
 
         db_data = Connection().get_connection()
-        if not db_data or not self.selected_month:
+        if not db_data:
             return
 
         try:
@@ -410,16 +430,11 @@ class BuyThread(QThread):
         except:
             return
 
-        # استخراج سال و ماه شمسی از selected_month
-        try:
-            j_year, j_month = map(int, self.selected_month.split("/"))
-        except Exception as e:
-            print(f"❌ selected_month نامعتبر است: {e}")
-            return
-
-        # روزهای هفته به فارسی
         days = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
         day_totals = {day: 0 for day in days}
+        today = jdatetime.date.today()
+        start_of_week = today - jdatetime.timedelta(days=today.weekday())
+        end_of_week = start_of_week + jdatetime.timedelta(days=6)
 
         for date_str, value in rows:
             try:
@@ -431,60 +446,11 @@ class BuyThread(QThread):
                     g_date = date_str
 
                 j_date = jdatetime.date.fromgregorian(date=g_date)
+                if not (start_of_week <= j_date <= end_of_week):
+                    continue
 
-                # فقط اگر سال و ماه یکی بود
-                if j_date.year == j_year and j_date.month == j_month:
-                    weekday = days[j_date.weekday()]
-                    day_totals[weekday] += float(value) if value else 0
-            except Exception as e:
-                print(f"⚠️ خطا در تبدیل تاریخ: {e}")
-                continue
-
-        ordered = [day_totals[day] for day in days]
-        total = sum(ordered)
-
-        self.daily_sale.emit(ordered, total)
-        self.daily_sa.emit({
-            "saturday": day_totals["شنبه"],
-            "sunday": day_totals["یک‌شنبه"],
-            "monday": day_totals["دوشنبه"],
-            "tuesday": day_totals["سه‌شنبه"],
-            "wednesday": day_totals["چهارشنبه"],
-            "thursday": day_totals["پنج‌شنبه"],
-            "friday": day_totals["جمعه"]
-        })
-
-    #   
-    def day_buy_offline(self):
-        user_id = self.get_user_id()
-        if not user_id or not self.selected_month:
-            return
-
-        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Data', 'sh_online.db')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT buy_date, final_total FROM products WHERE user_id = ?
-        """, (user_id,))
-        rows = cursor.fetchall()
-
-        try:
-            j_year, j_month = map(int, self.selected_month.split("/"))
-        except Exception as e:
-            print(f"❌ selected_month آفلاین نامعتبر است: {e}")
-            return
-
-        days = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
-        day_totals = {day: 0 for day in days}
-
-        for date_str, value in rows:
-            try:
-                g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
-                j_date = jdatetime.date.fromgregorian(date=g_date)
-
-                if j_date.year == j_year and j_date.month == j_month:
-                    weekday = days[j_date.weekday()]
-                    day_totals[weekday] += float(value)
+                weekday = days[j_date.weekday()]
+                day_totals[weekday] += float(value) if value else 0
             except:
                 continue
 
@@ -502,4 +468,47 @@ class BuyThread(QThread):
             "friday": day_totals["جمعه"]
         })
 
-    
+    def day_buy_offline(self):
+        user_id = self.get_user_id()
+        if not user_id:
+            return
+
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Data', 'sh_online.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT buy_date, final_total FROM products WHERE user_id = ?
+        """, (user_id,))
+        rows = cursor.fetchall()
+
+        days = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
+        day_totals = {day: 0 for day in days}
+        today = jdatetime.date.today()
+        start_of_week = today - jdatetime.timedelta(days=today.weekday())
+        end_of_week = start_of_week + jdatetime.timedelta(days=6)
+
+        for date_str, value in rows:
+            try:
+                g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                j_date = jdatetime.date.fromgregorian(date=g_date)
+                if not (start_of_week <= j_date <= end_of_week):
+                    continue
+                weekday = days[j_date.weekday()]
+                day_totals[weekday] += float(value)
+            except:
+                continue
+
+        ordered = [day_totals[day] for day in days]
+        total = sum(ordered)
+
+        self.daily_sale.emit(ordered, total)
+        self.daily_sa.emit({
+            "saturday": day_totals["شنبه"],
+            "sunday": day_totals["یک‌شنبه"],
+            "monday": day_totals["دوشنبه"],
+            "tuesday": day_totals["سه‌شنبه"],
+            "wednesday": day_totals["چهارشنبه"],
+            "thursday": day_totals["پنج‌شنبه"],
+            "friday": day_totals["جمعه"]
+        })
+

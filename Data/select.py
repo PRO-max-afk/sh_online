@@ -6,8 +6,7 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-SELECT *
-FROM products
+SELECT buy_date, final_total FROM products WHERE user_id = 1
 
 ''')
 rows = cursor.fetchall()

@@ -145,7 +145,7 @@ class AddProduct(QDialog):
         ##
         self.name_lb.setGeometry(470,115,120,20)
         self.name_lb.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -153,7 +153,7 @@ class AddProduct(QDialog):
         ##
         self.quantity_lb.setGeometry(776,225,115,20)
         self.quantity_lb.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -161,7 +161,7 @@ class AddProduct(QDialog):
         ##
         self.exp_name.setGeometry(776,320,120,20)
         self.exp_name.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -169,7 +169,7 @@ class AddProduct(QDialog):
         ##
         self.buy_price.setGeometry(480,320,120,20)
         self.buy_price.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -177,7 +177,7 @@ class AddProduct(QDialog):
         ##
         self.number_lb.setGeometry(475,225,120,20)
         self.number_lb.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -185,7 +185,7 @@ class AddProduct(QDialog):
         ##
         self.sale_price.setGeometry(776,425,120,20)
         self.sale_price.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -193,7 +193,7 @@ class AddProduct(QDialog):
         ##
         self.sale_big.setGeometry(480,425,120,20)
         self.sale_big.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -201,7 +201,7 @@ class AddProduct(QDialog):
         ##
         self.total_label.setGeometry(152,577,60,20)
         self.total_label.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 16px;
             font-weight: bold;
             color: black;
@@ -209,7 +209,7 @@ class AddProduct(QDialog):
         ##
         self.total_line.setGeometry(90,573,70,30)
         self.total_line.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 15px;
             font-weight: bold;
             color: black;
@@ -220,7 +220,7 @@ class AddProduct(QDialog):
         self.bar_line.setGeometry(653, 150, 250, 45)
         self.bar_line.setStyleSheet('''
             background-color: white;
-            font-family: Arial;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             border: 1px solid #c2c2c2;
@@ -232,7 +232,7 @@ class AddProduct(QDialog):
         self.name_line.setGeometry(355,150,250,45)
         self.name_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -244,7 +244,7 @@ class AddProduct(QDialog):
         self.quantity_line.setGeometry(653,260,250,45)
         self.quantity_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -256,7 +256,7 @@ class AddProduct(QDialog):
         self.number_line.setGeometry(355,260,250,45)
         self.number_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -269,7 +269,7 @@ class AddProduct(QDialog):
         self.exp_line.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.exp_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -281,7 +281,7 @@ class AddProduct(QDialog):
         self.buy_line.setGeometry(355,350,250,45)
         self.buy_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -293,7 +293,7 @@ class AddProduct(QDialog):
         self.sale_line.setGeometry(653,450,250,45)
         self.sale_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -305,7 +305,7 @@ class AddProduct(QDialog):
         self.sale_big_line.setGeometry(355,450,250,45)
         self.sale_big_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;

@@ -46,7 +46,7 @@ class Order_Box(QWidget):
         # تنظیم استایل
         self.table.setStyleSheet('''
             QTableWidget {
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 12px;
                 border: none;
                 color: black;
@@ -186,7 +186,7 @@ class Order_Box(QWidget):
     ##
     def set_label_style(self, label):
         label.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             background-color: transparent;
             font-weight: bold;
             font-size: 16px;

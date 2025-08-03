@@ -118,7 +118,7 @@ class Notifi_Box(QWidget):
 
     def set_label_style(self, label):
         label.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             background-color: transparent;
             font-weight: bold;
             font-size: 16px;

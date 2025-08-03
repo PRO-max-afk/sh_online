@@ -163,7 +163,7 @@ class WidgetManager(QWidget):
             QTableWidget {
                 border: 2px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 14px;
                 font-weight: bold;
                 border-radius: 0px;
@@ -173,7 +173,7 @@ class WidgetManager(QWidget):
                 background-color: transparent;
                 border: 1px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 16px;
                 font-weight: bold;
                 border-radius: 0px;  /* صاف کردن سرستون‌ها */
@@ -1350,12 +1350,12 @@ class WidgetManager(QWidget):
                 # ذخیره در لیست دکمه‌ها
                 self.denied_buttons.append(denied_btn)
                 self.table.insertRow(row)
-                self.table.setItem(row, 0, QTableWidgetItem(name))
-                self.table.setItem(row, 1, QTableWidgetItem(str(price)))
-                self.table.setItem(row, 2, QTableWidgetItem(str(number)))
-                self.table.setItem(row, 3, QTableWidgetItem(str(unit)))
-                self.table.setItem(row, 4, QTableWidgetItem(str(discount)))
-                self.table.setItem(row, 5, QTableWidgetItem(str(total)))
+                self.table.setItem(row, 0, QTableWidgetItem(self._make_cell(name)))
+                self.table.setItem(row, 1, QTableWidgetItem(str(self._make_cell(price))))
+                self.table.setItem(row, 2, QTableWidgetItem(str(self._make_cell(number))))
+                self.table.setItem(row, 3, QTableWidgetItem(str(self._make_cell(unit))))
+                self.table.setItem(row, 4, QTableWidgetItem(str(self._make_cell(discount))))
+                self.table.setItem(row, 5, QTableWidgetItem(str(self._make_cell(total))))
                 self.table.setCellWidget(row,6,denied_btn)
                 self.calculate_total_price(self.table.item(row, 1))
 

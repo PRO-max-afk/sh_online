@@ -729,6 +729,7 @@ class BuyDashboard(QMainWindow):
             frame.setVisible(btn == clicked_btn)
         
         ## setting month,week names
+        #current_month_index = jdatetime.date.today().month - 1  # index از 0 شروع می‌شود
         self.month_combo.clear()
         if clicked_btn== self.month_btn:
             # ماه‌های شمسی
@@ -737,12 +738,18 @@ class BuyDashboard(QMainWindow):
                 "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"
             ]
             self.month_combo.addItems(months)
+            #self.month_combo.setCurrentIndex(current_month_index)
+            self.month_combo.setEnabled(True)
         elif clicked_btn== self.week_btn:
-            week= ["هفته اول","هفته دوم","هفته سوم"," هفته چهارم"]
+            week= [ "حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله",
+                "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"]
             self.month_combo.addItems(week)
+            #self.month_combo.setCurrentIndex(current_month_index)
+            #self.month_combo.setEnabled(False)
         elif clicked_btn == self.day_btn:
             day= ["شنبه","یکشنبه","دوشنبه","سه شنبه","چهارشنبه","پنجشنبه","جمعه"]
             self.month_combo.addItems(day)
+            self.month_combo.setEnabled(False)
 
     ##
     def open_reports(self):
@@ -932,7 +939,6 @@ class BuyDashboard(QMainWindow):
         today = jdatetime.date.today()
         current_year = today.year
         current_month = today.month
-        current_day = today.day
         selected_text = self.month_combo.itemText(index)
 
         if self.month_btn.styleSheet().find("background-color: white") != -1:
@@ -943,12 +949,11 @@ class BuyDashboard(QMainWindow):
             self.set_selected_month_data(formatted_month)
 
         elif self.week_btn.styleSheet().find("background-color: white") != -1:
-            # 🔹 انتخاب هفته‌ای
-            formatted_month = f"{current_year}/{current_month:02d}"
-            week_number = index + 1
-            week_label = f"هفته {week_number}"
-            print(f"📅 انتخاب هفته‌ای: {formatted_month} - {week_label}")
-            self.set_selected_week_data(formatted_month, week_label)
+            # 🔹 انتخاب ماهانه
+            month_number = index + 1
+            formatted_month = f"{current_year}/{month_number:02d}"
+            print(f"📆 انتخاب ماهانه: {formatted_month}")
+            self.set_selected_month_data(formatted_month)
 
         elif self.day_btn.styleSheet().find("background-color: white") != -1:
             # 🔹 انتخاب روزانه

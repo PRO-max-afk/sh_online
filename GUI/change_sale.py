@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (QApplication,QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
     QGraphicsDropShadowEffect, QFileDialog,QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QTextDocument,QBrush,QPixmap
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QTextDocument,QBrush,QPainter,QFont
 import sqlite3
 from message_b import MessageBox
 import os,threading
@@ -125,7 +125,7 @@ class ChangingFactor(QMainWindow):
             QTableWidget {
                 border: 2px solid black;
                 color: black;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 14px;
                 font-weight: bold;
                 gridline-color: black;
@@ -732,15 +732,13 @@ class ChangingFactor(QMainWindow):
         except sqlite3.Error as e:
             print(f"خطا هنگام بروزرسانی پایگاه‌داده: {e}")
 
-        # بخش پرینت
+        # در داخل تابع مربوط به پرینت قرار بده:
         table_items = self.print_list
         try:
             sum_total = sum(float(p['total']) for p in table_items)
             factor_number = table_items[0].get("factor_number", "---") if table_items else "---"
             date = jdatetime.date.today().strftime("%Y/%m/%d")
 
-            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-            doc = QTextDocument()
 
             html = f"""
                 <html>
@@ -752,139 +750,149 @@ class ChangingFactor(QMainWindow):
                         direction: rtl;
                         background-color: white;
                         margin: 0;
-                        padding: 20px;
+                        padding: 10px;
                     }}
                     .container {{
                         text-align: center;
                         display: flex;
                         justify-content: center;
+                        margin: 0 auto
                     }}
                     table {{
-                        width: 90%;
-                        margin-right: 90px;
+                        width: 100%;
+                        margin: 8px 0;
+                        margin-right: 70px;
                         border-collapse: collapse;
                         font-size: 14pt;
                     }}
+                    thead tr {{
+                        border-top: 1px dashed gray;
+                        border-bottom: 1px solid gray;
+                    }}
+                    tbody tr {{
+                        border-bottom: 1px solid gray;
+                    }}
                     th, td {{
-                        border: 1px solid black;
                         padding: 12px;
-                        text-align: center;
-                    }}
-                    h2 {{
-                        font-size: 18pt;
-                        margin-bottom: 10px;
-                    }}
-                    .address {{
-                        font-size: 12pt;
-                        font-family: Roboto, 'B Nazanin';
                         text-align: right;
                     }}
-                    .aqsa {{
-                        font-size: 8pt;
-                        font-family: Roboto, 'arial';
+                    .border-dashed {{
+                        font-weight: bold;
+                        border-top: 1px dashed gray;
                         text-align: center;
                     }}
-                    .data {{
+                    .total-row{{
+                        border-top: 1px solid gray;
+                        width: 20px;
+                    }}
+                    
+                    h1 {{
+                        text-align: center;
+                        font-size: 24pt;
+                        margin: 4px 0;
+                    }}
+                    .center {{
+                        text-align: center;
                         font-size: 12pt;
                         font-family: Roboto, 'B Nazanin';
-                        text-align: center;
+                        margin-bottom: 3px;
                     }}
-                    .head_title {{
-                        font-size: 14pt;
+                    .date-receipt {{
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 14px;
                         font-family: Roboto, 'B Nazanin';
-                        text-align: center;
+                        font-style: bold;
+                        margin: 4px 0 8px 0;
+                        width: 20%;
                     }}
-                    .total{{
-                        font-size: 14pt;
+                   
+                    .discount-row{{
+                        font-size: 10pt;
                         font-family: Roboto, 'B Nazanin';
-                        text-align: center;
-                    }}
-                    .factor{{
-                    font-size: 10pt;
-                    font-family: Roboto, 'B Nazanin';
-                    font-style: normal;
-                    direction: rtl;
-                    }}
-                    .date{{
-                    font-size: 10pt;
-                    font-family: Roboto, 'B Nazanin';
-                    font-style: normal;
-                    direction: rtl;
+                        font-weight: bold;
+                        direction: rtl;
                     }}
                 </style>
                 </head>
                 <body>
-                <div class="container">
-                <h2> فاکتور فروش </h2>
+                <div class= container>
+                <h1>فروشگاه تک </h1>
+                <div class= "center"> {address} </div>
+     
+
                 <table>
-                <tr>
-                    <td colspan="7" class="head_title">
-                    <b class= "factor"> شماره فاکتور: {factor_number} </b> 
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    <b> {stor_name} </b>
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    <b class= "date"> تاریخ: {date} </b>
-                    </td>
-                </tr>
-                <tr>
-                    <th>مجموعه</th>
-                    <th>تخفیف</th>
-                    <th>واحد</th>
-                    <th>تعداد</th>
-                    <th>قیمت</th>
-                    <th>نام</th>
-                    <th>شماره</th>
-                </tr>
+                    <tr>
+                        <td>{date} :تاریخ</td>
+                        <td>{factor_number} :نمبر فاکتور</td>
+                        
+                    </tr>
+                </table>
+
+                <table>
+                <thead cla>
+                    <tr>
+                        <th class="border-dashed">قیمت</th>
+                        <th class="border-dashed">تعداد</th>
+                        <th class="border-dashed">نام</th>          
+                    </tr>
             """
 
-            for i, product in enumerate(table_items, 1):
+            # اضافه کردن ردیف‌های محصول
+            for product in table_items:
                 name = product['name']
                 product_type = product['type']
-                sell_price = product['price']
                 numer = product['number']
-                t_disc = product['discount']
                 final = product['total']
 
-                html += f""" 
-                    <tr class="data">
-                        <td>{final}</td> 
-                        <td>{t_disc}</td>
-                        <td>{product_type}</td>
-                        <td>{numer}</td>
-                        <td>{sell_price}</td>
+                html += f"""
+                <tbody>
+                    <tr>
+                        <td style="text-align: left;">{final:.2f}</td>
+                        <td style="text-align: center;">{numer} {product_type} </td>
                         <td>{name}</td>
-                        <td>{i}</td>
                     </tr>
                 """
 
-            html += f""" 
-                <tr>
-                    <td colspan="7" class= "total"> {sum_total} <b> :مجموعه کل </b> </td>
+            # مجموع، تخفیف و پرداخت‌شده
+            html += f"""
+                <tr style="border-top: 1px solid gray;", colspan="4">
+                    <th class="total-row",colspan="4",style="text-align: left;">{sum_total:.2f}</th>
+                    <th class="total-row",colspan="4">مجموع کل</th>
+                    
                 </tr>
                 <tr>
-                    <td colspan="7" class="address">
-                    <b> آدرس:</b>  {address} 
-                    <br>
-                    <b> شماره تماس: </b>  {phone}
-                    </td>
+                    <td class="discount-row",style="text-align: left;">{-70:.2f}-</td>
+                    <td class="discount-row">تخفیف</td>
                 </tr>
-                <tr>
-                    <td colspan="7" class="aqsa">
-                    Powered by - AQSA GROUP
-                    <br>
-                    www.aqsagroup.af
-                    </td>
+                <tr style="border-top: 1px solid gray;", colspan="3">
+                    <th >پرداخت شده</th>
+                    <th style="text-align: left;">{final_total:.2f}</th>
                 </tr>
-                </table>
-                </body>
-                </html>
+                </tbody>
+            </table>
+
+            <div class="logo">
+                <div>//</div>
+                <div>AQSA</div>
+                <span>GROUP</span>
+            </div>
+
+            </body>
+            </html>
             """
 
+            # چاپ
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            doc = QTextDocument()
             doc.setHtml(html)
             doc.print(printer)
 
+            print("✅ فایل HTML ذخیره و توسط QPrinter چاپ شد.")
+
         except Exception as e:
             print(f"[⚠️ خطا در پرینت]: {e}")
+
     ##
     def syncs_to_server(self):
         db_data = Connection().get_connection()
