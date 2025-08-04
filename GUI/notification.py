@@ -2,12 +2,9 @@ from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit
     QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase
-from PyQt6 import QtCore
 import jdatetime
 import os
 import requests
-import sqlite3
-from message_b import MessageBox
 from circle import CircularSpinner
 from notifi_box import Notification
 from m_dec import Decrease
@@ -17,13 +14,11 @@ from notifi_check import NotificationChecker
 from notifi_box import Notification
 from notifi_ch import ExpirationNotifier
 from notifi_discount import Notifi_Discount_Box
-import pymysql
-from info_box import ProductBox
+from notifi_empty import Notifi_Empty
 from mini_box import MniniBox
-from persiantools.jdatetime import JalaliDate
 from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
-    QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
+    QLabel,QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
 
 
@@ -33,6 +28,7 @@ class Frame2(QFrame):
         self.spinner= None
         self.expired_data = None
         self.discount_data = None
+        self.empty_data= None
 
         self.init_ui()
         self.label_UI()
@@ -261,28 +257,34 @@ class Frame2(QFrame):
         self.notifier.new_discount_expired.connect(self.show_discount)
         self.notifier.expired_count_signal.connect(self.show_exp)
         self.notifier.empty_count.connect(self.show_empty)
+        self.notifier.empty_list.connect(self.show_empte)
         self.notifier.discount_expire.connect(self.show_end_discount)
         self.notifier.start()
     ##
     def show_nt(self, products: list):
         self.expired_data = products
         self.try_display_notifications()
-
+    ##
+    def show_empte(self, empty: list):
+        self.empty_data= empty
+        self.try_display_notifications()
     ##
     def show_discount(self, disc_list: list):
         self.discount_data = disc_list
         self.try_display_notifications()
     ##
     def try_display_notifications(self):
-        if self.expired_data is None or self.discount_data is None:
+        if self.expired_data is None or self.discount_data is None or self.empty_data is None:
             return  # صبر کن تا هر دو سیگنال برسد
 
         # فقط یک بار اجرا شود، سپس داده‌ها پاک شوند
         products = self.expired_data
         discounts = self.discount_data
+        empties= self.empty_data
 
         self.expired_data = None
         self.discount_data = None
+        self.empty_data= None
 
         # پاک کردن کل layout
         for i in reversed(range(self.box_layout.count())):
@@ -313,7 +315,20 @@ class Frame2(QFrame):
                 image_path=image_path or ""
             )
             self.box_layout.addWidget(notfi)
+        
+        # اضافه کردن باکس‌های مربوط به محصولات تمام‌شده
+        for empty in empties:
+            box = Notifi_Empty()
+            image_data = self.download_image_from_url(empty.get("product_image", ""))
+            box.set_product_info(
+                name=empty.get("name", ""),
+                number=empty.get("quantity", ""),
+                expire_date=empty.get("exp_date", ""),
+                image_path=image_data or ""
+            )
+            self.box_layout.addWidget(box)
 
+        
     ##
     def show_exp(self, count : int):
         self.decrease.set_product_info(number=str(count))

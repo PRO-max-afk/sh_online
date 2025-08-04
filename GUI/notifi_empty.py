@@ -4,14 +4,13 @@ from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 import os
 
-class Notifi_Box(QWidget):
+class Notifi_Empty(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(600, 130)
         self.setStyleSheet("background-color: transparent;")
+        self.pro_name= ""
         self.load_all_fonts()
-        self.name= ""
-        self.quantity= 0
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
@@ -56,25 +55,22 @@ class Notifi_Box(QWidget):
         self.nu_lb = QLabel("")
         self.expire_date = QLabel("تاریخ انقضاء:")
         self.exp_lb = QLabel("")
-        self.text_lb= QLabel("محصولات انقضاء شده")
-        self.nt_lb= QLabel("تاریخ محصول گذشته است")
-        self.nt_lb.setFixedSize(140,25)
-        self.nt_lb.setStyleSheet("background-color: red; font-family: Mirza; font-weight: bold; font-size: 15px; color: white; border-radius: 5px;")
+        self.text_lb= QLabel("محصولات اتمام شده")
+      
         self.text_lb.setStyleSheet("color: gray; font-family: B Nazanin; font-weight: bold; font-size: 14px;")
         self.text_lb.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
-        self.nt_lb.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         ##
-        self.delete_btn= QPushButton()
-        delete_icon= QIcon(self.get_asset_path("trash.png"))
-        self.delete_btn.setIcon(delete_icon)
-        self.delete_btn.setText("حذف محصول")
-        self.delete_btn.setIconSize(QtCore.QSize(20,20))
-        self.delete_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.delete_btn.clicked.connect(self.open_form)
-        self.delete_btn.setStyleSheet('''
+        self.add_btn= QPushButton()
+        add_icon= QIcon(self.get_asset_path("shopping-basket_179434.png"))
+        self.add_btn.setIcon(add_icon)
+        self.add_btn.setText("افزودن محصول   ")
+        self.add_btn.setIconSize(QtCore.QSize(25,25))
+        self.add_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.add_btn.clicked.connect(self.open_add_form)
+        self.add_btn.setStyleSheet('''
         QPushButton{
                 background-color: white;
-                color: red;
+                color: green;
                 font-family: B Nazanin;
                 font-weight: bold;
                 font-size: 12px;
@@ -85,7 +81,7 @@ class Notifi_Box(QWidget):
             text-decoration: underline;
                                       }
         QPushButton:pressed{
-            color: red;
+            color: green;
                                       }
 
             
@@ -105,19 +101,13 @@ class Notifi_Box(QWidget):
         #
         
         info_layout.addLayout(self.label_pair(self.exp_lb,self.expire_date))
-        info_layout.addWidget(self.nt_lb)
-        info_layout.addWidget(self.delete_btn)
+        info_layout.addWidget(self.add_btn)
 
-        # اضافه کردن به چیدمان اصلی فریم
-        # اضافه کردن به چیدمان اصلی فریم (ترتیب اصلاح شده)
-                      # سپس استرچ برای هل دادن بقیه به چپ
+        # سپس استرچ برای هل دادن بقیه به چپ
         frame_layout.addLayout(info_layout)
         frame_layout.addStretch(1)  
         frame_layout.addLayout(right_layout)     # ابتدا right_layout اضافه شود
-        frame_layout.addLayout(image_layout)
-        
-
-        
+        frame_layout.addLayout(image_layout) 
 
     def set_label_style(self, label):
         label.setStyleSheet('''
@@ -128,7 +118,13 @@ class Notifi_Box(QWidget):
             color: black;
         ''')
         label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-
+    ##
+    def open_add_form(self):
+        from add_p import AddProduct
+        form= AddProduct()
+        form.set_name_info(name=self.pro_name)
+        form.exec()
+    ##
     def label_pair(self, label1, label2):
         hbox = QHBoxLayout()
         hbox.addWidget(label1)
@@ -139,11 +135,10 @@ class Notifi_Box(QWidget):
     def set_product_info(self, name, number, expire_date, image_path="default.png"):
         self.na_lb.setText(name)
         self.na_lb.adjustSize()
-        self.name= name
+        self.pro_name= name
 
         self.nu_lb.setText(str(number))
         self.nu_lb.adjustSize()
-        self.quantity= number
 
         self.exp_lb.setText(expire_date)
         self.exp_lb.adjustSize()
@@ -197,10 +192,3 @@ class Notifi_Box(QWidget):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
-    ##
-    def open_form(self):
-        from exp_delete import Delete_Exp
-        del_dialog = Delete_Exp()
-        del_dialog.set_info(self.name, self.quantity)
-        del_dialog.exec()
-

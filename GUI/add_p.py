@@ -448,6 +448,9 @@ class AddProduct(QDialog):
     ##
     def set_selected_date(self, date_str):
         self.exp_line.setText(date_str)
+    ##
+    def set_name_info(self,name):
+        self.name_line.setText(str(name))
     ##images
     def get_asset_path(self, filename):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

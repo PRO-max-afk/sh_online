@@ -1,6 +1,5 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 import pymysql
-import requests
 import sqlite3
 import time
 import os
@@ -27,6 +26,12 @@ class NotificationChecker(QThread):
         self.count_ms = set()
 
     def run(self):
+        self.db_info= Connection().get_connection()
+        if self.db_info:
+            self.count_notification()
+        else:
+            self.count_offline_notification()
+    def count_notification(self):
         while self.running:
             db_config = Connection().get_connection()
             if not db_config:
@@ -92,11 +97,12 @@ class NotificationChecker(QThread):
                 
                 ##
                 cursor.execute('''
-                    SELECT COUNT(quantity) as quanity from inventories WHERE quantity < 0  and user_id= %s
+                    SELECT COUNT(quantity) as quanity from inventories WHERE quantity <= 20  and user_id= %s
                     ''',(id_user,))
                 empty_result= cursor.fetchone()
                 if empty_result:
                     empty_count= empty_result[0]
+                
                 
 
 
@@ -121,7 +127,72 @@ class NotificationChecker(QThread):
 
             time.sleep(2)
 
-    
+    ##offilne:
+    def count_offline_notification(self):
+        while self.running:
+            
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # رفتن یک سطح بالاتر از پوشه GUI
+            root_dir = os.path.dirname(base_dir)
+            db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+            if not os.path.exists(db_path):
+                MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+                return
+
+            try:
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute("SELECT id FROM users;")
+                res_id = cursor_sq.fetchone()
+                id_user = res_id[0]
+            except Exception as e:
+                print(f"{e}: خطا در دیتابیس لوکال")
+                return
+
+            try:
+                # تعداد تاریخ‌های انقضا معتبر
+                jalali_date = datetime.date.today().strftime("%Y/%m/%d")
+                cursor_sq.execute("""
+                    SELECT COUNT(expire_date) 
+                    FROM products 
+                    WHERE expire_date < ? AND user_id=?;
+                """, (jalali_date, id_user))
+                e_count = cursor_sq.fetchone()[0]
+                ##
+                cursor_sq.execute('''
+                    SELECT COUNT(discount_percent) FROM products 
+                    WHERE user_id= ? AND expire_discount= 0
+                ''',(id_user,))
+                expire_disc_result= cursor_sq.fetchone()
+                if expire_disc_result:
+                    exp_count= expire_disc_result[0]
+                
+                ##
+                cursor_sq.execute('''
+                    SELECT COUNT(quantity) as quanity from products WHERE quantity <= 20  and user_id= ?
+                    ''',(id_user,))
+                empty_result= cursor_sq.fetchone()
+                if empty_result:
+                    empty_count= empty_result[0]
+                
+                
+
+
+                total_count = e_count + empty_count + exp_count
+
+                if total_count not in self.count_ms:
+                    self.count_ms.add(total_count)
+                    self.new_count.emit(total_count)  # ارسال مقدار عددی
+                time.sleep(2)
+                
+
+                
+            except sqlite3.Error as e:
+                print(f"{e} : خطا در اتصال یا کوئری به دیتابیس")
+            finally:
+                if conn_sq:
+                    conn_sq.close()
     
 
 

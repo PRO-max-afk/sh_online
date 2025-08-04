@@ -1053,10 +1053,6 @@ class Inventory(QFrame):
 
         self.spinner_widget = None
 
-
-
-
-
     def load_all_products(self, show_spinner=True):
         self.clear_products()
 
@@ -1173,6 +1169,5 @@ class Inventory(QFrame):
             pro_name=pro_name,
             message=message,
             parent_frame=self.notification_frame,
-            icon_path=self.get_asset_path("alarm.png")
-        )
+            icon_path=self.get_asset_path("alarm.png"))
         notif.show()

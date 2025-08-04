@@ -1,12 +1,12 @@
-from PyQt6.QtWidgets import (QApplication,QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
-    QGraphicsDropShadowEffect, QFileDialog,QSizePolicy,QScrollArea,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,QEvent,QPoint,QPropertyAnimation,QEasingCurve,QSize
+from PyQt6.QtWidgets import (QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
+    QGraphicsDropShadowEffect,QSizePolicy,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+from PyQt6.QtCore import Qt,QTimer,QPoint,QPropertyAnimation,QEasingCurve,QSize
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QTextDocument,QBrush,QPainter,QFont
 import sqlite3
 from message_b import MessageBox
 import os,threading
 from db_connection import Connection
-from PyQt6.QtPrintSupport import QPrinter,QPrintDialog
+from PyQt6.QtPrintSupport import QPrinter
 import jdatetime
 
 
@@ -698,6 +698,7 @@ class ChangingFactor(QMainWindow):
                     item_list = [i for i in self.sale_list if i['sale_id'] == row_sale_id]
 
                     real_quantity = quantity
+                    real_quantitys= 0
                     for item in item_list:
                         sale_type = item['sale_type'].strip() if item['sale_type'] else ""
                         buy_price = item['buy_price']
@@ -706,16 +707,16 @@ class ChangingFactor(QMainWindow):
                         big_quantity = item['big_quantity']
 
                         if sale_type == "عمده":
-                            real_quantity = quantity * big_quantity
+                            real_quantitys = quantity
                         elif sale_type == "پرچون":
-                            real_quantity = quantity
+                            real_quantitys = quantity
 
                     self.print_list.append({
                         "factor_number": factor,
                         "name": self.table.item(row, 0).text(),
                         "type": self.table.item(row, 5).text(),
                         "price": price,
-                        "number": real_quantity,
+                        "number": real_quantitys,
                         "discount": discount,
                         "total": total
                     })
@@ -741,101 +742,103 @@ class ChangingFactor(QMainWindow):
 
 
             html = f"""
-                <html>
-                <head>
-                <meta charset="utf-8">
-                <style>
-                    body {{
-                        font-family: 'B Nazanin', Mirza;
-                        direction: rtl;
-                        background-color: white;
-                        margin: 0;
-                        padding: 10px;
-                    }}
-                    .container {{
-                        text-align: center;
-                        display: flex;
-                        justify-content: center;
-                        margin: 0 auto
-                    }}
-                    table {{
-                        width: 100%;
-                        margin: 8px 0;
-                        margin-right: 70px;
-                        border-collapse: collapse;
-                        font-size: 14pt;
-                    }}
-                    thead tr {{
-                        border-top: 1px dashed gray;
-                        border-bottom: 1px solid gray;
-                    }}
-                    tbody tr {{
-                        border-bottom: 1px solid gray;
-                    }}
-                    th, td {{
-                        padding: 12px;
-                        text-align: right;
-                    }}
-                    .border-dashed {{
-                        font-weight: bold;
-                        border-top: 1px dashed gray;
-                        text-align: center;
-                    }}
-                    .total-row{{
-                        border-top: 1px solid gray;
-                        width: 20px;
-                    }}
+            <html>
+            <head>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: Roboto,'B Nazanin';
+                    direction: rtl;
+                    background-color: white;
+                }}
+                .container {{
+                    text-align: center;
+                    display: flex;
+                    justify-content: center;
+                    margin: 0 auto;
+                    width: 500px;
+                }}
+                .center {{
+                    text-align: center;
+                    margin-bottom: 3px;
+                }}
+                .factor{{
+                    font-size: 10pt;
+                    font-family: Roboto, 'B Nazanin';
+                    font-weight: bold;
+                }}
+                table {{
+                    width: 100%;
+                    margin: 8px 0;
+                    border-collapse: collapse;
+                    font-size: 14pt;
+                    margin-right: 70px;
+                }}
+                th, td {{
+                    padding: 8px;
+                    border: none;
+                    font-size: 11pt;
+                }}
+                thead th {{
+                    border-top: 1px dashed gray;
+                    border-bottom: 1px solid gray;
+                    font-weight: bold;
+                }}
+                th.price-col {{
+                    width: 30%;
+                    text-align: left;
+                }}
+                th.qty-col {{
+                    width: 40%;
                     
-                    h1 {{
-                        text-align: center;
-                        font-size: 24pt;
-                        margin: 4px 0;
-                    }}
-                    .center {{
-                        text-align: center;
-                        font-size: 12pt;
-                        font-family: Roboto, 'B Nazanin';
-                        margin-bottom: 3px;
-                    }}
-                    .date-receipt {{
-                        display: flex;
-                        justify-content: space-between;
-                        font-size: 14px;
-                        font-family: Roboto, 'B Nazanin';
-                        font-style: bold;
-                        margin: 4px 0 8px 0;
-                        width: 20%;
-                    }}
-                   
-                    .discount-row{{
-                        font-size: 10pt;
-                        font-family: Roboto, 'B Nazanin';
-                        font-weight: bold;
-                        direction: rtl;
-                    }}
-                </style>
-                </head>
-                <body>
-                <div class= container>
-                <h1>فروشگاه تک </h1>
-                <div class= "center"> {address} </div>
-     
+                }}
+                th.name-col {{
+                    width: 40%;
+                    text-align: right;
+                }}
+                td.price-col {{
+                    text-align: left;
+                }}
+                td.qty-col {{
+                    text-align: center;
+                }}
+                td.name-col {{
+                    text-align: right;
+                }}
+                .total-row th {{
+                    border-top: 1px solid gray;
+                    padding-top: 10px;
+                }}
+                .logo {{
+                    text-align: center;
+                    margin-top: 20px;
+                    font-weight: bold;
+                    font-size: 12pt;
+                }}
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <div>
+                    <h1>فروشگاه تک </h1>
+                    <div class="center">{address}</div>
+                    <div class= "center"> {phone} </div>
+                    <table>
+                        <tr>
+                            <td><b class="factor">{factor_number} :نمبر فاکتور</b></td>
+                            <td style="text-align: left;"><b class="factor">{date} :تاریخ</b></td>
+                        </tr>
+                    </table>
 
-                <table>
-                    <tr>
-                        <td>{date} :تاریخ</td>
-                        <td>{factor_number} :نمبر فاکتور</td>
-                        
-                    </tr>
-                </table>
-
-                <table>
-                <thead cla>
-                    <tr>
-                        <th class="border-dashed">قیمت</th>
-                        <th class="border-dashed">تعداد</th>
-                        <th class="border-dashed">نام</th>          
-                    </tr>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="price-col">قیمت</th>
+                                <th class="qty-col">تعداد</th>
+                                <th class="name-col">نام</th>          
+                            </tr>
+                        </thead>
+                        <tbody>
             """
 
             # اضافه کردن ردیف‌های محصول
@@ -844,43 +847,50 @@ class ChangingFactor(QMainWindow):
                 product_type = product['type']
                 numer = product['number']
                 final = product['total']
-
+                qua = round(numer)
                 html += f"""
-                <tbody>
                     <tr>
-                        <td style="text-align: left;">{final:.2f}</td>
-                        <td style="text-align: center;">{numer} {product_type} </td>
-                        <td>{name}</td>
+                        <td class="price-col">{final:.2f}</td>
+                        <td class="qty-col">
+                            <div style="width: 100%; display: flex; justify-content: space-between;">
+                                <span style="text-align: left;">{product_type}</span>
+                                <span style="text-align: right;">{qua}</span>
+                            </div>
+                        </td>
+                        <td class="name-col">{name}</td>
                     </tr>
                 """
 
+
             # مجموع، تخفیف و پرداخت‌شده
             html += f"""
-                <tr style="border-top: 1px solid gray;", colspan="4">
-                    <th class="total-row",colspan="4",style="text-align: left;">{sum_total:.2f}</th>
-                    <th class="total-row",colspan="4">مجموع کل</th>
-                    
-                </tr>
-                <tr>
-                    <td class="discount-row",style="text-align: left;">{-70:.2f}-</td>
-                    <td class="discount-row">تخفیف</td>
-                </tr>
-                <tr style="border-top: 1px solid gray;", colspan="3">
-                    <th >پرداخت شده</th>
-                    <th style="text-align: left;">{final_total:.2f}</th>
-                </tr>
-                </tbody>
-            </table>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th style="text-align: left; border-top: 1px solid gray;" colspan="2">{sum_total:.2f}</th>
+                                <th style="text-align: right;border-top: 1px solid gray;" colspan="1">مجموع کل</th>
+                            </tr>
+                            <tr>
+                                <th colspan="2" style="text-align: left;">{-70:.2f}</th>
+                                <th style="text-align: right;">(30%) تخفیف</th>
+                            </tr>
+                            <tr>
+                                <th colspan="2" style="text-align: left;">{final_total:.2f}</th>
+                                <th style="text-align: right;">پرداخت شده</th>
+                            </tr>
+                        </tfoot>
+                    </table>
 
-            <div class="logo">
-                <div>//</div>
-                <div>AQSA</div>
-                <span>GROUP</span>
+                    <div class="logo">
+                        <div>//</div>
+                        <div><b>AQSA GROUP</b></div>
+                    </div>
+                </div>
             </div>
-
             </body>
             </html>
             """
+
 
             # چاپ
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
@@ -888,7 +898,7 @@ class ChangingFactor(QMainWindow):
             doc.setHtml(html)
             doc.print(printer)
 
-            print("✅ فایل HTML ذخیره و توسط QPrinter چاپ شد.")
+            print("✅ فایل HTML ذخیره و توسط چاپ شد.")
 
         except Exception as e:
             print(f"[⚠️ خطا در پرینت]: {e}")

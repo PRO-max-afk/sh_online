@@ -28,12 +28,11 @@ class Decrease(QWidget):
         # آیکون
         self.icon_label = QLabel()
         self.icon_label.setFixedSize(42, 42)
+        self.icon_label.setScaledContents(True)
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         icon_path = self.get_asset_path("shopping_16000035.png")
         if icon_path:
-            icon_pix = QPixmap(icon_path).scaled(
-                42, 42, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
-            )
+            icon_pix = QPixmap(icon_path)
             self.icon_label.setPixmap(icon_pix)
 
         # لایه متن‌ها
