@@ -172,6 +172,7 @@ class mainwindow(QWidget):
     ##
     def handle_new_notification(self, count):
         if count > 0:
+            self.notifications.clear()
             self.notifications.append(count)
             total_sum = sum(self.notifications)
             self.notification_badge.setText(str(total_sum))
@@ -193,6 +194,7 @@ class mainwindow(QWidget):
     ##
     def handl_order_notification(self,count):
         if count > 0:
+            self.orders.clear()
             self.orders.append(count)
             total_orders= sum(self.orders)
             self.order_badge.setText(str(total_orders))

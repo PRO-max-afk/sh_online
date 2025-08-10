@@ -10,6 +10,7 @@ class Notifi_Discount_Box(QWidget):
         self.setMinimumSize(600, 130)
         self.setStyleSheet("background-color: transparent;")
         self.load_all_fonts()
+        self.name= None
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
@@ -114,7 +115,7 @@ class Notifi_Discount_Box(QWidget):
 
     def set_label_style(self, label):
         label.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             background-color: transparent;
             font-weight: bold;
             font-size: 16px;
@@ -132,6 +133,7 @@ class Notifi_Discount_Box(QWidget):
     def set_product_info(self, name, number,discount_percent,image_path="default.png"):
         self.na_lb.setText(name)
         self.na_lb.adjustSize()
+        self.name= name
 
         self.nu_lb.setText(str(number))
         self.nu_lb.adjustSize()
@@ -152,6 +154,7 @@ class Notifi_Discount_Box(QWidget):
     def open_discount_form(self):
         from discount import ProductDiscount
         form= ProductDiscount()
+        form.set_info(name=self.name)
         form.exec()
         
     ##images

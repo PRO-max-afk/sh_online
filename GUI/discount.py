@@ -541,7 +541,9 @@ class ProductDiscount(QDialog):
 
         except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در پایگاه داده", title="❌ خطا", type="error").show()
-
+    ##
+    def set_info(self,name: str):
+        self.name_line.setText(name)
     ##
     def closeEvent(self, event):
         if self.inventory_page:

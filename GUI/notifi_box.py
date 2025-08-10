@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QLabel,
     QHBoxLayout, QFrame, QPushButton,QGridLayout
 )
-from PyQt6.QtCore import QTimer, QRect, QPropertyAnimation, Qt
+from PyQt6.QtCore import QTimer, QRect, QPropertyAnimation, Qt,pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap,QColor,QFontDatabase
 from datetime import datetime
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
@@ -29,6 +29,7 @@ def relative_time_string(past_time):
 
 
 class Notification(QWidget):
+    closed= pyqtSignal()
     def __init__(self, pro_name,message, parent_frame, icon_path=None):
         super().__init__(parent_frame)
         self.parent_frame = parent_frame
@@ -49,8 +50,12 @@ class Notification(QWidget):
             border-radius: 12px;
         """)
 
-        # پیام و زمان و نام محصول
-        name_lb= QLabel(pro_name)
+        # اگر رشته است یا لیست
+        if isinstance(pro_name, list):
+            text = "، ".join(pro_name)
+        else:
+            text = str(pro_name)
+        name_lb= QLabel(text)
         name_lb.setStyleSheet('''
         color: black;
         font-family: B Nazanin;
@@ -95,10 +100,11 @@ class Notification(QWidget):
 
         # فقط اگر آیکون داده شده باشد
         if icon_path:
-            pixmap = QPixmap(icon_path).scaled(30, 30, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            pixmap = QPixmap(icon_path)
             icon_label = QLabel()
             icon_label.setPixmap(pixmap)
             icon_label.setFixedSize(35, 35)
+            icon_label.setScaledContents(True)
             layout.addWidget(icon_label)
 
         # انیمیشن
@@ -116,6 +122,11 @@ class Notification(QWidget):
 
     def update_time_label(self):
         self.time_label.setText(relative_time_string(self.timestamp))
+    
+    def closeEvent(self, event):
+        self.closed.emit()  # سیگنال رو بفرست
+        super().closeEvent(event)
+
 
     def hide_notification(self):
         x_pos = self.x()

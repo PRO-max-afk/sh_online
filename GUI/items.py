@@ -8,7 +8,10 @@ from barcode import EAN13
 from barcode.writer import ImageWriter
 import os,random
 import datetime
-import sys
+from notifi_check import NotificationChecker
+from globals import shown_notifications
+from notifi_box import Notification
+
 
 class ClickableLineEdit(QLineEdit):
     clicked = pyqtSignal()
@@ -23,6 +26,10 @@ class ItemsSettings(QMainWindow):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.setup_ui()
         self.load_all_fonts()
+        self.start_notification_checker()
+        ##هشدار ها
+        self.notification_queue = []  # صف مرکزی نوتیفیکیشن‌ها
+        self.notification_showing = False
 
     def setup_ui(self):
         self.stack_items= QStackedWidget()
@@ -44,6 +51,7 @@ class ItemsSettings(QMainWindow):
         self.setLayout(main_layout)
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
         self.notification_frame = QFrame(self.itms_page)
+        self.notification_frame.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.notification_frame.setStyleSheet("background: transparent;")
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -638,4 +646,59 @@ class ItemsSettings(QMainWindow):
     def resizeEvent(self, event):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         return super().resizeEvent(event)
+    ##
+    def start_notification_checker(self):
+        self.notif_checker = NotificationChecker()
+        self.notif_checker.new_message.connect(self.show_notification_message)  # بدون ()
+        self.notif_checker.exp_msg.connect(self.show_notification_exp)
+        self.notif_checker.disc_msgs.connect(self.show_notification_disc)
+        self.notif_checker.qua_msg.connect(self.show_quantity_msg)
+        self.notif_checker.start()
+    ##
+    def enqueue_notification(self, pro_name: str, message: str):
+        notif_key = f"{pro_name}:{message}"
+        if notif_key in shown_notifications:
+            return  # این هشدار قبلاً نمایش داده شده
+
+        shown_notifications.add(notif_key)
+        self.notification_queue.append((pro_name, message))
+        if not self.notification_showing:
+            self.show_next_notification()
+
+
+    ##messages:
+    def show_next_notification(self):
+        if not self.notification_queue:
+            self.notification_showing = False
+            return
+
+        self.notification_showing = True
+        pro_name, message = self.notification_queue.pop(0)
+
+        notif = Notification(
+            pro_name=pro_name,
+            message=message,
+            parent_frame=self.notification_frame,
+            icon_path=self.get_asset_path("alarm.png")
+        )
+
+        notif.closed.connect(self.show_next_notification)
+        notif.show()
+    ##
+    def show_notification_message(self, pro_name: str, message: str):
+        self.enqueue_notification(pro_name, message)
+    ##
+    def show_notification_exp(self, pro_names: list):
+        print(f"show exp namesjgg")
+        for name in pro_names:
+            self.enqueue_notification(name, "محصول انقضاء شده است لطفاً بررسی کنید")
+    ##
+    def show_notification_disc(self, product_names: list):
+        for name in product_names:
+            self.enqueue_notification("پایان اعتبار تخفیف", f"محصول {name} مدت اعتبار تخفیف آن به پایان رسید")
+    ##
+    def show_quantity_msg(self, product_names: list):
+        for name in product_names:
+            self.enqueue_notification("موجودی محصول", f"محصول {name} موجودی آن رو به اتمام است")
+    
 

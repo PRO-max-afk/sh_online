@@ -3,15 +3,12 @@ from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout
 from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPixmap
 from PyQt6 import QtCore
-from circle import CircularSpinner
 import sqlite3
 import pymysql
-import requests
 from notifi_box import Notification
-from user_info import UserFetchThread
-from profile_picture import ProfileImage
+from notifi_check import NotificationChecker
 from message_b import MessageBox
-from switch import ToggleSwitch
+from globals import shown_notifications
 import os
 from db_connection import Connection
 
@@ -24,9 +21,11 @@ class ShopSettings(QMainWindow):
         self.feild_UI()
         self.Button_UI()
         self.btn_mode= True
-       # self.show_first_spinner()
-        #self.active_user()
+       ##هشدار ها
+        self.notification_queue = []  # صف مرکزی نوتیفیکیشن‌ها
+        self.notification_showing = False
         self.load_all_fonts()
+        self.start_notification_checker()
 
         
 
@@ -243,6 +242,7 @@ class ShopSettings(QMainWindow):
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
         self.notification_frame = QFrame(self.user_settings)
+        #self.notification_frame.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.notification_frame.setStyleSheet("background: transparent;")
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -253,7 +253,7 @@ class ShopSettings(QMainWindow):
     
    ##
     def label_UI(self):
-        self.label.setMinimumSize(120,20)
+        self.label.setMinimumSize(90,25)
         self.label.setStyleSheet('''
             font-size: 20px;
             font-weight: bold; 
@@ -287,15 +287,15 @@ class ShopSettings(QMainWindow):
                     padding: 8px;
                     border-radius: 5px;
                 ''')
-        ##
         # اندازه ثابت برای تصویر
-        pixmap = QPixmap(self.get_asset_path("shoppingcart.png")).scaled(70, 70, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        pixmap = QPixmap(self.get_asset_path("shoppingcart.png"))
 
         # تنظیم روی QLabel
         self.show_picture.setPixmap(pixmap)
         self.show_picture.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # تنظیم سایز مناسب برای QLabel
+        self.show_picture.setScaledContents(True)
         self.show_picture.setFixedSize(100, 100)  # کمی بزرگتر از عکس تا فضا برای حاشیه باشد
 
         # تنظیم حاشیه با استایل شیت
@@ -529,6 +529,61 @@ class ShopSettings(QMainWindow):
     def resizeEvent(self, event):
         self.notification_frame.setGeometry(0, 0, self.width(), 100)
         return super().resizeEvent(event)
+    ##
+    def start_notification_checker(self):
+        self.notif_checker = NotificationChecker()
+        self.notif_checker.new_message.connect(self.show_notification_message)  # بدون ()
+        self.notif_checker.exp_msg.connect(self.show_notification_exp)
+        self.notif_checker.disc_msgs.connect(self.show_notification_disc)
+        self.notif_checker.qua_msg.connect(self.show_quantity_msg)
+        self.notif_checker.start()
+    ##
+    def enqueue_notification(self, pro_name: str, message: str):
+        notif_key = f"{pro_name}:{message}"
+        if notif_key in shown_notifications:
+            return  # این هشدار قبلاً نمایش داده شده
+
+        shown_notifications.add(notif_key)
+        self.notification_queue.append((pro_name, message))
+        if not self.notification_showing:
+            self.show_next_notification()
+
+
+    ##messages:
+    def show_next_notification(self):
+        if not self.notification_queue:
+            self.notification_showing = False
+            return
+
+        self.notification_showing = True
+        pro_name, message = self.notification_queue.pop(0)
+
+        notif = Notification(
+            pro_name=pro_name,
+            message=message,
+            parent_frame=self.notification_frame,
+            icon_path=self.get_asset_path("alarm.png")
+        )
+
+        notif.closed.connect(self.show_next_notification)
+        notif.show()
+    ##
+    def show_notification_message(self, pro_name: str, message: str):
+        self.enqueue_notification(pro_name, message)
+    ##
+    def show_notification_exp(self, pro_names: list):
+        print(f"show exp names shopes")
+        for name in pro_names:
+            self.enqueue_notification(name, "محصول انقضاء شده است لطفاً بررسی کنید")
+    ##
+    def show_notification_disc(self, product_names: list):
+        for name in product_names:
+            self.enqueue_notification("پایان اعتبار تخفیف", f"محصول {name} مدت اعتبار تخفیف آن به پایان رسید")
+    ##
+    def show_quantity_msg(self, product_names: list):
+        for name in product_names:
+            self.enqueue_notification("موجودی محصول", f"محصول {name} موجودی آن رو به اتمام است")
+    
     ##
     def update_password(self):
         self.db_data = Connection().get_connection()

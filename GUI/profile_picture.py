@@ -13,10 +13,10 @@ class ProfileImage(QLabel):
         self.setFixedSize(size, size)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet("background-color: transparent;")
+        self.setScaledContents(True)  # ✅ تصویر به اندازه‌ی لیبل کشیده شود
 
         self.load_image_from_db()
 
-        # ✅ اتصال به سیگنال مشترک
         global_signals.logo_updated.connect(self.load_image_from_db)
 
     def load_image_from_db(self):
@@ -49,7 +49,17 @@ class ProfileImage(QLabel):
         if not image_path or not os.path.exists(image_path):
             print("📛 تصویر یافت نشد:", image_path)
             return
-        pixmap = QPixmap(image_path).scaled(self.size, self.size, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+
+        original_pixmap = QPixmap(image_path)
+
+        # تغییر اندازه با کیفیت بالا، بدون حفظ نسبت (کشش کامل)
+        scaled_pixmap = original_pixmap.scaled(
+            self.size,
+            self.size,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+
         rounded = QPixmap(self.size, self.size)
         rounded.fill(Qt.GlobalColor.transparent)
 
@@ -58,7 +68,13 @@ class ProfileImage(QLabel):
         path = QPainterPath()
         path.addEllipse(0, 0, self.size, self.size)
         painter.setClipPath(path)
-        painter.drawPixmap(0, 0, pixmap)
+
+        # کشیدن تصویر با ابعاد دقیق
+        painter.drawPixmap(0, 0, scaled_pixmap)
         painter.end()
 
         self.setPixmap(rounded)
+
+
+
+

@@ -9,13 +9,15 @@ import sqlite3
 import datetime
 import time
 import os
-import requests
 from message_b import MessageBox
 from db_connection import Connection
 
 class NotificationChecker(QThread):
     new_message = pyqtSignal(str, str)  # ارسال همزمان product_name و message
     new_count = pyqtSignal(int)
+    exp_msg= pyqtSignal(list)
+    disc_msgs= pyqtSignal(list)
+    qua_msg= pyqtSignal(list)
     
     
 
@@ -24,6 +26,11 @@ class NotificationChecker(QThread):
         self.running = True
         self.shown_messages = set()
         self.count_ms = set()
+        self.last_expired_products = []  # لیست آخرین محصولات انقضاشده‌ای که نمایش داده شده‌اند
+        self.last_dics_exp_products=[]
+        self.last_quantity_products= []
+        self.last_total_count= None
+
 
     def run(self):
         self.db_info= Connection().get_connection()
@@ -77,15 +84,42 @@ class NotificationChecker(QThread):
                     WHERE denied=1 AND user_id=%s;
                 """, (id_user,))
                 m_count = cursor.fetchone()[0]
-
+                ##
                 # تعداد تاریخ‌های انقضا معتبر
                 jalali_date = datetime.date.today().strftime("%Y/%m/%d")
+                cursor.execute('''
+                    SELECT product_name from inventories 
+                        WHERE expiration_dates < %s AND user_id = %s
+                ''',(jalali_date,id_user))
+                exp_message= cursor.fetchall()
+                #
+                if exp_message:
+                    exp_data = [row[0] for row in exp_message]
+
+                    # فقط زمانی سیگنال ارسال شود که لیست جدید با قبلی فرق داشته باشد
+                    if exp_data != self.last_expired_products:
+                        self.last_expired_products = exp_data.copy()
+                        self.exp_msg.emit(exp_data)
+                        print(exp_data)
+                
+                #
                 cursor.execute("""
                     SELECT COUNT(expiration_dates) 
                     FROM inventories 
                     WHERE expiration_dates < %s AND user_id=%s;
                 """, (jalali_date, id_user))
                 e_count = cursor.fetchone()[0]
+                ###
+                cursor.execute('''
+                SELECT product_name from inventories
+                    WHERE expir_discount=0 AND user_id= %s
+                ''',(id_user,))
+                disc_result= cursor.fetchall()
+                if disc_result:
+                    disc_message= [rows[0] for rows in disc_result]
+                    if disc_message != self.last_dics_exp_products:
+                        self.last_dics_exp_products= disc_message.copy()
+                        self.disc_msgs.emit(disc_message)
                 ##
                 cursor.execute('''
                     SELECT COUNT(discount_percent) FROM inventories 
@@ -97,20 +131,30 @@ class NotificationChecker(QThread):
                 
                 ##
                 cursor.execute('''
+                    SELECT product_name from inventories 
+                        WHERE quantity <= 20 and user_id= %s
+                ''',(id_user,))
+                qua_msg= cursor.fetchall()
+                if qua_msg:
+                    quantity_message= [row[0] for row in qua_msg]
+                    if quantity_message != self.last_quantity_products:
+                        self.last_quantity_products= quantity_message.copy()
+                        self.qua_msg.emit(quantity_message)
+                cursor.execute('''
                     SELECT COUNT(quantity) as quanity from inventories WHERE quantity <= 20  and user_id= %s
                     ''',(id_user,))
                 empty_result= cursor.fetchone()
                 if empty_result:
                     empty_count= empty_result[0]
-                
-                
 
-
+                ##
                 total_count = m_count + e_count + empty_count + exp_count
 
-                if total_count not in self.count_ms:
-                    self.count_ms.add(total_count)
-                    self.new_count.emit(total_count)  # ارسال مقدار عددی
+                if total_count != self.last_total_count:
+                    self.last_total_count = total_count
+                    self.new_count.emit(total_count)
+                    print(self.last_total_count)
+
 
 
                 if result:
@@ -153,6 +197,19 @@ class NotificationChecker(QThread):
             try:
                 # تعداد تاریخ‌های انقضا معتبر
                 jalali_date = datetime.date.today().strftime("%Y/%m/%d")
+                cursor_sq.execute('''
+                    SELECT name from products 
+                        WHERE expire_date < ?
+                ''',(jalali_date,))
+                exp_msg= cursor_sq.fetchall()
+                #
+                if exp_msg:
+                    exp_info= [row[0] for row in exp_msg]
+                    if exp_info != self.last_expired_products:
+                        self.last_expired_products= exp_info.copy()
+                        self.exp_msg.emit(exp_info)
+                        print(exp_info)
+
                 cursor_sq.execute("""
                     SELECT COUNT(expire_date) 
                     FROM products 
@@ -160,6 +217,15 @@ class NotificationChecker(QThread):
                 """, (jalali_date, id_user))
                 e_count = cursor_sq.fetchone()[0]
                 ##
+                cursor_sq.execute('''
+                SELECT name from products where expire_discount=0
+                ''')
+                disc_data= cursor_sq.fetchall()
+                if disc_data:
+                    disc_info= [row[0] for row in disc_data]
+                    if disc_info != self.last_dics_exp_products:
+                        self.last_dics_exp_products= disc_info.copy()
+                        self.disc_msgs.emit(disc_info)
                 cursor_sq.execute('''
                     SELECT COUNT(discount_percent) FROM products 
                     WHERE user_id= ? AND expire_discount= 0
@@ -169,6 +235,17 @@ class NotificationChecker(QThread):
                     exp_count= expire_disc_result[0]
                 
                 ##
+                cursor_sq.execute('''
+                    SELECT name from products
+                        WHERE quantity = 20 
+                ''')
+                qua_msg= cursor_sq.fetchall()
+                if qua_msg:
+                    qua_info= [row[0] for row in qua_msg]
+                    if qua_info != self.last_quantity_products:
+                        self.last_quantity_products= qua_info.copy()
+                        self.qua_msg.emit(qua_info)
+
                 cursor_sq.execute('''
                     SELECT COUNT(quantity) as quanity from products WHERE quantity <= 20  and user_id= ?
                     ''',(id_user,))

@@ -6,12 +6,9 @@ import jdatetime
 import os
 import requests
 from circle import CircularSpinner
-from notifi_box import Notification
 from m_dec import Decrease
 from m_de import Stock
 from notifi_info import Notifi_Box
-from notifi_check import NotificationChecker
-from notifi_box import Notification
 from notifi_ch import ExpirationNotifier
 from notifi_discount import Notifi_Discount_Box
 from notifi_empty import Notifi_Empty
@@ -34,7 +31,6 @@ class Frame2(QFrame):
         self.label_UI()
         self.set_today_date()
         self.set_today_time()
-        self.start_notification_checker()
         self.show_first_spinner()
         self.load_all_fonts()
 
@@ -231,14 +227,14 @@ class Frame2(QFrame):
                 print("⚠️ تصویر پیش‌فرض پیدا نشد.")
                 return None
     ##
-    ##
     def show_first_spinner(self):
+        self.clear_products()
         self.show_spinner_and_load_data()
-   ##
+    ##
     def show_spinner_and_load_data(self):
         # نمایش spinner
-        spinner_wrapper = QWidget()
-        spinner_layout = QVBoxLayout(spinner_wrapper)
+        self.spinner_wrapper = QWidget()
+        spinner_layout = QVBoxLayout(self.spinner_wrapper)
         spinner_layout.setContentsMargins(0, 100, 0, 100)
         spinner_layout.addStretch()
 
@@ -246,10 +242,10 @@ class Frame2(QFrame):
         spinner_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
         spinner_layout.addStretch()
 
-        self.box_layout.addWidget(spinner_wrapper)
+        self.box_layout.addWidget(self.spinner_wrapper)
 
         # شروع بارگذاری داده‌ها
-        QTimer.singleShot(100, self.run_data_loader)
+        self.run_data_loader()
     ##
     def run_data_loader(self):
         self.notifier = ExpirationNotifier()
@@ -260,6 +256,17 @@ class Frame2(QFrame):
         self.notifier.empty_list.connect(self.show_empte)
         self.notifier.discount_expire.connect(self.show_end_discount)
         self.notifier.start()
+    ##
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.show_first_spinner()
+    ##
+    def clear_products(self):
+        for i in reversed(range(self.box_layout.count())):
+            widget = self.box_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
     ##
     def show_nt(self, products: list):
         self.expired_data = products
@@ -274,59 +281,74 @@ class Frame2(QFrame):
         self.try_display_notifications()
     ##
     def try_display_notifications(self):
-        if self.expired_data is None or self.discount_data is None or self.empty_data is None:
-            return  # صبر کن تا هر دو سیگنال برسد
+        # حذف spinner فقط یک بار اگر هست
+        if self.spinner_wrapper:
+            self.spinner_wrapper.setParent(None)
+            self.spinner_wrapper = None
+            self.spinner = None
 
-        # فقط یک بار اجرا شود، سپس داده‌ها پاک شوند
-        products = self.expired_data
-        discounts = self.discount_data
-        empties= self.empty_data
+        # اگر داده منقضی‌شده آمده است → فقط بخش منقضی‌شده‌ها را بروزرسانی کن
+        if self.expired_data is not None:
+            # حذف فقط Notifi_Box‌ها
+            for i in reversed(range(self.box_layout.count())):
+                widget = self.box_layout.itemAt(i).widget()
+                if isinstance(widget, Notifi_Box):
+                    widget.setParent(None)
 
-        self.expired_data = None
-        self.discount_data = None
-        self.empty_data= None
+            # افزودن جدیدها
+            for product in self.expired_data:
+                notif = Notifi_Box()
+                image_path = self.download_image_from_url(product.get("product_image", ""))
+                notif.set_product_info(
+                    name=product.get("product_name", ""),
+                    number=str(product.get("quantity", "")),
+                    expire_date=str(product.get("expiration_dates", "")),
+                    image_path=image_path or ""
+                )
+                self.box_layout.addWidget(notif)
 
-        # پاک کردن کل layout
-        for i in reversed(range(self.box_layout.count())):
-            widget = self.box_layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
+            self.expired_data = None  # پاک کردن بعد از استفاده
 
-        # نمایش محصولات منقضی‌شده
-        for product in products:
-            notif = Notifi_Box()
-            image_path = self.download_image_from_url(product.get("product_image", ""))
-            notif.set_product_info(
-                name=product.get("product_name", ""),
-                number=str(product.get("quantity", "")),
-                expire_date=str(product.get("expiration_dates", "")),
-                image_path=image_path or ""
-            )
-            self.box_layout.addWidget(notif)
+        # اگر داده تخفیف‌دار آمده است → فقط بخش تخفیف‌ها را بروزرسانی کن
+        if self.discount_data is not None:
+            for i in reversed(range(self.box_layout.count())):
+                widget = self.box_layout.itemAt(i).widget()
+                if isinstance(widget, Notifi_Discount_Box):
+                    widget.setParent(None)
 
-        # نمایش تخفیف‌های منقضی‌شده
-        for item in discounts:
-            notfi = Notifi_Discount_Box()
-            image_path = self.download_image_from_url(item.get("product_image", ""))
-            notfi.set_product_info(
-                name=item.get("name", ""),
-                number=item.get("quantity", ""),
-                discount_percent=item.get("discount_percent", ""),
-                image_path=image_path or ""
-            )
-            self.box_layout.addWidget(notfi)
-        
-        # اضافه کردن باکس‌های مربوط به محصولات تمام‌شده
-        for empty in empties:
-            box = Notifi_Empty()
-            image_data = self.download_image_from_url(empty.get("product_image", ""))
-            box.set_product_info(
-                name=empty.get("name", ""),
-                number=empty.get("quantity", ""),
-                expire_date=empty.get("exp_date", ""),
-                image_path=image_data or ""
-            )
-            self.box_layout.addWidget(box)
+            for item in self.discount_data:
+                notfi = Notifi_Discount_Box()
+                image_path = self.download_image_from_url(item.get("product_image", ""))
+                notfi.set_product_info(
+                    name=item.get("name", ""),
+                    number=item.get("quantity", ""),
+                    discount_percent=item.get("discount_percent", ""),
+                    image_path=image_path or ""
+                )
+                self.box_layout.addWidget(notfi)
+
+            self.discount_data = None
+
+        # اگر داده تمام‌شده آمده است → فقط بخش Notifi_Empty را بروزرسانی کن
+        if self.empty_data is not None:
+            for i in reversed(range(self.box_layout.count())):
+                widget = self.box_layout.itemAt(i).widget()
+                if isinstance(widget, Notifi_Empty):
+                    widget.setParent(None)
+
+            for empty in self.empty_data:
+                box = Notifi_Empty()
+                image_data = self.download_image_from_url(empty.get("product_image", ""))
+                box.set_product_info(
+                    name=empty.get("name", ""),
+                    number=empty.get("quantity", ""),
+                    expire_date=empty.get("exp_date", ""),
+                    image_path=image_data or ""
+                )
+                self.box_layout.addWidget(box)
+
+            self.empty_data = None
+
 
         
     ##
@@ -348,7 +370,7 @@ class Frame2(QFrame):
         else:
             print(f"⚠ فایل یافت نشد: {image_path}")
             return None
-     ##fonts
+    ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         fonts_folder = os.path.join(project_root, "fonts")
@@ -367,18 +389,8 @@ class Frame2(QFrame):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
-    ##
-     ##notifications
-    def start_notification_checker(self):
-        self.notif_checker = NotificationChecker()
-        self.notif_checker.new_message.connect(self.show_notification_message)  # بدون ()
-        self.notif_checker.start()
+    
 
-    def show_notification_message(self, pro_name: str, message: str):
-        notif = Notification(
-            pro_name=pro_name,
-            message=message,
-            parent_frame=self.notification_frame,
-            icon_path=self.get_asset_path("alarm.png")
-        )
-        notif.show()
+
+    
+    

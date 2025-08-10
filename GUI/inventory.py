@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
 from db_connection import Connection
+from globals import shown_notifications
 
 class DataLoaderThread(QThread):
     data_loaded = pyqtSignal(list)
@@ -401,6 +402,11 @@ class Inventory(QFrame):
         super().__init__()
         self.spinner = None
         self.search_initialized = False  # 👈 اینجا بیار بالا
+        ##هشدار ها
+        self.notification_queue = []  # صف مرکزی نوتیفیکیشن‌ها
+        self.notification_showing = False
+
+
         self.init_ui()
         self.label_UI()
         self.field_UI()
@@ -1162,12 +1168,55 @@ class Inventory(QFrame):
     def start_notification_checker(self):
         self.notif_checker = NotificationChecker()
         self.notif_checker.new_message.connect(self.show_notification_message)  # بدون ()
+        self.notif_checker.exp_msg.connect(self.show_notification_exp)
+        self.notif_checker.disc_msgs.connect(self.show_notification_disc)
+        self.notif_checker.qua_msg.connect(self.show_quantity_msg)
         self.notif_checker.start()
+    ##
+    def enqueue_notification(self, pro_name: str, message: str):
+        notif_key = f"{pro_name}:{message}"
+        if notif_key in shown_notifications:
+            return  # این هشدار قبلاً نمایش داده شده
 
-    def show_notification_message(self, pro_name: str, message: str):
+        shown_notifications.add(notif_key)
+        self.notification_queue.append((pro_name, message))
+        if not self.notification_showing:
+            self.show_next_notification()
+
+
+    ##messages:
+    def show_next_notification(self):
+        if not self.notification_queue:
+            self.notification_showing = False
+            return
+
+        self.notification_showing = True
+        pro_name, message = self.notification_queue.pop(0)
+
         notif = Notification(
             pro_name=pro_name,
             message=message,
             parent_frame=self.notification_frame,
-            icon_path=self.get_asset_path("alarm.png"))
+            icon_path=self.get_asset_path("alarm.png")
+        )
+
+        notif.closed.connect(self.show_next_notification)
         notif.show()
+    ##
+    def show_notification_message(self, pro_name: str, message: str):
+        self.enqueue_notification(pro_name, message)
+    ##
+    def show_notification_exp(self, pro_names: list):
+        for name in pro_names:
+            self.enqueue_notification(name, "محصول انقضاء شده است لطفاً بررسی کنید")
+    ##
+    def show_notification_disc(self, product_names: list):
+        for name in product_names:
+            self.enqueue_notification("پایان اعتبار تخفیف", f"محصول {name} مدت اعتبار تخفیف آن به پایان رسید")
+    ##
+    def show_quantity_msg(self, product_names: list):
+        for name in product_names:
+            self.enqueue_notification("موجودی محصول", f"محصول {name} موجودی آن رو به اتمام است")
+
+
+

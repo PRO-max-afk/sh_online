@@ -18,9 +18,12 @@ from order import Orders
 from finance import Money
 from inventory import Inventory
 from settings import Settings
+from notifi_check import NotificationChecker
+from notifi_box import Notification
 from PyQt6.QtWidgets import QStyledItemDelegate
 from PyQt6.QtGui import QColor, QPalette
 from db_connection import Connection
+from globals import shown_notifications
 
 class BlackTextDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -53,9 +56,10 @@ class WidgetManager(QWidget):
         self.invoices = {}
         self.barcode_searching = False
         self.barcode= None
+        ##هشدار ها
+        self.notification_queue = []  # صف مرکزی نوتیفیکیشن‌ها
+        self.notification_showing = False
 
-       
-        
         self.label_ui()
         self.set_today_date()
         self.set_today_time()
@@ -69,14 +73,14 @@ class WidgetManager(QWidget):
         self.load_all_fonts()
         self.update_info_invnenvtory()
         self.select_name_products()
-
+        self.start_notification_checker()
 
     def create_frame1(self):
-        frame1 = QFrame()
-        frame1.setStyleSheet("background-color: #D9D9D9;")
+        self.frame1 = QFrame()
+        self.frame1.setStyleSheet("background-color: #D9D9D9;")
         ##
-        main_layout = QVBoxLayout(frame1)
-
+        main_layout = QVBoxLayout(self.frame1)
+        
         # لایه بالا
         top_layout = QHBoxLayout()
         self.label = QLabel("فروش محصولات", self)
@@ -99,13 +103,7 @@ class WidgetManager(QWidget):
 
         # افزودن ویجت‌ها به main_layout
         main_layout.addLayout(top_layout)
-        # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
-        self.notification_frame = QFrame(self)
-        self.notification_frame.setStyleSheet("background: transparent;")
-        self.notification_frame.setGeometry(0, 0, self.width(), 100)
-        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.notification_frame.raise_()
-        ##
+        
         # میانی: جدول و فرم
         middle_layout = QHBoxLayout()
 
@@ -307,9 +305,18 @@ class WidgetManager(QWidget):
         self.name_input.installEventFilter(self)
         self.qty_input.installEventFilter(self)
         self.barcode_input.installEventFilter(self)
-        # و هر فیلدی که لازم است
-        self.frames["frame1"] = frame1
-        self.stack.addWidget(frame1)
+        # فریم شناور اعلان
+        self.notification_frame = QFrame(self.frame1)
+        self.notification_frame.setStyleSheet("background: transparent;")
+        self.notification_frame.setGeometry(0, 0, self.frame1.width(), 0)
+        self.notification_frame.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.notification_frame.raise_()
+
+
+        self.frames["frame1"] = self.frame1
+        self.stack.addWidget(self.frame1)
+        ##
+        
     ##
     def Entries_ui(self):
 
@@ -1613,8 +1620,9 @@ class WidgetManager(QWidget):
 
     ##notifications
     def resizeEvent(self, event):
-        self.notification_frame.setGeometry(0, 0, self.width(), 100)
+        self.notification_frame.setGeometry(0, 0, self.frame1.width(), self.notification_frame.height())
         return super().resizeEvent(event)
+
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1645,7 +1653,82 @@ class WidgetManager(QWidget):
             self.update_timer = QTimer(self)
             self.update_timer.timeout.connect(self.update_info_invnenvtory)
             self.update_timer.start(15 * 1000)  # هر ۱۵ ثانیه
+    ##
+    def start_notification_checker(self):
+        self.notif_checker = NotificationChecker()
+        self.notif_checker.new_message.connect(self.show_notification_message)  # بدون ()
+        self.notif_checker.exp_msg.connect(self.show_notification_exp)
+        self.notif_checker.disc_msgs.connect(self.show_notification_disc)
+        self.notif_checker.qua_msg.connect(self.show_quantity_msg)
+        self.notif_checker.start()
+    ##
+    def enqueue_notification(self, pro_name: str, message: str):
+        notif_key = f"{pro_name}:{message}"
+        if notif_key in shown_notifications:
+            return  # این هشدار قبلاً نمایش داده شده
 
+        shown_notifications.add(notif_key)
+        self.notification_queue.append((pro_name, message))
+        if not self.notification_showing:
+            self.show_next_notification()
+
+
+    ##messages:
+    def show_next_notification(self):
+        if not self.notification_queue:
+            self.notification_showing = False
+            self.notification_frame.setFixedHeight(0)
+            self.notification_frame.setGeometry(0, 0, self.frame1.width(), 0)
+            return
+
+        self.notification_showing = True
+        pro_name, message = self.notification_queue.pop(0)
+
+        # حذف ویجت‌های قبلی از notification_frame
+        for child in self.notification_frame.children():
+            if isinstance(child, QWidget) and child != self.notification_frame.layout():
+                child.deleteLater()
+
+        notif = Notification(
+            pro_name=pro_name,
+            message=message,
+            parent_frame=self.notification_frame,
+            icon_path=self.get_asset_path("alarm.png")
+        )
+
+        notif.setParent(self.notification_frame)
+        notif.resize(notif.sizeHint())
+        
+        # 🔥 مرکز قرار دادن دستی
+        x = (self.notification_frame.width() - notif.width()) // 2
+        y = 0
+        notif.move(x, y)
+
+        self.notification_frame.setFixedHeight(100)
+        self.notification_frame.setGeometry(0, 0, self.frame1.width(), 100)
+
+        notif.closed.connect(self.show_next_notification)
+        notif.show()
+
+
+
+
+    ##
+    def show_notification_message(self, pro_name: str, message: str):
+        self.enqueue_notification(pro_name, message)
+    ##
+    def show_notification_exp(self, pro_names: list):
+        for name in pro_names:
+            self.enqueue_notification(name, "محصول انقضاء شده است لطفاً بررسی کنید")
+    ##
+    def show_notification_disc(self, product_names: list):
+
+        for name in product_names:
+            self.enqueue_notification("پایان اعتبار تخفیف", f"محصول {name} مدت اعتبار تخفیف آن به پایان رسید")
+    ##
+    def show_quantity_msg(self, product_names: list):
+        for name in product_names:
+            self.enqueue_notification("موجودی محصول", f"محصول {name} موجودی آن رو به اتمام است")
                     
 
         
