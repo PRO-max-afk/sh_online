@@ -237,7 +237,7 @@ class NotificationChecker(QThread):
                 ##
                 cursor_sq.execute('''
                     SELECT name from products
-                        WHERE quantity = 20 
+                        WHERE quantity <= 20 
                 ''')
                 qua_msg= cursor_sq.fetchall()
                 if qua_msg:

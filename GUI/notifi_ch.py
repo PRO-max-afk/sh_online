@@ -15,6 +15,7 @@ class ExpirationNotifier(QThread):
     discount_expire = pyqtSignal(int)
     new_discount_expired = pyqtSignal(list)
     empty_list = pyqtSignal(list)
+    changing_list= pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
@@ -28,6 +29,7 @@ class ExpirationNotifier(QThread):
         self.prev_empty_count = None
         self.prev_discount_count = None
         self.prev_expired_count = None
+        self.prev_changed_items= None
 
     def run(self):
         self.db_config = Connection().get_connection()
@@ -158,6 +160,36 @@ class ExpirationNotifier(QThread):
                 if self.has_changed(self.prev_discount_list, discount_list):
                     self.new_discount_expired.emit(discount_list)
                     self.prev_discount_list = discount_list
+                ##
+                cursor.execute('''
+                    SELECT 
+                        i.invent_id,
+                        i.product_name,i.barcode,i.expiration_dates,i.product_image,
+                        pd.weight,pd.production_date,pd.brand,
+                        pd.production_place,pd.product_state,pd.more_detail,pd.keep_place
+                    FROM inventories i
+                    JOIN product_details pd 
+                        ON i.invent_id = pd.invent_id
+                    WHERE i.user_id=%s and denied =1;  -- اینجا آیدی مورد نظر را بگذار
+                ''',(id_user,))
+                auto_msg= cursor.fetchall()
+                msg_list = [{
+                    "id" : invent_id,
+                    "name": pro_name,
+                    "barcode" : barcode,
+                    "exp_date": expire_dates,
+                    "img": img or "",
+                    "weight": weight,
+                    "pro_date": pro_date,
+                    "brand": brand,
+                    "place" : pro_place,
+                    "pro_state": pro_state,
+                    "more_details": details,
+                    "keep_p" : keep_p    
+                } for invent_id,pro_name,barcode,expire_dates,img,weight,pro_date,brand,pro_place,pro_state,details,keep_p in auto_msg ]
+                if self.has_changed(self.prev_changed_items, msg_list):
+                    self.changing_list.emit(msg_list)
+                    self.prev_changed_items= msg_list
 
             except pymysql.Error as e:
                 print(f"{e}: خطا در کوئری یا اتصال دیتابیس")

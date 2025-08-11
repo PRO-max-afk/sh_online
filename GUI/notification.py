@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
-    QGraphicsDropShadowEffect, QSizePolicy,QScrollArea,QWidget,QGridLayout)
+    QSizePolicy,QScrollArea,QWidget,QGridLayout)
 from PyQt6.QtCore import Qt,QTimer,QThread, pyqtSignal
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase
 import jdatetime
@@ -9,6 +9,7 @@ from circle import CircularSpinner
 from m_dec import Decrease
 from m_de import Stock
 from notifi_info import Notifi_Box
+from notifi_change import Notifi_Change
 from notifi_ch import ExpirationNotifier
 from notifi_discount import Notifi_Discount_Box
 from notifi_empty import Notifi_Empty
@@ -17,6 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel,QSizePolicy, QGridLayout)
 from PyQt6.QtCore import Qt
+from change_p import ProductForm
 
 
 class Frame2(QFrame):
@@ -25,7 +27,19 @@ class Frame2(QFrame):
         self.spinner= None
         self.expired_data = None
         self.discount_data = None
+        self.change_data= None
         self.empty_data= None
+        #####
+        self.weight= None
+        self.brand= None
+        self.pro_date= None
+        self.pro_place= None
+        self.pro_state= None
+        self.more_details= None
+        self.keep= None
+
+
+        #####
 
         self.init_ui()
         self.label_UI()
@@ -254,6 +268,7 @@ class Frame2(QFrame):
         self.notifier.expired_count_signal.connect(self.show_exp)
         self.notifier.empty_count.connect(self.show_empty)
         self.notifier.empty_list.connect(self.show_empte)
+        self.notifier.changing_list.connect(self.show_changes)
         self.notifier.discount_expire.connect(self.show_end_discount)
         self.notifier.start()
     ##
@@ -278,6 +293,10 @@ class Frame2(QFrame):
     ##
     def show_discount(self, disc_list: list):
         self.discount_data = disc_list
+        self.try_display_notifications()
+    ##
+    def show_changes(self, chage_list: list):
+        self.change_data= chage_list
         self.try_display_notifications()
     ##
     def try_display_notifications(self):
@@ -348,6 +367,45 @@ class Frame2(QFrame):
                 self.box_layout.addWidget(box)
 
             self.empty_data = None
+            ##
+
+        if self.change_data is not None:
+
+                for i in reversed(range(self.box_layout.count())):
+                    widget= self.box_layout.itemAt(i).widget()
+                    if isinstance(widget,Notifi_Change):
+                        widget.setParent(None)
+                for items in self.change_data:
+                    change = Notifi_Change()
+
+                    product_data = {
+                        "brand": str(items.get("brand", "")),
+                        "weight": str(items.get("weight", "")),
+                        "place": str(items.get("place", "")),
+                        "pro_date": str(items.get("pro_date", "")),
+                        "pro_state": str(items.get("pro_state", "")),
+                        "more_details": str(items.get("more_details", "")),
+                        "keep": str(items.get("keep_p", ""))
+                    }
+
+                    change.set_product_data(product_data)
+
+                    image_path = self.download_image_from_url(items.get("img", ""))
+                    change.set_product_info(
+                        name=items.get("name", ""),
+                        number=items.get("barcode", ""),
+                        expire_date=items.get("exp_date", ""),
+                        image_path=image_path or ""
+                    )
+
+                    # وصل کردن کلیک یا دکمه به باز کردن فرم
+                    change.mousePressEvent = lambda event, c=change: c.open_product_form()
+
+                    self.box_layout.addWidget(change)
+
+
+                
+                self.change_data= None
 
 
         
