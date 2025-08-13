@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import QStyledItemDelegate
 from PyQt6.QtGui import QColor, QPalette
 from db_connection import Connection
 from globals import shown_notifications
+from functools import partial
 
 class BlackTextDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -854,7 +855,7 @@ class WidgetManager(QWidget):
                 ''')
 
                 # اتصال دکمه به تابع حذف ردیف مخصوص خود
-                denied_btn.clicked.connect(self.delete_product)
+                denied_btn.clicked.connect(partial(self.delete_product))
 
                 # ذخیره در لیست دکمه‌ها
                 self.denied_buttons.append(denied_btn)
@@ -1357,12 +1358,12 @@ class WidgetManager(QWidget):
                 # ذخیره در لیست دکمه‌ها
                 self.denied_buttons.append(denied_btn)
                 self.table.insertRow(row)
-                self.table.setItem(row, 0, QTableWidgetItem(self._make_cell(name)))
-                self.table.setItem(row, 1, QTableWidgetItem(str(self._make_cell(price))))
-                self.table.setItem(row, 2, QTableWidgetItem(str(self._make_cell(number))))
-                self.table.setItem(row, 3, QTableWidgetItem(str(self._make_cell(unit))))
-                self.table.setItem(row, 4, QTableWidgetItem(str(self._make_cell(discount))))
-                self.table.setItem(row, 5, QTableWidgetItem(str(self._make_cell(total))))
+                self.table.setItem(row, 0, QTableWidgetItem(self._make_cell(str(name))))
+                self.table.setItem(row, 1, QTableWidgetItem(self._make_cell(str(price))))
+                self.table.setItem(row, 2, QTableWidgetItem(self._make_cell(str(number))))
+                self.table.setItem(row, 3, QTableWidgetItem(self._make_cell(str(unit))))
+                self.table.setItem(row, 4, QTableWidgetItem(self._make_cell(str(discount))))
+                self.table.setItem(row, 5, QTableWidgetItem(self._make_cell(str(total))))
                 self.table.setCellWidget(row,6,denied_btn)
                 self.calculate_total_price(self.table.item(row, 1))
 
@@ -1398,8 +1399,7 @@ class WidgetManager(QWidget):
                 })
 
             self.table.setEditTriggers(QAbstractItemView.EditTrigger.AllEditTriggers)
-            self.table.blockSignals(False)
-           
+            self.table.blockSignals(False)       
     
     def get_stack(self):
         return self.stack
@@ -1489,10 +1489,11 @@ class WidgetManager(QWidget):
             MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
 
     ##
-    def delete_product(self):
-        items = self.added_products if self.added_products else self.temp_loaded_invoice
-        if not items:
-            MessageBox("هیچ محصولی به فاکتور اضافه نشده است", title="خطا", type="warning").show()
+    def delete_product(self, row=None):
+        if row is None:
+            row = self.table.currentRow()
+        if row < 0:
+            MessageBox("هیچ محصولی انتخاب نشده است", title="خطا", type="warning").show()
             return
 
         selected_row = self.table.currentRow()
@@ -1500,77 +1501,90 @@ class WidgetManager(QWidget):
             MessageBox("هیچ ردیفی انتخاب نشده است", title="خطا", type="warning").show()
             return
 
-        # دریافت نام محصول از جدول
         name_item = self.table.item(selected_row, 0)
         if not name_item:
             MessageBox("خطا در دریافت اطلاعات سطر انتخاب‌شده", title="خطا", type="error").show()
             return
         name = name_item.text()
 
-        # 🔷 رنگی کردن ردیف انتخاب‌شده به آبی روشن
-        for col in range(self.table.columnCount()):
-            item = self.table.item(selected_row, col)
-            if item:
-                item.setBackground(QColor("#cce5ff"))  # آبی روشن
-
-        # 🔷 تأیید حذف با MessageBox سفارشی
         confirm_box = MessageBox(
             f"آیا مطمئن هستید که می‌خواهید محصول '{name}' را حذف کنید؟",
             title="تأیید حذف",
             type="question",
             buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        result = confirm_box.show()
-        if result != QMessageBox.StandardButton.Yes:
-            return  # لغو عملیات حذف
+        if confirm_box.show() != QMessageBox.StandardButton.Yes:
+            return
 
+        # اگر محصول هنوز ذخیره نشده (فقط در added_products است)
+        items = self.added_products
+
+        # حذف از لیست در صورت وجود در added_products
+        for i, item in enumerate(items):
+            if item.get("name") == name:
+                del items[i]
+                break
+
+        # حذف از جدول UI
+        self.table.removeRow(row)
+
+        # اگر محصول از دیتابیس لود شده باشد
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        # رفتن یک سطح بالاتر از پوشه GUI
         root_dir = os.path.dirname(base_dir)
         db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
-
-        if not os.path.exists(db_path):
-            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
-            return
 
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
-            # بررسی منبع اطلاعات
-            from_temp_invoice = (items is self.temp_loaded_invoice)
+            # گرفتن شماره فاکتور از آیتم انتخاب‌شده
+            current_item = self.invoice_list.currentItem()
+            if current_item:
+                factor_number = current_item.text().replace("فاکتور ", "").strip()
+            else:
+                MessageBox("شماره فاکتور مشخص نیست", title="خطا", type="error").show()
+                return
 
-            for i, item in enumerate(items):
+            for i, item in enumerate(self.temp_loaded_invoice):
                 if item.get("name") == name:
                     barcode = item.get("barcode")
-                    quantity_to_return = item.get("quantity", 0)
+                    qty = item.get("quantity", 0)
 
-                    if from_temp_invoice:
-                        # فقط اگر از temp_loaded_invoice بود، به موجودی انبار اضافه شود
-                        if barcode:
-                            cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
-                            result = cursor.fetchone()
-                            if result:
-                                new_qty = float(result[0]) + float(quantity_to_return)
-                                cursor.execute("UPDATE products SET quantity = ?, is_synced = 0 WHERE barcode = ?", (new_qty, barcode))
+                    # برگرداندن موجودی انبار
+                    if barcode:
+                        cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
+                        result = cursor.fetchone()
+                        if result:
+                            new_qty = float(result[0]) + float(qty)
+                            cursor.execute("UPDATE products SET quantity=?, is_synced=0 WHERE barcode=?", (new_qty, barcode))
 
-                        # همچنین حذف از جدول sale_factor
-                        name = item.get("product_name")
-                        cursor.execute("DELETE FROM sale_factor WHERE product_name = ? AND barcode = ?", (name, barcode))
+                    # حذف از دیتابیس
+                    cursor.execute("""
+                        DELETE FROM sale_factor 
+                        WHERE product_name=? AND barcode=? AND factor_number=?
+                    """, (name, barcode, factor_number))
 
-                        conn.commit()
-
-                    # حذف از لیست حافظه‌ای
-                    del items[i]
+                    del self.temp_loaded_invoice[i]
                     break
 
-            # حذف از جدول نمایشی
+            conn.commit()
             self.table.removeRow(selected_row)
+
+            # حذف فاکتور اگر خالی شد
+            cursor.execute("SELECT COUNT(*) FROM sale_factor WHERE factor_number=?", (factor_number,))
+            if cursor.fetchone()[0] == 0:
+                for idx in range(self.invoice_list.count()):
+                    if self.invoice_list.item(idx).text() == f"فاکتور {factor_number}":
+                        self.invoice_list.takeItem(idx)
+                        break
+
+            conn.close()
 
         except sqlite3.Error as e:
             MessageBox(f"{e} : خطا در حذف یا بروزرسانی محصول", title="خطای دیتابیس", type="error").show()
-        finally:
-            conn.close()
+
+
+
     ##
     def select_name_products(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))

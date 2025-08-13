@@ -498,7 +498,7 @@ class ProductForm(QDialog):
                 background-color: #3EB516;
             }
         ''')
-        self.submit_btn.clicked.connect(self.insert_product)
+        self.submit_btn.clicked.connect(self.update_changes)
         ##
         self.picture_btn.setGeometry(40,134,155,43)
         self.picture_icon= QIcon(self.get_asset_path("Camera.png"))
@@ -801,7 +801,7 @@ class ProductForm(QDialog):
         if text:
             self.search_fixeds_info()
     ##
-    def insert_product(self):
+    def update_changes(self):
         import shutil
         f_ch = self.choise_c.currentText()
         s_ch = self.under_choise.currentText()
@@ -976,39 +976,46 @@ class ProductForm(QDialog):
         synced = 0
         if db_connection and uploaded_to_ftp:
             try:
-                
                 cursor = db_connection.cursor()
-
+                # گرفتن ID رکورد آنلاین
+                cursor.execute("SELECT invent_id FROM inventories WHERE barcode=%s and user_id=%s", (barcode,id_user))
+                invent_id = cursor.fetchone()[0] if cursor.rowcount > 0 else None
+                # --- بروزرسانی جدول آنلاین ---
                 cursor.execute('''
-                    INSERT INTO inventories (barcode, product_name, category,sub_category,buy_date,buy_price, sell_price, big_price, big_category,quantity, expiration_dates, big_quantity,big_sub,
-                                            product_image,small_price,sale_unit, total, final_total,type_save,user_id,created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    UPDATE inventories
+                    SET product_name=%s, category=%s, sub_category=%s, buy_date=%s, buy_price=%s, sell_price=%s, 
+                        big_price=%s, big_category=%s, quantity=%s, expiration_dates=%s, big_quantity=%s, big_sub=%s,
+                        product_image=%s, small_price=%s, sale_unit=%s, total=%s, final_total=%s, type_save=%s, 
+                        user_id=%s, created_at=%s,denied=0
+                    WHERE barcode=%s and invent_id=%s
                 ''', (
-                    barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, 
-                    category, per_quantity, exp_date,big_s,big_sub, ftp_image_url, small_price or 0,sale_unit,total,final_total,type_save,id_user,date_ent
+                    name, f_ch, s_ch, date, per_buy, sale_price, sale_big,
+                    category, per_quantity, exp_date, big_s, big_sub,
+                    ftp_image_url, small_price or 0, sale_unit, total, final_total, type_save,
+                    id_user, date_ent, barcode,invent_id
                 ))
 
-                invent_id = cursor.lastrowid  # گرفتن ID رکورد ثبت‌شده
+                if invent_id:
+                    cursor.execute('''
+                        UPDATE product_details
+                        SET weight=%s, production_date=%s, brand=%s, production_place=%s, product_state=%s,
+                            more_detail=%s, keep_place=%s
+                        WHERE invent_id=%s
+                    ''', (weight, pro_date, brand, palce, status, data, place, invent_id))
 
-                cursor.execute('''
-                INSERT INTO product_details (weight,production_date,brand,production_place,product_state,
-                               more_detail,keep_place,invent_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
-            ''',(weight,pro_date,brand,palce,status,data,place,invent_id))
-                
                 db_connection.commit()
                 inserted_online = True
                 synced = 1
-                MessageBox("✅ محصول در سرور ذخیره شد", title="موفقانه", type="info").show()
+                MessageBox("✅ محصول در سرور بروزرسانی شد", title="موفقانه", type="info").show()
             except Exception as e:
-                print("❌ خطا در اتصال به سرور:", e)
+                print("❌ خطا در بروزرسانی سرور:", e)
             finally:
                 if db_connection:
                     db_connection.close()
 
-        # ذخیره در دیتابیس آفلاین اگر سرور در دسترس نبود یا آپلود تصویر ناموفق بود
+
         if not inserted_online:
             try:
-                # تعیین مسیر تصویر (اگر آپلود نشد، از مسیر temp_images استفاده شود)
                 if not uploaded_to_ftp and os.path.exists(local_image_path):
                     image_path_to_store = local_image_path
                 else:
@@ -1016,46 +1023,38 @@ class ProductForm(QDialog):
 
                 conn_sq = sqlite3.connect(db_path)
                 cursor_sq = conn_sq.cursor()
+
+                # --- بروزرسانی جدول آفلاین ---
                 cursor_sq.execute('''
-                    INSERT INTO products (barcode, name,category,sub_category,buy_date,buy_price,sale_price, big_price,big_category,quantity, expire_date,big_quantity,big_sub,big_sub_display,
-                                        image_path,small_price,sale_unit, total,final_total, type_save,user_id, is_synced,create_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?,?,?,?,?,?,?,?)
+                    UPDATE products
+                    SET name=?, category=?, sub_category=?, buy_date=?, buy_price=?, sale_price=?, big_price=?, 
+                        big_category=?, quantity=?, expire_date=?, big_quantity=?, big_sub=?, big_sub_display=?,
+                        image_path=?, small_price=?, sale_unit=?, total=?, final_total=?, type_save=?, 
+                        user_id=?, is_synced=?, create_at=?
+                    WHERE barcode=?
                 ''', (
-                    barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, category, 
-                    per_quantity, exp_date, big_s,big_sub,new_sub,image_path_to_store,small_price or 0,sale_unit, total,final_total,type_save,id_user, synced,date_ent
+                    name, f_ch, s_ch, date, per_buy, sale_price, sale_big, category,
+                    per_quantity, exp_date, big_s, big_sub, new_sub, image_path_to_store,
+                    small_price or 0, sale_unit, total, final_total, type_save,
+                    id_user, synced, date_ent, barcode
                 ))
-                
-                invent_ids = cursor_sq.lastrowid
 
-                cursor_sq.execute('''
-                INSERT INTO product_details (weight,production_date,brand,production_place,product_state,
-                            more_details,keep_place,is_synced,invent_id) VALUES(?,?,?,?,?,?,?,?,?)
-                ''',(weight,pro_date,brand,palce,status,data,place,synced,invent_ids))
+                if invent_id:
+                    cursor_sq.execute('''
+                        UPDATE product_details
+                        SET weight=?, production_date=?, brand=?, production_place=?, product_state=?,
+                            more_details=?, keep_place=?, is_synced=?
+                        WHERE invent_id=?
+                    ''', (weight, pro_date, brand, palce, status, data, place, synced, invent_id))
 
-                
                 conn_sq.commit()
-                MessageBox("✅ محصول به صورت آفلاین ذخیره شد", title="موفقانه", type="info").show()
-                MessageBox("محصول پس از اتصال به اینترنت به صورت خودکار آپلود خواهد شد", title="اطلاع", type="info").show()
+                MessageBox("✅ محصول به صورت آفلاین بروزرسانی شد", title="موفقانه", type="info").show()
             except Exception as e:
-                MessageBox(f"❌ خطا در ذخیره آفلاین: {e}", title="خطا", type="error").show()
+                MessageBox(f"❌ خطا در بروزرسانی آفلاین: {e}", title="خطا", type="error").show()
             finally:
                 conn_sq.close()
 
-      
-        product_box = ProductBox()
-        product_box.set_product_info(
-            name=name,
-            barcode=barcode,
-            buy_price=per_buy,
-            sale_price=sale_price,
-            number=per_quantity,
-            expire_date=exp_date,
-            big_sub=new_sub,
-            big_price=sale_big,
-            image_path=self.image_path
-        )
-        row, col = divmod(self.inventory_page.box_layout.count(), 4)
-        self.inventory_page.box_layout.addWidget(product_box, row, col)
+
 
         # پاک کردن فیلدها
         self.name_line.clear()
@@ -1071,125 +1070,7 @@ class ProductForm(QDialog):
         self.total_line.setText("0.00")
         self.img_preveiw.clear()
    
-    ##
-    def sync_to_server(self):
-        db_connect = Connection().get_connection()
-        if not db_connect:
-            return
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        # رفتن یک سطح بالاتر از پوشه GUI
-        root_dir = os.path.dirname(base_dir)
-        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
 
-        if not os.path.exists(db_path):
-            MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
-            return
-
-        conn_sq = sqlite3.connect(db_path)
-        cursor_sq = conn_sq.cursor()
-
-        cursor_sq.execute('''SELECT invent_id, barcode, name, category, sub_category,
-                            buy_date, buy_price, sale_price, big_price,
-                            big_category, quantity, expire_date,big_quantity,big_sub, image_path, small_price,sale_unit,total,final_total, type_save,user_id,create_at
-                            FROM products WHERE is_synced = 0''')
-
-        unsynced_products = cursor_sq.fetchall()
-
-        try:
-            
-            cursor = db_connect.cursor()
-
-            for product in unsynced_products:
-                (local_product_id, barcode, name, category, sub_category, buy_date, buy_price,
-                sale_price, big_price, big_category, quantity, expire_date,big_quantity,big_sub,
-                image_path, small_price,sale_unit,total,final_total, type_save,user_id,create_at) = product
-
-                ftp_image_url = ""
-
-                # آپلود تصویر
-                if image_path and os.path.isfile(image_path):
-                    try:
-                        image_name = ntpath.basename(image_path)
-                        ftp_image_url = f"uploads/app_images/{image_name}"
-
-                        ftp = FTP()
-                        ftp.connect('ihr.blg.mybluehost.me', 21)
-                        ftp.login('shop@ihr.blg.mybluehost.me', 'm8q>cD25he')
-
-                        with open(image_path, 'rb') as file:
-                            ftp.storbinary(f'STOR {image_name}', file)
-
-                        ftp.quit()
-                        print("✅ تصویر آپلود شد:", ftp_image_url)
-
-                    except Exception as e:
-                        print("❌ خطا در آپلود تصویر:", e)
-                        ftp_image_url = ""
-
-                # جایگزینی None با مقدار خالی
-                big_category = big_category or ""
-                category = category or ""
-                name = name or ""
-                sub_category = sub_category or ""
-
-                # بررسی وجود محصول در جدول آنلاین
-                cursor.execute("SELECT COUNT(*) FROM inventories WHERE barcode = %s", (barcode,))
-                if cursor.fetchone()[0] == 0:
-                    # درج در inventories
-                    cursor.execute('''
-                        INSERT INTO inventories (
-                            barcode, product_name, category, sub_category, buy_date,
-                            buy_price, sell_price, big_price, big_category, quantity,
-                            expiration_dates,big_quantity,big_sub,product_image,small_price,sale_unit, total,final_total, type_save,user_id,created_at
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s,%s,%s,%s,%s,%s)
-                    ''', (
-                        barcode, name, category, sub_category, buy_date,
-                        buy_price, sale_price, big_price, big_category, quantity,
-                        expire_date, big_quantity,big_sub,ftp_image_url, small_price,sale_unit,total, final_total,type_save,user_id,create_at
-                    ))
-
-                    invent_id = cursor.lastrowid  # آیدی رکورد ثبت‌شده در سرور
-
-                    # خواندن اطلاعات product_details از SQLite
-                    cursor_sq.execute('''
-                        SELECT weight, production_date, brand, production_place, product_state,
-                            more_details, keep_place
-                        FROM product_details WHERE invent_id = ?
-                    ''', (local_product_id,))
-                    detail = cursor_sq.fetchone()
-
-                    if detail:
-                        weight, pro_date, brand, place, status, description, keep_place = detail
-                        # درج در product_details در سرور
-                        cursor.execute('''
-                            INSERT INTO product_details (
-                                weight, production_date, brand, production_place,
-                                product_state, more_detail, keep_place, invent_id
-                            )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        ''', (
-                            weight, pro_date, brand, place,
-                            status, description, keep_place, invent_id
-                        ))
-
-            db_connect.commit()
-            print("✅ همگام‌سازی با موفقیت انجام شد")
-
-            # به‌روزرسانی SQLite
-            cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
-            cursor_sq.execute("UPDATE product_details SET is_synced = 1 WHERE is_synced = 0")
-            conn_sq.commit()
-
-        except Exception as e:
-            print("❌ خطا در همگام‌سازی:", e)
-
-        finally:
-            conn_sq.close()
-            if db_connect:
-                db_connect.close()
-
-    ##
     def set_info(self, barcode):
         self.bar_line.setText(str(barcode))
     

@@ -60,6 +60,7 @@ class Delete_Exp(QDialog):
                                       }
                                     
             ''')
+        self.delete_btn.clicked.connect(self.delete_info)
     ##
     def input_UI(self):
         self.name_line.setGeometry(130, 45, 170, 35)
@@ -116,6 +117,8 @@ class Delete_Exp(QDialog):
             self.quantity_line.setText(str(quantity))
     ##
     def delete_info(self):
+        name= self.name_line.text()
+        quantity= self.quantity_line.text()
         base_dir= os.path.dirname(os.path.abspath(__file__))
         root_dir= os.path.dirname(base_dir)
         db_path= os.path.join(root_dir, "Data","sh_online.db")
@@ -125,7 +128,11 @@ class Delete_Exp(QDialog):
         try:
             conn= sqlite3.connect(db_path)
             cursor= conn.cursor()
-            cursor.execute()
+            cursor.execute("delete from products  where name=? and quantity=?",(name,quantity))
+            conn.commit()
+            MessageBox(text="محصول موفقانه حذف شد",title="موفقانه",type="info").show()
+            self.name_line.clear()
+            self.quantity_line.clear()
         except sqlite3.Error as e:
             print(f"{e}: offline db problem")
     ##fonts
