@@ -67,7 +67,7 @@ class Main_login(QMainWindow):
 
         # اضافه به layout اصلی
         main_layout.addLayout(top_layout)
-        self.setLayout(main_layout)
+        #self.setLayout(main_layout)
         
         # ایجاد layout برای man و title
         man_icon = self.get_asset_path("man_1.png")
@@ -402,6 +402,7 @@ class Main_login(QMainWindow):
         self.anim.setEndValue(end_pos)
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.anim.start()
+        
     ##
     def resource_path(self,relative_path):
         """ Get absolute path to resource, works for dev and for PyInstaller """

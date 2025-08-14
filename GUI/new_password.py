@@ -2,8 +2,9 @@ from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLay
 from PyQt6.QtCore import Qt, QPropertyAnimation, QPoint,QEasingCurve
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 from PyQt6.QtGui import QPixmap, QFontDatabase, QPalette, QFont,QColor
-import os
-import sys
+import os,sys,pymysql,sqlite3
+from message_b import MessageBox
+from db_connection_f import Connection
 from main import mainwindow
 
 class New_login(QMainWindow):
@@ -55,7 +56,7 @@ class New_login(QMainWindow):
 
         # اضافه به layout اصلی
         main_layout.addLayout(top_layout)
-        self.setLayout(main_layout)
+        #self.setLayout(main_layout)
         
         # ایجاد layout برای man و title
         man_icon = self.get_asset_path("protect 1.png")
@@ -112,7 +113,7 @@ class New_login(QMainWindow):
         self.ne_lb= QLabel("نوت: به یاد داشته باشید که پسورد جدید خود را ذخیره کنید تا که حساب شما ایمن باشد.")
         # دکمه ورود
         self.submit_btn = QPushButton("تایید")
-        self.submit_btn.clicked.connect(self.show_verify_login_fullscreen)
+        #self.submit_btn.clicked.connect(self.show_verify_login_fullscreen)
 
         # برای وسط چین کردن دکمه، آن را داخل یک QHBoxLayout قرار می‌دهیم
         button_layout = QHBoxLayout()
@@ -253,6 +254,7 @@ class New_login(QMainWindow):
         line_edit._floating_label = label
         line_edit._floating_animation = animation
         line_edit.textChanged.connect(lambda: self.update_label_visibility(label, line_edit))
+        container.line_edit = line_edit
 
         return container
 
@@ -340,6 +342,95 @@ class New_login(QMainWindow):
         self.anim.setEndValue(end_pos)
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.anim.start()#   
+    ##
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+            self.update_password()
+    ##
+    def update_password(self):
+        self.db_data = Connection().get_connection()
+        old_password = str(self.username_input.line_edit.text()).strip()
+        new_password = str(self.password_input.line_edit.text()).strip()
+
+        if not all([old_password, new_password]):
+            MessageBox(
+                text="لطفاً برای تغییر پسورد، پسورد مورد نظر خود را وارد کنید",
+                type="warning",
+                title="هشدار"
+            ).show()
+            return
+
+        if not self.db_data:
+            print("خطا در اتصال به دیتابیس")
+            return
+
+        # مسیر دیتابیس آفلاین
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        if not os.path.exists(db_path):
+            MessageBox(
+                text="فایل دیتابیس محلی یافت نشد!",
+                title="❌ خطا",
+                type="error"
+            ).show()
+            return
+
+        # گرفتن user_id از دیتابیس آفلاین
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT id FROM users;")
+            res_id = cursor_sq.fetchone()
+            conn_sq.close()
+
+            if not res_id:
+                MessageBox(
+                    text="یوزر محلی یافت نشد!",
+                    title="❌ خطا",
+                    type="error"
+                ).show()
+                return
+
+            id_user = res_id[0]
+        except Exception as e:
+            MessageBox(
+                text=f"خطا در خواندن یوزر محلی: {e}",
+                title="❌ خطا",
+                type="error"
+            ).show()
+            return
+
+        try:
+            cursor = self.db_data.cursor()
+
+            # شرط: وقتی پسورد قدیم و جدید یکسان باشند
+            if old_password == new_password:
+                cursor.execute(
+                    "UPDATE user_s SET password = %s WHERE id = %s",
+                    (new_password, id_user)
+                )
+                self.db_data.commit()
+
+                MessageBox(
+                    "پسورد موفقانه تغییر کرد",
+                    title="موفقانه",
+                    type="info"
+                ).show()
+
+                # اجرای تابع مورد نظر بعد از تغییر پسورد
+                self.show_verify_login_fullscreen()
+            else:
+                MessageBox(
+                    text="پسورد ها باهم مطابقت ندارند",
+                    type="error",
+                    title="خطا"
+                ).show()
+
+        except pymysql.Error as e:
+            print(f"{e}: خطا در دیتابیس")
+
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

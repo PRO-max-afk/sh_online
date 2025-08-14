@@ -1,9 +1,12 @@
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLayout, QFrame, QSpacerItem, QSizePolicy, QLineEdit,QPushButton,QMainWindow
 from PyQt6.QtCore import Qt, QPropertyAnimation, QPoint,QEasingCurve
 from PyQt6.QtGui import QPixmap, QFontDatabase, QPalette, QFont
-import os
-import sys
+import os,sys,pymysql,sqlite3
+from message_b import MessageBox
 from otp_security import Otp_login
+from new_password import New_login
+from db_connection_f import Connection
+
 
 class Security_login(QMainWindow):
     def __init__(self,parent=None):
@@ -55,7 +58,7 @@ class Security_login(QMainWindow):
 
         # اضافه به layout اصلی
         main_layout.addLayout(top_layout)
-        self.setLayout(main_layout)
+        #self.setLayout(main_layout)
         
         # ایجاد layout برای man و title
         man_icon = self.get_asset_path("freepik__background__8496 1.png")
@@ -116,9 +119,10 @@ class Security_login(QMainWindow):
 
         # دکمه ورود
         self.submit_btn = QPushButton("بعدی")
+        self.submit_btn.clicked.connect(self.security_qua)
         #
         self.forgot_btn= QPushButton("ارسال کد به شماره تماس")
-        self.forgot_btn.clicked.connect(self.show_otp_login_fullscreen)
+        #self.forgot_btn.clicked.connect(self.show_otp_login_fullscreen)
 
         # ایجاد layout افقی برای دکمه "فراموشی پسورد"
         forgot_password_layout = QHBoxLayout()
@@ -288,6 +292,7 @@ class Security_login(QMainWindow):
 
         # چک کردن برای نمایش label در صورت وجود متن
         line_edit.textChanged.connect(lambda: self.update_label_visibility(label, line_edit))
+        container.line_edit = line_edit
 
         return container
 
@@ -375,6 +380,108 @@ class Security_login(QMainWindow):
         self.anim.setEndValue(end_pos)
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.anim.start()
+    ##animated
+    def show_new_login_fullscreen(self):
+        # پاک کردن محتوای فعلی پنجره
+        old_central = self.centralWidget()
+        if old_central:
+            old_central.deleteLater()
+
+        # ایجاد یک نمونه از Security_login به‌صورت ویجت (نه پنجره‌ی جدید)
+        new_widget = New_login()  # توجه: کلاس باید از QWidget ارث ببرد نه QMainWindow
+
+        self.setCentralWidget(new_widget)
+
+        # انیمیشن اسلاید از راست
+        start_pos = QPoint(self.width(), 0)
+        end_pos = QPoint(0, 0)
+        new_widget.move(start_pos)
+
+        self.anim = QPropertyAnimation(new_widget, b"pos", self)
+        self.anim.setDuration(600)
+        self.anim.setStartValue(start_pos)
+        self.anim.setEndValue(end_pos)
+        self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.anim.start()
+    ##
+    def keyPressEvent(self,event):
+        if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+            self.security_qua()
+    ##
+    def security_qua(self):
+        id_card = str(self.username_input.line_edit.text()).strip()
+        birthday = str(self.password_input.line_edit.text()).strip()
+        conn = Connection().get_connection()
+        id_user = None
+
+        # مسیر دیتابیس آفلاین
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, "Data","sh_online.db")  # اینجا نام دیتابیس محلی‌ات رو بگذار
+
+        if not os.path.exists(db_path):
+            print("no path db_offline found")
+            return
+
+        # بررسی ورودی‌ها
+        if not id_card or not birthday:
+            MessageBox(
+                text="برای تغییر پسورد معلومات را کامل وارد کنید",
+                title="هشدار",
+                type="warning"
+            ).show()
+            return
+
+        if not conn:
+            MessageBox(
+                text="ارتباط با سرور برقرار نشد",
+                title="خطا",
+                type="error"
+            ).show()
+            return
+
+        # گرفتن user_id از دیتابیس آفلاین
+        try:
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT id FROM users LIMIT 1")
+            id_use = cursor_sq.fetchone()
+            if id_use:
+                id_user = id_use[0]
+            conn_sq.close()
+        except sqlite3.Error as e:
+            print(f"خطا در دیتابیس آفلاین {e}")
+            return
+
+        # بررسی اطلاعات با دیتابیس آنلاین
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT birthday, id_number FROM user_s WHERE id=%s",
+                (id_user,)
+            )
+            result = cursor.fetchone()
+
+            if result:
+                db_birthday, db_id_number = str(result[0]).strip(), str(result[1]).strip()
+                if birthday == db_birthday and id_card == db_id_number:
+                    self.show_new_login_fullscreen()
+                else:
+                    MessageBox(
+                        text="اطلاعات شما درست نمی باشد لطفاً بررسی کنید",
+                        title="نادرست",
+                        type="warning"
+                    ).show()
+            else:
+                MessageBox(
+                    text="اطلاعات شما درست نمی باشد لطفاً بررسی کنید",
+                    title="نادرست",
+                    type="warning"
+                ).show()
+
+        except pymysql.MySQLError as e:
+            print(f"online db problem: {e}")
+
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

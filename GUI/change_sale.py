@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
-    QGraphicsDropShadowEffect,QSizePolicy,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+    QGraphicsDropShadowEffect,QSizePolicy,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QMessageBox,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QPoint,QPropertyAnimation,QEasingCurve,QSize
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QTextDocument,QBrush,QPainter,QFont
 import sqlite3
@@ -8,6 +8,7 @@ import os,threading
 from db_connection import Connection
 from PyQt6.QtPrintSupport import QPrinter
 import jdatetime
+from functools import partial
 
 
 
@@ -413,7 +414,8 @@ class ChangingFactor(QMainWindow):
                         "sale_type": sale_type,
                         "item_price" : item_price,
                         "big_price" : big_price,
-                        "big_quantity" : big_qunatity
+                        "big_quantity" : big_qunatity,
+                        "factor": str(search)
                     }
                     self.sale_list.append(list_sa)
                     self.factor= search
@@ -427,6 +429,7 @@ class ChangingFactor(QMainWindow):
                     self.reject_btn= QPushButton()
                     self.reject_btn.setIcon(QIcon(self.get_asset_path("MacOS Close.png")))
                     self.reject_btn.setIconSize(QSize(25,25))
+                    self.reject_btn.clicked.connect(partial(self.delete_product))
                     self.reject_btn.setStyleSheet('''
                         QPushButton {
                         background-color: transparent;
@@ -969,10 +972,87 @@ class ChangingFactor(QMainWindow):
         self.syc_timer= QTimer(self)
         self.syc_timer.timeout.connect(self.start_sync)
         self.syc_timer.start(12*1000)
+    ##
     def start_sync(self):
         sync_thread= threading.Thread(target=self.syncs_to_server)
         sync_thread.setDaemon(True)
         sync_thread.start()
+
+    def delete_product(self, row=None):
+        if row is None:
+            row = self.table.currentRow()
+        if row < 0:
+            MessageBox("هیچ محصولی انتخاب نشده است", title="خطا", type="warning").show()
+            return
+
+        name_item = self.table.item(row, 0)
+        if not name_item:
+            MessageBox("خطا در دریافت اطلاعات سطر انتخاب‌شده", title="خطا", type="error").show()
+            return
+        name = name_item.text()
+
+        confirm_box = MessageBox(
+            f"آیا مطمئن هستید که می‌خواهید محصول '{name}' را حذف کنید؟",
+            title="تأیید حذف",
+            type="question",
+            buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm_box.show() != QMessageBox.StandardButton.Yes:
+            return
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # گرفتن شماره فاکتور از sale_list بر اساس سطر انتخابی
+            if 0 <= row < len(self.sale_list):
+                factor_number = self.sale_list[row]["factor"]
+            else:
+                MessageBox("شماره فاکتور مشخص نیست", title="خطا", type="error").show()
+                return
+
+            # گرفتن barcode و quantity از دیتابیس
+            cursor.execute("""
+                SELECT barcode, quantity 
+                FROM sale_factor 
+                WHERE product_name=? AND factor_number=?
+            """, (name, factor_number))
+            result = cursor.fetchone()
+
+            if result:
+                barcode, qty = result
+
+                # برگرداندن موجودی انبار
+                if barcode:
+                    cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
+                    prod_result = cursor.fetchone()
+                    if prod_result:
+                        new_qty = float(prod_result[0]) + float(qty or 0)
+                        cursor.execute("""
+                            UPDATE products 
+                            SET quantity=?, is_synced=0 
+                            WHERE barcode=?
+                        """, (new_qty, barcode))
+
+                # حذف از sale_factor
+                cursor.execute("""
+                    DELETE FROM sale_factor 
+                    WHERE product_name=? AND barcode=? AND factor_number=?
+                """, (name, barcode, factor_number))
+
+            conn.commit()
+            conn.close()
+
+            # حذف از جدول UI
+            self.table.removeRow(row)
+
+        except sqlite3.Error as e:
+            MessageBox(f"{e} : خطا در حذف یا بروزرسانی محصول", title="خطای دیتابیس", type="error").show()
+
 
     ##
 
