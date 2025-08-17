@@ -1659,14 +1659,20 @@ class WidgetManager(QWidget):
     ##
     def update_info_invnenvtory(self):
         from synce_updated import UpdateThread
-        self.thread_to_server = UpdateThread()
-        self.thread_to_server.start()
+
+        # فقط اگر ترد قبلی وجود نداشت یا تمام شده بود، یک ترد جدید بساز
+        if not hasattr(self, "thread_to_server") or not self.thread_to_server.isRunning():
+            self.thread_to_server = UpdateThread()
+            self.thread_to_server.start()
 
         # ⏱ فقط یکبار تایمر بساز (اگر از قبل ساخته نشده باشد)
         if not hasattr(self, 'update_timer'):
             self.update_timer = QTimer(self)
             self.update_timer.timeout.connect(self.update_info_invnenvtory)
             self.update_timer.start(15 * 1000)  # هر ۱۵ ثانیه
+    ##
+    
+
     ##
     def start_notification_checker(self):
         self.notif_checker = NotificationChecker()

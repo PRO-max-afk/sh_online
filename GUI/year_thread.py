@@ -415,7 +415,7 @@ class YearThread(QThread):
                 total_harvest += float(har_result[0]) if har_result[0] else 0
                 print(f'{total_harvest} : total_harvest')
 
-            cursor.execute("select SUM(ABS(amount)) from barrow WHERE user_id=%s",(id_user,))
+            cursor.execute("select SUM(ABS(amount)) from barrow WHERE user_id=%s AND  type in('برده گی','طلب مردم','پول نقد')",(id_user,))
             bar_total= cursor.fetchone()
             total_barrow=0
             if bar_total:
@@ -503,7 +503,7 @@ class YearThread(QThread):
                 total_harvest = float(res[0]) if res[0] else 0
 
             # barrow
-            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE user_id = ?", (id_user,))
+            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE user_id = ? AND type in('برده گی','طلب مردم','پول نقد')", (id_user,))
             res = cursor.fetchone()
             if res:
                 total_barrow = float(res[0]) if res[0] else 0

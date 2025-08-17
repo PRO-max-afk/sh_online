@@ -405,7 +405,8 @@ class UserSettings(QMainWindow):
             border-radius: 8px;
             padding: 5px;
             font-family: Mirza, "B Nazanin";
-            font-weight: bold; 
+            font-weight: bold;
+            color: white; 
             font-size: 16px;
                                     }
         QPushButton:hover{
@@ -439,6 +440,7 @@ class UserSettings(QMainWindow):
             padding: 5px;
             font-family: Mirza, "B Nazanin";
             font-weight: bold; 
+            color: white;
             font-size: 16px;
                                     }
         QPushButton:hover{

@@ -39,6 +39,7 @@ class Security_login(QMainWindow):
         # --- تصویر سمت چپ ---
         self.img_label = QLabel()
         self.img_label.setFixedSize(750, 563)
+        self.img_label.setScaledContents(True)
         image_path = self.get_asset_path("computer-security-with-login-password-padlock.png")
         if image_path:
             pixmap = QPixmap(image_path)
@@ -91,6 +92,7 @@ class Security_login(QMainWindow):
         if man_icon:
             man_pix = QPixmap(man_icon)
             self.manlabel.setPixmap(man_pix.scaled(self.manlabel.size()))
+            self.manlabel.setScaledContents(True)
         else:
             self.manlabel.setText("تصویر یافت نشد")
 
@@ -122,7 +124,7 @@ class Security_login(QMainWindow):
         self.submit_btn.clicked.connect(self.security_qua)
         #
         self.forgot_btn= QPushButton("ارسال کد به شماره تماس")
-        #self.forgot_btn.clicked.connect(self.show_otp_login_fullscreen)
+        self.forgot_btn.clicked.connect(self.show_otp_login_fullscreen)
 
         # ایجاد layout افقی برای دکمه "فراموشی پسورد"
         forgot_password_layout = QHBoxLayout()
@@ -144,7 +146,7 @@ class Security_login(QMainWindow):
         self.input_layout.addWidget(self.note_lb)
         # اضافه کردن دکمه به layout اصلی
         self.input_layout.addLayout(button_layout)
-        self.input_layout.addLayout(forgot_password_layout)
+        #self.input_layout.addLayout(forgot_password_layout)
 
 
         # ایجاد اسپیس برای قرار دادن فیلدها در وسط

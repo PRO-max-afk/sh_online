@@ -312,7 +312,7 @@ class ProductForm(QDialog):
                 border-radius: 8px;
                 text-align: right;
                 padding: 6px 10px 6px 30px; /* فضای کافی برای فلش در سمت چپ */
-                padding-left: 100px;
+                padding-left: 85px;
             }
 
             QComboBox::drop-down {
@@ -823,9 +823,10 @@ class ProductForm(QDialog):
         quantity = self.number_line.text()
         sale_price = self.sale_line.text()
         sale_big = self.sale_big_line.text()
-        type_save= "inventory"
-        final_total=0
-        ### big_quantity
+        type_save = "inventory"
+        final_total = 0
+
+        # big_quantity
         if hasattr(self, 'unit_lineedit') and self.unit_lineedit and self.unit_lineedit.isVisible():
             text = self.unit_lineedit.text()
             try:
@@ -833,10 +834,7 @@ class ProductForm(QDialog):
             except ValueError:
                 big_s = 0.0
         else:
-            big_s = self.big_quantity
-            print(self.big_quantity)
-        ##
-        db_connection = Connection().get_connection()
+            big_s = 0.0
 
         if f_ch == "انتخاب" and s_ch == "انتخاب":
             MessageBox(text="لطفاً اطلاعات را از باکس‌های انتخابی وارد کنید", title="هشدار", type="warning").show()
@@ -847,7 +845,6 @@ class ProductForm(QDialog):
             return
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        # رفتن یک سطح بالاتر از پوشه GUI
         root_dir = os.path.dirname(base_dir)
         db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
 
@@ -864,8 +861,9 @@ class ProductForm(QDialog):
         except Exception as e:
             MessageBox(text=f"خطا در خواندن یوزر محلی: {e}", title="❌ خطا", type="error").show()
             return
+
+        # جزئیات محصول
         try:
-            # اگر اطلاعات در self.details موجود بود، از آن استفاده شود
             if hasattr(self, "details") and self.details:
                 detail = self.details[0]
                 weight = detail.get("weight", "")
@@ -873,13 +871,9 @@ class ProductForm(QDialog):
                 brand = detail.get("brand", "")
                 palce = detail.get("production_place", "")
                 status = detail.get("product_state", "")
-                data = detail.get("more_detail", "")  # یا "more_details" بسته به نام اصلی
+                data = detail.get("more_detail", "")
                 place = detail.get("keep", "")
-                print("✅ اطلاعات جزئیات از حافظه داخلی بارگذاری شد.")
             else:
-                # در غیر این صورت از دیتابیس بخوان
-                conn_sq = sqlite3.connect(db_path)
-                cursor_sq = conn_sq.cursor()
                 cursor_sq.execute('''
                     SELECT weight, production_date, brand, production_place, product_state, more_details, keep_place
                     FROM details
@@ -888,170 +882,71 @@ class ProductForm(QDialog):
                 ''')
                 detail = cursor_sq.fetchone()
                 if detail:
-                    weight = detail[0]
-                    pro_date = detail[1]
-                    brand = detail[2]
-                    palce = detail[3]
-                    status = detail[4]
-                    data = detail[5]
-                    place = detail[6]
-                    
+                    weight, pro_date, brand, palce, status, data, place = detail
                 else:
-                    # اگر دیتای جزئیات یافت نشد، می‌تونی مقدار پیش‌فرض بزاری یا هشدار بدهی
                     weight = pro_date = brand = palce = status = data = place = ""
-                    print("ℹ️ جزئیات در دیتابیس یافت نشد.")
-
         except Exception as e:
             MessageBox(text=f"خطا در خواندن اطلاعات جزئیات: {e}", title="❌ خطا", type="error").show()
             return
-        
 
         date = datetime.date.today().strftime("%Y/%m/%d")
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
-        sale_unit= None
+
         if category in ["کارتن", "بسته", "شانه", "جعبه"]:
             sale_unit = "عدد"
         elif category in ["کیلو", "کیسه"]:
             sale_unit = "کیلو"
         else:
-            sale_unit = "عدد"  # مقدار پیش‌فرض برای جلوگیری از None
+            sale_unit = "عدد"
 
-        print(sale_unit)
-
-        
         total = float(buy_price) * float(quantity)
         if big_s != 0:
-            per_buy = float(buy_price) if buy_price else 0
+            per_buy = float(buy_price)
             per_quantity = float(quantity) * big_s
         else:
-            per_buy = float(buy_price)  # اگر big_s صفر باشد، از buy_price استفاده می‌شود
+            per_buy = float(buy_price)
             per_quantity = float(quantity)
-              # اگر big_s صفر باشد، از quantity استفاده می‌شود
-        # در غیر این صورت محاسبه نمی‌شود
+
         if big_s > 0:
-            big_sub = round(float(per_quantity) / big_s , 1)
-            print(f"{big_sub} : تعداد هر بسته 😉✅")
+            big_sub = round(float(per_quantity) / big_s, 1)
         else:
             big_sub = 0
-        
-        ##small_price
-        small_price= float(sale_big) / big_s
-        
-        # افزودن ویجت محصول به رابط کاربری
-        new_sub= f'{big_sub} {category}'
+
+        small_price = float(sale_big) / big_s if big_s else 0
+        new_sub = f'{big_sub} {category}'
         final_total = total
 
-        local_temp_dir = os.path.join(os.getcwd(), "temp_images")
-        os.makedirs(local_temp_dir, exist_ok=True)
+        # ذخیره فقط آفلاین
+        try:
+            image_path_to_store = self.image_path if hasattr(self, "image_path") and self.image_path else ""
 
-        ftp_image_url = ""
-        uploaded_to_ftp = False
-        local_image_path = ""
+            cursor_sq.execute('''
+                INSERT INTO products (barcode, name,category,sub_category,buy_date,buy_price,sale_price, big_price,big_category,
+                                    quantity, expire_date,big_quantity,big_sub,big_sub_display,image_path,small_price,sale_unit,
+                                    total,final_total, type_save,user_id, is_synced,create_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, category,
+                per_quantity, exp_date, big_s, big_sub, new_sub, image_path_to_store,
+                small_price or 0, sale_unit, total, final_total, type_save, id_user, 0, date_ent
+            ))
 
-        if hasattr(self, "image_path") and self.image_path:
-            try:
-                image_name = ntpath.basename(self.image_path)
-                ftp_image_url = f"uploads/app_images/{image_name}"
+            invent_ids = cursor_sq.lastrowid
 
-                ftp_host = 'ihr.blg.mybluehost.me'
-                ftp_user = 'shop@ihr.blg.mybluehost.me'
-                ftp_pass = 'm8q>cD25he'
-
-                ftp = FTP()
-                ftp.connect(ftp_host, 21)
-                ftp.login(ftp_user, ftp_pass)
-
-                with open(self.image_path, 'rb') as file:
-                    ftp.storbinary(f'STOR {image_name}', file)
-
-                ftp.quit()
-                uploaded_to_ftp = True
-                print("✅ تصویر با موفقیت آپلود شد:", ftp_image_url)
-
-            except Exception as e:
-                print("❌ خطا در آپلود تصویر:", e)
-                uploaded_to_ftp = False
-                # ذخیره موقت در temp_images در صورت خطا
-                try:
-                    filename = ntpath.basename(self.image_path)
-                    local_image_path = os.path.join(local_temp_dir, filename)
-                    shutil.copy(self.image_path, local_image_path)
-                    print("📁 تصویر در مسیر temp_images ذخیره شد:", local_image_path)
-                except Exception as copy_err:
-                    print("❌ خطا در کپی تصویر:", copy_err)
-        else:
-            MessageBox(text="تصویری انتخاب نشده است!", title="❌ هشدار", type="warning").show()
-
-        inserted_online = False
-        synced = 0
-        if db_connection and uploaded_to_ftp:
-            try:
-                
-                cursor = db_connection.cursor()
-
-                cursor.execute('''
-                    INSERT INTO inventories (barcode, product_name, category,sub_category,buy_date,buy_price, sell_price, big_price, big_category,quantity, expiration_dates, big_quantity,big_sub,
-                                            product_image,small_price,sale_unit, total, final_total,type_save,user_id,created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                ''', (
-                    barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, 
-                    category, per_quantity, exp_date,big_s,big_sub, ftp_image_url, small_price or 0,sale_unit,total,final_total,type_save,id_user,date_ent
-                ))
-
-                invent_id = cursor.lastrowid  # گرفتن ID رکورد ثبت‌شده
-
-                cursor.execute('''
+            cursor_sq.execute('''
                 INSERT INTO product_details (weight,production_date,brand,production_place,product_state,
-                               more_detail,keep_place,invent_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
-            ''',(weight,pro_date,brand,palce,status,data,place,invent_id))
-                
-                db_connection.commit()
-                inserted_online = True
-                synced = 1
-                MessageBox("✅ محصول در سرور ذخیره شد", title="موفقانه", type="info").show()
-            except Exception as e:
-                print("❌ خطا در اتصال به سرور:", e)
-            finally:
-                if db_connection:
-                    db_connection.close()
+                                            more_details,keep_place,is_synced,invent_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (weight, pro_date, brand, palce, status, data, place, 0, invent_ids))
 
-        # ذخیره در دیتابیس آفلاین اگر سرور در دسترس نبود یا آپلود تصویر ناموفق بود
-        if not inserted_online:
-            try:
-                # تعیین مسیر تصویر (اگر آپلود نشد، از مسیر temp_images استفاده شود)
-                if not uploaded_to_ftp and os.path.exists(local_image_path):
-                    image_path_to_store = local_image_path
-                else:
-                    image_path_to_store = self.image_path if self.image_path else ""
+            conn_sq.commit()
+            MessageBox("✅ محصول به صورت آفلاین ذخیره شد", title="موفقانه", type="info").show()
+        except Exception as e:
+            MessageBox(f"❌ خطا در ذخیره آفلاین: {e}", title="خطا", type="error").show()
+        finally:
+            conn_sq.close()
 
-                conn_sq = sqlite3.connect(db_path)
-                cursor_sq = conn_sq.cursor()
-                cursor_sq.execute('''
-                    INSERT INTO products (barcode, name,category,sub_category,buy_date,buy_price,sale_price, big_price,big_category,quantity, expire_date,big_quantity,big_sub,big_sub_display,
-                                        image_path,small_price,sale_unit, total,final_total, type_save,user_id, is_synced,create_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?,?,?,?,?,?,?,?)
-                ''', (
-                    barcode, name, f_ch, s_ch, date, per_buy, sale_price, sale_big, category, 
-                    per_quantity, exp_date, big_s,big_sub,new_sub,image_path_to_store,small_price or 0,sale_unit, total,final_total,type_save,id_user, synced,date_ent
-                ))
-                
-                invent_ids = cursor_sq.lastrowid
-
-                cursor_sq.execute('''
-                INSERT INTO product_details (weight,production_date,brand,production_place,product_state,
-                            more_details,keep_place,is_synced,invent_id) VALUES(?,?,?,?,?,?,?,?,?)
-                ''',(weight,pro_date,brand,palce,status,data,place,synced,invent_ids))
-
-                
-                conn_sq.commit()
-                MessageBox("✅ محصول به صورت آفلاین ذخیره شد", title="موفقانه", type="info").show()
-                MessageBox("محصول پس از اتصال به اینترنت به صورت خودکار آپلود خواهد شد", title="اطلاع", type="info").show()
-            except Exception as e:
-                MessageBox(f"❌ خطا در ذخیره آفلاین: {e}", title="خطا", type="error").show()
-            finally:
-                conn_sq.close()
-
-      
+        # افزودن محصول به UI
         product_box = ProductBox()
         product_box.set_product_info(
             name=name,
@@ -1080,6 +975,7 @@ class ProductForm(QDialog):
         self.cate_ch.setCurrentIndex(0)
         self.total_line.setText("0.00")
         self.img_preveiw.clear()
+
    
     ##
     def sync_to_server(self):
@@ -1206,7 +1102,13 @@ class ProductForm(QDialog):
     def open_details(self):
         details= MoreDetails()
         details.exec()
-
+    ##
+    def closeEvent(self, event):
+        if self.inventory_page:
+            #self.inventory_page.show_first_spinner()
+            self.inventory_page.start_sync_thread()
+        event.accept()
+        
 
 
 

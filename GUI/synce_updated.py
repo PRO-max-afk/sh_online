@@ -197,14 +197,15 @@ class UpdateThread(QThread):
                         more_details,keep_place,update_time,invent_id))
 
                     print(f"✅ محصول {barcode} بروزرسانی شد")
+                    cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
+                    cursor_sq.execute("UPDATE product_details SET is_synced=1 WHERE is_synced=0")
+                    conn_sq.commit()
                 else:
                     print(f"⚠️ محصول {barcode} در سرور پیدا نشد")
                 
 
             db_connect.commit()
-            cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
-            cursor_sq.execute("UPDATE product_details SET is_synced=1 WHERE is_synced=0")
-            conn_sq.commit()
+            
 
         except Exception as e:
             print("❌ خطا در همگام‌سازی:", e)

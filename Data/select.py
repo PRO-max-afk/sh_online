@@ -6,7 +6,7 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-SELECT product_name FROM sale_factor WHERE factor_number = 109
+SELECT name FROM products WHERE is_synced = 1
 
 ''')
 rows = cursor.fetchall()

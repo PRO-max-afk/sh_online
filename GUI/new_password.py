@@ -37,6 +37,7 @@ class New_login(QMainWindow):
         # --- تصویر سمت چپ ---
         self.img_label = QLabel()
         self.img_label.setFixedSize(750, 750)
+        self.img_label.setScaledContents(True)
         image_path = self.get_asset_path("Secure login-rafiki 1.png")
         if image_path:
             pixmap = QPixmap(image_path)
@@ -61,6 +62,7 @@ class New_login(QMainWindow):
         # ایجاد layout برای man و title
         man_icon = self.get_asset_path("protect 1.png")
         self.manlabel = QLabel()
+        self.manlabel.setScaledContents(True)
         self.manlabel.setFixedSize(100, 100)
         self.manlabel.setContentsMargins(0, 0, 0, 0)
 
@@ -312,12 +314,23 @@ class New_login(QMainWindow):
             label.setStyleSheet("color: gray; text-align: center; font-size: 12px; background: white; padding: 0 5px; margin-left: 20px;")
     ##images
     def get_asset_path(self, filename):
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        image_path = os.path.join(project_root, "assets", filename)
-        if os.path.exists(image_path):
-            return image_path
-        else:
-            print(f"⚠ فایل یافت نشد: {image_path}")
+        try:
+            # حالت build شده با PyInstaller
+            if hasattr(sys, '_MEIPASS'):
+                base_path = sys._MEIPASS
+            else:
+                # حالت اجرای عادی (Debug/Run)
+                base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+            image_path = os.path.join(base_path, "assets", filename)
+
+            if os.path.exists(image_path):
+                return image_path
+            else:
+                print(f"⚠ فایل یافت نشد: {image_path}")
+                return None
+        except Exception as e:
+            print(f"❌ خطا در یافتن مسیر: {e}")
             return None
     ##animated
     def show_verify_login_fullscreen(self):

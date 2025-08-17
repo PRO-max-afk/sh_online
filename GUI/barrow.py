@@ -103,7 +103,7 @@ class Barrow(QMainWindow):
         ##
         self.save_btn= QPushButton()
         ##
-        self.form.addLayout(title_from_ly)
+        self.form.addWidget(self.title_from, alignment= (Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter))
         self.form.addWidget(self.typ_combo, alignment= Qt.AlignmentFlag.AlignLeft)
         self.form.addLayout(self.form_layout)
         self.form.addWidget(self.save_btn)
@@ -164,7 +164,7 @@ class Barrow(QMainWindow):
             if feild in (self.money_line,self.phone_line):
                 font_family= 'Arial'
             else:
-                font_family= ' "B Nazanin", Mirza'
+                font_family= ' "B Nazanin", Roboto'
             feild.setStyleSheet(f'''
                 QLineEdit{{
                     color: black;
@@ -182,7 +182,7 @@ class Barrow(QMainWindow):
         self.descprit_text.setMaximumHeight(70)
         self.descprit_text.setStyleSheet('''
                     color: black;
-                    font-size: 16px;
+                    font-size: 14px;
                     font-family: B Nazanin;
                     font-weight: bold;
                     border: 1px solid gray;
@@ -253,11 +253,13 @@ class Barrow(QMainWindow):
                     background-color: #1be314;
                 }
     ''')
+        self.save_btn.clicked.connect(self.save_barrow)
         ##
         self.typ_combo.setMaximumSize(150,30)
-        self.type_info=["نوع قرض","برده گی","رسیده گی","طلب","پول نقد"]
+        self.type_info=["برده گی","رسیده گی","طلب مردم","پول نقد"]
+        self.typ_combo.addItem("نوع قرض")
         self.typ_combo.addItems(self.type_info)
-        self.typ_combo.setCurrentText(self.type_info[0])
+        self.typ_combo.setCurrentIndex(0)
         self.typ_combo.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.typ_combo.setStyleSheet('''
              QComboBox {
@@ -383,6 +385,7 @@ class Barrow(QMainWindow):
         animation.setEndValue(end_pos)
         animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         animation.start()
+
     ##
     def create_bar_chart(self):
         try:
@@ -395,7 +398,7 @@ class Barrow(QMainWindow):
                 return
             conn= sqlite3.connect(db_path)
             cursor= conn.cursor()
-            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE type= 'طلب'  and is_synced=1")
+            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE type= 'طلب مردم'  and is_synced=1")
             bm_result= cursor.fetchone()
             if bm_result:
                 b_loan= float(bm_result[0]) if bm_result and bm_result[0] is not None else 0
@@ -473,18 +476,20 @@ class Barrow(QMainWindow):
     ##
     def save_barrow(self):
         name = self.name_line.text()
-        amount = float(self.money_line.text())
-        b_types= self.typ_combo.currentText()
-        phone= str(self.phone_line.text())
+        amount_text = self.money_line.text().strip()
+        amount = float(amount_text) if amount_text else 0.0
+        b_types = self.typ_combo.currentText()
+        phone = str(self.phone_line.text())
         date = self.date_line.text()
         description = self.descprit_text.toPlainText()
 
         if not name or not amount or not date or not phone:
             MessageBox(text="لطفاً اطلاعات مورد نیاز برای ثبت برداشت را پر کنید", type="warning", title="هشدار").show()
             return
-        if b_types=="نوع قرض":
-            MessageBox(text="نوعیت قرض را تعیین کنید",type="warning",title="هشدار").show()
+        if b_types == "نوع قرض":
+            MessageBox(text="نوعیت قرض را تعیین کنید", type="warning", title="هشدار").show()
             return
+
         base_dir = os.path.dirname(os.path.abspath(__file__))
         root_dir = os.path.dirname(base_dir)
         db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
@@ -503,46 +508,67 @@ class Barrow(QMainWindow):
                 print("no user id found!")
                 return
             id_user = rest[0]
-            ##
-            cursor.execute('SELECT SUM(amount) FROM barrow WHERE name= ?',(name,))
-            re_result= cursor.fetchone()
-            ##
-            current_number= float(re_result[0]) if re_result and re_result[0] is not None else 0
-            if b_types =="رسیده گی":
-                if amount > current_number:
-                    MessageBox(text="قرض این شخص رسید شده است",type="warning",title="معلومات").show()
-                    return
-                amount = -amount
-            ##
-            elif b_types== "طلب":
-                if amount > current_number:
-                    MessageBox(text="طلب رسید شده است",type="warning",title="معلومات").show()
-                    return
-                amount= - amount
-            elif b_types == "پول نقد":
-                amount =+ amount
-            ##
-            is_synced = 0
+
+            # مجموع فعلی قرض (برده گی + طلب مردم)
             cursor.execute("""
-                INSERT INTO barrow(name, amount, type,phone,date, description, user_id, is_synced) 
-                VALUES (?, ?, ?, ?, ?, ?,?,?)
-            """, (name, amount, b_types,phone,date, description, id_user, is_synced))
+                SELECT SUM(amount) 
+                FROM barrow 
+                WHERE name=? AND type IN ('برده گی','طلب مردم')
+            """, (name,))
+            re_result = cursor.fetchone()
+            current_number = float(re_result[0]) if re_result and re_result[0] is not None else 0
+
+            # اگر رسیده گی باشد => رکورد جدید + بروزرسانی بدهی قبلی
+            if b_types == "رسیده گی":
+                if amount > current_number:
+                    MessageBox(text="مقدار رسید بیشتر از قرض فعلی است", type="warning", title="معلومات").show()
+                    return
+
+                # درج رکورد رسیده گی
+                is_synced = 0
+                cursor.execute("""
+                    INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (name, amount, b_types, phone, date, description, id_user, is_synced))
+
+                # از بدهی (برده گی یا طلب مردم) کم کردن
+                cursor.execute("""
+                    SELECT b_id, amount, type 
+                    FROM barrow 
+                    WHERE name=? AND type IN ('برده گی','طلب مردم')
+                    ORDER BY b_id DESC LIMIT 1
+                """, (name,))
+                last_debt = cursor.fetchone()
+
+                if last_debt:
+                    debt_id, old_amount, debt_type = last_debt
+                    new_amount = old_amount - amount
+                    cursor.execute("UPDATE barrow SET amount=? WHERE b_id=?", (new_amount, debt_id))
+
+            else:
+                # سایر انواع (برده گی / طلب / پول نقد) → رکورد جدید
+                is_synced = 0
+                cursor.execute("""
+                    INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (name, amount, b_types, phone, date, description, id_user, is_synced))
+
             conn.commit()
 
-            # ✅ نمایش ردیف جدید در جدول harvest_table
+            # ✅ نمایش در جدول
             row_position = self.har_table.rowCount()
             self.har_table.insertRow(row_position)
             self.har_table.setItem(row_position, 0, QTableWidgetItem(self._make_cell(name)))
             self.har_table.setItem(row_position, 1, QTableWidgetItem(self._make_cell(str(abs(amount)))))
-            self.har_table.setItem(row_position,2,QTableWidgetItem(self._make_cell(b_types)))
-            self.har_table.setItem(row_position,3, QTableWidgetItem(self._make_cell(str(phone))))
+            self.har_table.setItem(row_position, 2, QTableWidgetItem(self._make_cell(b_types)))
+            self.har_table.setItem(row_position, 3, QTableWidgetItem(self._make_cell(str(phone))))
             self.har_table.setItem(row_position, 4, QTableWidgetItem(self._make_cell(date)))
             self.har_table.setItem(row_position, 5, QTableWidgetItem(self._make_cell(description)))
 
             # پاک کردن فیلدها
             self.name_line.clear()
             self.money_line.clear()
-            self.typ_combo.setCurrentText(self.type_info[0])
+            self.typ_combo.setCurrentIndex(0)
             self.phone_line.clear()
             self.date_line.clear()
             self.descprit_text.clear()
@@ -553,6 +579,8 @@ class Barrow(QMainWindow):
             print(f'{e}: db error offline')
         finally:
             conn.close()
+
+
     ##
     def _make_cell(self, text):
         item = QTableWidgetItem(text)
@@ -572,7 +600,7 @@ class Barrow(QMainWindow):
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            cursor.execute('SELECT DISTINCT name FROM barrow WHERE is_synced=1')
+            cursor.execute('SELECT DISTINCT name FROM barrow')
             result = cursor.fetchall()
 
             # فقط اسامی را به صورت لیست استخراج کن
@@ -621,7 +649,7 @@ class Barrow(QMainWindow):
             cursor.execute('''
                 SELECT amount, phone, date 
                 FROM barrow 
-                WHERE is_synced = 1 AND name = ? AND (type = 'برده گی' OR type = 'طلب')
+                WHERE is_synced = 1 AND name = ? AND (type = 'برده گی' OR type = 'طلب مردم')
             ''', (name,))
 
             result= cursor.fetchone()
@@ -637,7 +665,7 @@ class Barrow(QMainWindow):
                 self.date_line.insert(result[2])
                 
             else:
-                print("no data found!")
+                MessageBox(text="حساب این شخص صفر است",type="warning",title="موجودی حساب").show()
         except sqlite3.Error as e:
             print(f"{e}: db problem")
     ##

@@ -12,7 +12,7 @@ class GregorianNTPThread(QThread):
             servers = ["pool.ntp.org", "time.google.com", "time.windows.com"]
             for server in servers:
                 try:
-                    response = client.request(server, version=3, timeout=5)
+                    response = client.request(server, version=3, timeout=2)
                     utc_time = datetime.fromtimestamp(response.tx_time, tz=timezone.utc).astimezone()
                     self.finished.emit(utc_time)
                     return

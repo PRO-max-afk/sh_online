@@ -593,6 +593,7 @@ class Inventory(QFrame):
                 font-family: "Mirza";
                 font-size: 14px;
                 font-weight: bold;
+                color: white;
                 border-radius: 10px;
                 text-align: center;
                 padding: 5px;
@@ -620,6 +621,7 @@ class Inventory(QFrame):
                 font-family: "Mirza";
                 font-size: 14px;
                 font-weight: bold;
+                color: white;
                 border-radius: 10px;
                 text-align: center;
                 padding: 5px;
@@ -1110,7 +1112,7 @@ class Inventory(QFrame):
         self.sync_timer = QTimer(self)
         self.sync_timer.timeout.connect(self.start_sync_thread)
         self.sync_timer.timeout.connect(self.start_get_fixeds)
-        self.sync_timer.start(5 *60 * 1000)  # هر 5 دقیقه
+        self.sync_timer.start( 3 * 60 * 1000)  # هر 5 دقیقه
 
     def start_sync_thread(self):
         from new_p import ProductForm

@@ -369,6 +369,7 @@ class ShopSettings(QMainWindow):
             background-color: #11BD36;
             border-radius: 8px;
             padding: 5px;
+            color: white;
             font-family: Mirza, "B Nazanin";
             font-weight: bold; 
             font-size: 16px;

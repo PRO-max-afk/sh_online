@@ -19,7 +19,11 @@ from db_connection_f import Connection
 class Main_login(QMainWindow):
     def __init__(self):
         super().__init__()
-
+        self.main_UI()
+        self.InUI()
+        self.db_data= Connection().get_connection()
+        self.load_all_fonts()
+    def main_UI(self):
         # تنظیمات پنجره
         screen = QApplication.instance().primaryScreen().geometry()
         self.setGeometry(screen.x(), screen.y(), screen.width(), screen.height())
@@ -48,6 +52,7 @@ class Main_login(QMainWindow):
         # --- تصویر سمت چپ ---
         self.img_label = QLabel()
         self.img_label.setFixedSize(750, 750)
+        self.img_label.setScaledContents(True)
         image_path = self.get_asset_path("first_img.png")
         if image_path:
             pixmap = QPixmap(image_path)
@@ -72,6 +77,7 @@ class Main_login(QMainWindow):
         # ایجاد layout برای man و title
         man_icon = self.get_asset_path("man_1.png")
         self.manlabel = QLabel()
+        self.manlabel.setScaledContents(True)
         self.manlabel.setFixedSize(100, 100)
         self.manlabel.setContentsMargins(0, 0, 0, 0)
 
@@ -168,9 +174,8 @@ class Main_login(QMainWindow):
         # تنظیم layout به فریم
         self.frame.setLayout(frame_layout)
 
-        self.InUI()
-        self.db_data= Connection().get_connection()
-        self.load_all_fonts()
+        
+        
         
     
     def InUI(self):
@@ -193,6 +198,7 @@ class Main_login(QMainWindow):
                 font-family: "B Nazanin";
                 font-size: 21px;
                 font-weight: bold;
+                color: white;
                 border-radius: 15px;
                 text-align: center;
             }
@@ -372,12 +378,45 @@ class Main_login(QMainWindow):
 
     ##images
     def get_asset_path(self, filename):
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        image_path = os.path.join(project_root, "assets", filename)
-        if os.path.exists(image_path):
-            return image_path
-        else:
-            print(f"⚠ فایل یافت نشد: {image_path}")
+        try:
+            # حالت build شده با PyInstaller
+            if hasattr(sys, '_MEIPASS'):
+                base_path = sys._MEIPASS
+            else:
+                # حالت اجرای عادی (Debug/Run)
+                base_path = os.path.dirname(self.resource_path(os.path.dirname(os.path.abspath(__file__))))
+
+            image_path = os.path.join(base_path, "assets", filename)
+
+            if os.path.exists(image_path):
+                return image_path
+            else:
+                print(f"⚠ فایل یافت نشد: {image_path}")
+                return None
+        except Exception as e:
+            print(f"❌ خطا در یافتن مسیر: {e}")
+            return None
+    ##db
+    def get_db_path(self):
+        import shutil
+        import tempfile
+        try:
+            if hasattr(sys, '_MEIPASS'):
+                # مسیر دیتابیس داخل فولدر موقت build شده
+                bundled_db_path = os.path.join(sys._MEIPASS, 'Data', 'sh_online.db')
+
+                # چون sqlite باید فایل writable داشته باشد، دیتابیس را در temp کپی می‌کنیم
+                temp_db_path = os.path.join(tempfile.gettempdir(), 'sh_online.db')
+                if not os.path.exists(temp_db_path):
+                    shutil.copyfile(bundled_db_path, temp_db_path)
+                return temp_db_path
+            else:
+                # حالت اجرای عادی یا بیلد فولدر
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                root_dir = os.path.dirname(base_dir)
+                return os.path.join(root_dir, 'Data', 'sh_online.db')
+        except Exception as e:
+            print(f"❌ خطا در مسیر دیتابیس: {e}")
             return None
     ##animated
     def show_security_login_fullscreen(self):
@@ -464,13 +503,17 @@ class Main_login(QMainWindow):
             if result:
                 id_s= result[0]
 
-                base_dir = os.path.dirname(os.path.abspath(__file__))
-                # رفتن یک سطح بالاتر از پوشه GUI
-                root_dir = os.path.dirname(base_dir)
-                db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
-
+                # استفاده:
+                db_path = self.get_db_path()
                 if not os.path.exists(db_path):
                     MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
+
+                if not os.path.exists(db_path):
+                    MessageBox(
+                        text="فایل دیتابیس محلی یافت نشد!",
+                        title="❌ خطا",
+                        type="error"
+                    ).show()
                     return False
 
                 conn_sq = sqlite3.connect(db_path)

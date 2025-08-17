@@ -250,6 +250,7 @@ class Harvest(QMainWindow):
                     background-color: #1be314;
                 }
     ''')
+        self.save_btn.clicked.connect(self.save_harvest)
         ##
         self.typ_har.setMaximumSize(120,30)
         self.type_infos=["نوع برداشت","پول برق","کرایه دوکان","پول آب","پول مالیات"]
