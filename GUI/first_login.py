@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QFrame, QSpacerItem, QSizePolicy, QLineEdit,QPushButton,QMainWindow,QApplication
-from PyQt6.QtCore import Qt, QPropertyAnimation, QPoint,QEasingCurve
+from PyQt6.QtCore import Qt, QPropertyAnimation, QPoint,QEasingCurve,QTimer,QThread,pyqtSignal
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
-from PyQt6.QtGui import QPixmap, QFontDatabase, QPalette, QFont,QColor
+from PyQt6.QtGui import QPixmap, QFontDatabase, QPalette, QFont,QColor,QMovie
 import os
 import sys
 from security_qustion import Security_login
@@ -14,6 +14,84 @@ from datetime import datetime
 from db_connection_f import Connection
 
 
+class LoginThread(QThread):
+    login_result = pyqtSignal(bool, str)   
+
+    def __init__(self, username, password, db_path_func, get_conn_func):
+        super().__init__()
+        self.username = username
+        self.password = password
+        self.get_db_path = db_path_func     # تابع کمکی برای گرفتن مسیر sqlite
+        self.get_connection = get_conn_func # تابع کمکی برای گرفتن connection MySQL
+
+    def run(self):
+        conn = None
+        cursor = None
+        conn_sq = None
+        cursor_sq = None
+
+        try:
+            # --- دریافت زمان از NTP ---
+            try:
+                ntp_client = ntplib.NTPClient()
+                response = ntp_client.request('pool.ntp.org', version=3, timeout=2)
+                utc_time = datetime.utcfromtimestamp(response.tx_time)
+            except Exception:
+                utc_time = datetime.utcnow()
+
+            kabul_tz = pytz.timezone('Asia/Kabul')
+            kabul_time = pytz.utc.localize(utc_time).astimezone(kabul_tz)
+            expire_date = kabul_time.strftime('%Y-%m-%d %H:%M:%S')
+
+            # --- اتصال به MySQL ---
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT id, username, password, expirition_dates 
+                FROM user_s 
+                WHERE username = %s 
+                AND password = %s 
+                AND expirition_dates > %s
+            """, (self.username, self.password, expire_date))
+
+            result = cursor.fetchone()
+            if not result:
+                self.login_result.emit(False, "نام کاربری یا رمز عبور اشتباه است یا حساب منقضی شده است")
+                return
+
+            user_id = result[0]
+
+            # --- اتصال به SQLite ---
+            db_path = self.get_db_path()
+            if not os.path.exists(db_path):
+                self.login_result.emit(False, "فایل دیتابیس محلی یافت نشد")
+                return
+
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+
+            cursor_sq.execute("DELETE FROM users")
+            cursor_sq.execute("INSERT INTO users (id) VALUES(?)", (user_id,))
+            conn_sq.commit()
+
+            # اگر همه چیز موفق بود
+            self.login_result.emit(True, "ورود موفق ✅")
+
+        except pymysql.Error as e:
+            self.login_result.emit(False, f"خطای اتصال MySQL: {e}")
+        except Exception as e:
+            self.login_result.emit(False, f"خطای غیرمنتظره: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+            if cursor_sq:
+                cursor_sq.close()
+            if conn_sq:
+                conn_sq.close()
+
 
 
 class Main_login(QMainWindow):
@@ -23,6 +101,7 @@ class Main_login(QMainWindow):
         self.InUI()
         self.db_data= Connection().get_connection()
         self.load_all_fonts()
+    
     def main_UI(self):
         # تنظیمات پنجره
         screen = QApplication.instance().primaryScreen().geometry()
@@ -173,11 +252,7 @@ class Main_login(QMainWindow):
 
         # تنظیم layout به فریم
         self.frame.setLayout(frame_layout)
-
-        
-        
-        
-    
+    ##
     def InUI(self):
         ##label
         self.title_label.setStyleSheet("""
@@ -457,96 +532,76 @@ class Main_login(QMainWindow):
 
         if not username or not password:
             MessageBox(text="تمامی فیلد ها را پر کنید", title="⚠هشدار", type="warning").show()
-            return False
+            return
 
-        if not self.db_data:
-            MessageBox(text="لطفاً اینترنت خود را بررسی کنید❌ اتصال به سرور ناموفق بود", title="❌خطا", type="error").show()
-            return False
+        # ✅ اول Splash را نشان بده
+        self.show_splash_screen()
+        QApplication.processEvents()  # تضمین رندر
+        
+        #
+        self.thread = LoginThread(
+            username,
+            password,
+            self.get_db_path,
+            lambda: Connection().get_connection()
+        )
+        self.thread.login_result.connect(self.handle_login_result)
 
-        conn = Connection().get_connection()
-        cursor = None
-        conn_sq = None
-        cursor_sq = None
-        id_s= None
+        # ✅ استارت ترید را به چرخه بعدی موکول کن تا Splash فرصت رندر داشته باشد
+        QTimer.singleShot(0, self.thread.start)
+    ##
+    def handle_login_result(self, success, msg):
+        if success:
+            # ✅ بعد از چند ثانیه برو سراغ MainWindow
+            QTimer.singleShot(500, self.open_mainwindow_with_animation)
 
-        try:
-            try:
-                # تلاش برای دریافت زمان از سرور NTP با تایم‌اوت کم (۲ ثانیه)
-                ntp_client = ntplib.NTPClient()
-                response = ntp_client.request('pool.ntp.org', version=3, timeout=2)
-                utc_time = datetime.utcfromtimestamp(response.tx_time)
-                print("✅ زمان از NTP دریافت شد.")
-            except Exception as e:
-                # در صورت خطا (مثلاً نبود اینترنت)، استفاده از زمان سیستم
-                print(f"⚠️ NTP Server error: {e} — استفاده از زمان سیستم.")
-                utc_time = datetime.utcnow()
+        else:
+            MessageBox(text=msg, title="❌ خطا", type="error").show()
+            # بازگرداندن دوباره UI لاگین
+            self.main_UI()
+            self.InUI()
+    ##  
+    def late_connect(self):
+        self.db_data= Connection().get_connection()
+        QTimer.singleShot(3000,self.late_connect)
 
-            # تبدیل به زمان کابل
-            kabul_tz = pytz.timezone('Asia/Kabul')
-            kabul_time = pytz.utc.localize(utc_time).astimezone(kabul_tz)
-            expire_date=kabul_time.strftime('%Y-%m-%d %H:%M:%S')
+    ##
+    def show_splash_screen(self):
+        old_layout = self.frame.layout()
+        if old_layout is not None:
+            QWidget().setLayout(old_layout)  # این کار باعث آزاد شدن layout قبلی میشه
+        #
+        new_layout = QVBoxLayout(self.frame)
+        new_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            
-            cursor = conn.cursor()
+        # لیبل GIF
+        gif_label = QLabel(self.frame)
+        gif_label.setFixedSize(200, 200)
+        gif_label.setScaledContents(True)
+        gif_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            # چک کردن اطلاعات کاربر
-            cursor.execute("""
-                SELECT id, username, password, expirition_dates 
-                FROM user_s 
-                WHERE username = %s 
-                AND password = %s 
-                AND expirition_dates > %s
-            """, (username, password, expire_date))
+        movie = QMovie(self.get_asset_path("Double Ring@1x-1.0s-420px-420px.gif"))
+        movie.setScaledSize(gif_label.size())
+        gif_label.setMovie(movie)
 
-            result = cursor.fetchone()
+        # متن زیر GIF
+        text_label = QLabel("در حال ورود به برنامه ...")
+        text_label.setStyleSheet("color: black; font-size: 24px; font-family: B Nazanin;font-weight: bold;")
+        text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            if result:
-                id_s= result[0]
+        # اضافه کردن به layout جدید
+        new_layout.addStretch()
+        new_layout.addWidget(gif_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        new_layout.addWidget(text_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        new_layout.addStretch()
 
-                # استفاده:
-                db_path = self.get_db_path()
-                if not os.path.exists(db_path):
-                    MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
-
-                if not os.path.exists(db_path):
-                    MessageBox(
-                        text="فایل دیتابیس محلی یافت نشد!",
-                        title="❌ خطا",
-                        type="error"
-                    ).show()
-                    return False
-
-                conn_sq = sqlite3.connect(db_path)
-                cursor_sq = conn_sq.cursor()
-
-                # اطمینان از وجود فقط یک ردیف در جدول users
-                cursor_sq.execute("DELETE FROM users")
-                cursor_sq.execute("INSERT INTO users (id) VALUES(?)", (id_s,))
+        movie.start()
+        QApplication.processEvents()
 
 
-                conn_sq.commit()
-                MessageBox(text="ورود با موفقیت انجام شد ✅", title="✅ موفقانه", type="info").show()
-                self.open_mainwindow_with_animation()
-                # ادامه عملیات ورود...
-            else:
-                MessageBox(text="نام کاربری یا رمز عبور اشتباه است یا حساب منقضی شده است", title="⚠ خطا", type="warning").show()
 
-        except pymysql.Error as e:
-            MessageBox(text=f"{e}: خطا در اتصال به دیتابیس", title="❌ خطا", type="error").show()
-        except ntplib.NTPException as e:
-            MessageBox(text=f"{e}: خطا در دریافت زمان از NTP", title="❌ خطا", type="error").show()
-        except Exception as e:
-            MessageBox(text=f"{e}: خطای غیرمنتظره", title="❌ خطا", type="error").show()
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
-            if cursor_sq:
-                cursor_sq.close()
-            if conn_sq:
-                conn_sq.close()
-    
+
+
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -566,7 +621,7 @@ class Main_login(QMainWindow):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
-
+        
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

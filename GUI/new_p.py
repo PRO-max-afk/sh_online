@@ -1078,14 +1078,15 @@ class ProductForm(QDialog):
                             weight, pro_date, brand, place,
                             status, description, keep_place, invent_id
                         ))
+                        # به‌روزرسانی SQLite
+                    cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
+                    cursor_sq.execute("UPDATE product_details SET is_synced = 1 WHERE is_synced = 0")
+                    conn_sq.commit()
 
             db_connect.commit()
             print("✅ همگام‌سازی با موفقیت انجام شد")
 
-            # به‌روزرسانی SQLite
-            cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
-            cursor_sq.execute("UPDATE product_details SET is_synced = 1 WHERE is_synced = 0")
-            conn_sq.commit()
+            
 
         except Exception as e:
             print("❌ خطا در همگام‌سازی:", e)

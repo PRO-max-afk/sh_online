@@ -227,7 +227,7 @@ class Dashboard(QMainWindow):
                 border-radius: 8px;
                 text-align: right;
                 padding: 6px 10px 6px 30px; /* فضای کافی برای فلش در سمت چپ */
-                padding-left: 45px;
+                padding-left: 35px;
             }
 
             QComboBox::drop-down {

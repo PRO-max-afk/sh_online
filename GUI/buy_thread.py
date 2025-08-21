@@ -36,17 +36,7 @@ class BuyThread(QThread):
         
 
     def run(self):
-        self.db_connect = Connection().get_connection()
-        if self.db_connect:
-            if self.selected_month:
-                self.month_buy()
-                self.day_buy()
-                self.week_buy()
-            elif self.selected_week:
-                today_j = jdatetime.date.today()
-                self.selected_month = f"{today_j.year:04d}/{today_j.month:02d}"
-                self.week_buy()
-        else:
+
             if self.selected_month:
                 self.month_buy_offline_only()
                 self.day_buy_offline()

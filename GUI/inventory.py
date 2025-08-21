@@ -294,7 +294,7 @@ class DataLoaderThread(QThread):
                     "barcode": barcode,
                     "buy_price": buy_price,
                     "sale_price": sale_price,
-                    "quantity": quantity,
+                    "quantity": round(quantity),
                     "expire_date": expire_date,
                     "big_sub_display": big_sub_display,
                     "big_price" : big_price,
@@ -311,11 +311,7 @@ class DataLoaderThread(QThread):
 
     ##
     def run(self):
-        self.db_data = Connection().get_connection()
-        if self.db_data:
-            self.load_all_data()  # حالت آنلاین
-        else:
-            self.load_from_local_db()  # حالت آفلاین
+        self.load_from_local_db()  # حالت آفلاین
 
 
 class SearchThread(QThread):
@@ -458,7 +454,7 @@ class Inventory(QFrame):
         top_layout = QHBoxLayout()
         self.label = QLabel("لیست محصولات فروشگاه", self)
         self.search_line = QLineEdit(self)
-        self.serach_btn = QPushButton("جستجو", self)
+        self.serach_btn = QPushButton("جستجو")
         self.add_btn = QPushButton()
         self.new_btn = QPushButton()
 
@@ -477,7 +473,7 @@ class Inventory(QFrame):
 
         top_layout.addLayout(datetime_layout)
         top_layout.addStretch(1)
-        top_layout.addWidget(self.serach_btn)
+        #top_layout.addWidget(self.serach_btn)
         top_layout.addWidget(self.search_line, 3)
         top_layout.addWidget(self.label, 1)
 
@@ -547,7 +543,7 @@ class Inventory(QFrame):
             font-weight: bold;
             background-color: white;
             border: 5px solid transparent;
-            border-radius: 30px;
+            border-radius: 15px;
             padding: 5px;
             margin-right: 50px;
         ''')
@@ -706,7 +702,7 @@ class Inventory(QFrame):
         self.product_container_wrapper.addWidget(self.spinner_widget)
         self.product_container_wrapper.setCurrentWidget(self.spinner_widget)
 
-        QTimer.singleShot(0, self.late_thread)
+        QTimer.singleShot(500, self.late_thread)
 
 
 

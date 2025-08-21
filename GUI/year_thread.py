@@ -23,17 +23,10 @@ class YearThread(QThread):
         self.year_selected= selected_year
     ##
     def run(self):
-        self.db_connect= Connection().get_connection()
-        if self.db_connect:
-            if self.year_selected:
-                self.year_datas()
-            else:
-                self.full_data()
-                self.fetch_years_only()
-        else:
-            if self.year_selected:
+
+        if self.year_selected:
                 self.year_datas_offline()
-            else:
+        else:
                 self.full_data_offline()
                 self.fetch_years_only_offline()
 
@@ -184,7 +177,7 @@ class YearThread(QThread):
                 except Exception as e:
                     print("⛔ خطا در پردازش تاریخ harvest:", e)
             ##
-            cursor.execute("SELECT date,amount FROM barrow WHERE user_id=%s",(id_user,))
+            cursor.execute("SELECT date,amount FROM barrow WHERE user_id=%s AND type in('برده گی','طلب مردم')",(id_user,))
             for date_b,amounts in cursor.fetchall():
                 if not date_b:
                     continue
@@ -194,6 +187,18 @@ class YearThread(QThread):
                         total_barrow += float(amounts) if amounts else 0
                 except Exception as e:
                     print("⛔ خطا در پردازش تاریخ harvest:", e) 
+            ##
+            total_money= 0
+            cursor.execute("SELECT date, amount FROM barrow WHERE user_id = %s AND type in('پول نقد')", (id_user,))
+            for date_str, amount in cursor.fetchall():
+                if not date_str:
+                    continue
+                year = date_str.strip().split("/")[0]
+                if year == self.year_selected:
+                    total_money += float(amount) if amount else 0
+            ##
+            total_cush= total_sale - total_harvest - total_barrow + total_money
+            total_cush =  float(total_cush) if total_cush else 0
 
             # ---------- خروجی در صورت نبود داده ----------
             if total_sale == total_buy == total_profit == total_harvest== total_barrow== 0:
@@ -207,8 +212,8 @@ class YearThread(QThread):
                 "profit"         : total_profit,
                 "harvest"        : total_harvest,
                 "total_barrow"   : total_barrow,
-                "current_capital": total_buy - total_profit,
-                "total_cush"     : total_sale,
+                "current_capital": total_cush + total_buy,
+                "total_cush"     : total_cush,
             }
             self.year_info.emit(box_stats)
 
@@ -264,35 +269,37 @@ class YearThread(QThread):
         total_barrow = 0.0
 
         # sale_factor
-        cursor.execute("SELECT created_at, total, profit FROM sale_factor WHERE user_id = ?", (id_user,))
-        for created_at, total, profit in cursor.fetchall():
-            if not created_at:
+        cursor.execute("SELECT sale_date, total, profit FROM sale_factor WHERE user_id = ?", (id_user,))
+        for sale_date, total, profit in cursor.fetchall():
+            if not sale_date:
                 continue
             try:
-                miladi = datetime.strptime(str(created_at), "%Y-%m-%d %H:%M:%S")
+                miladi = datetime.strptime(str(sale_date), "%Y/%m/%d ")
             except ValueError:
                 try:
-                    miladi = datetime.strptime(str(created_at), "%Y-%m-%d")
+                    miladi = datetime.strptime(str(sale_date), "%Y/%m/%d")
                 except:
                     continue
             if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
                 total_sale += float(total) if total else 0
                 total_profit += float(profit) if profit else 0
+                print(f'{total_sale}: total_sale offline')
 
         # products
-        cursor.execute("SELECT create_at, final_total FROM products WHERE user_id = ?", (id_user,))
-        for created_at, total in cursor.fetchall():
-            if not created_at:
+        cursor.execute("SELECT buy_date, final_total FROM products WHERE user_id = ?", (id_user,))
+        for buy_date, total in cursor.fetchall():
+            if not buy_date:
                 continue
             try:
-                miladi = datetime.strptime(str(created_at), "%Y-%m-%d %H:%M:%S")
+                miladi = datetime.strptime(str(buy_date), "%Y/%m/%d ")
             except ValueError:
                 try:
-                    miladi = datetime.strptime(str(created_at), "%Y-%m-%d")
+                    miladi = datetime.strptime(str(buy_date), "%Y/%m/%d")
                 except:
                     continue
             if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
                 total_buy += float(total) if total else 0
+                print(f'{total_buy}: total_buy offline')
 
         # harvest (تاریخ شمسی است)
         cursor.execute("SELECT date, amount FROM harvest WHERE user_id = ?", (id_user,))
@@ -304,14 +311,27 @@ class YearThread(QThread):
                 total_harvest += float(amount) if amount else 0
 
         # barrow (تاریخ شمسی است)
-        cursor.execute("SELECT date, amount FROM barrow WHERE user_id = ?", (id_user,))
+        cursor.execute("SELECT date, amount FROM barrow WHERE user_id = ? AND type in('برده گی','طلب مردم')", (id_user,))
         for date_str, amount in cursor.fetchall():
             if not date_str:
                 continue
             year = date_str.strip().split("/")[0]
             if year == self.year_selected:
                 total_barrow += float(amount) if amount else 0
-
+                print(f'total_barrow:{total_barrow}')
+        ##
+        total_money=0
+        cursor.execute("SELECT date, amount FROM barrow WHERE user_id = ? AND type in('پول نقد')", (id_user,))
+        for date_str, amount in cursor.fetchall():
+            if not date_str:
+                continue
+            year = date_str.strip().split("/")[0]
+            if year == self.year_selected:
+                total_money += float(amount) if amount else 0
+        
+                
+        total_cush= total_sale - total_harvest - total_barrow + total_money
+        total_cush =  float(total_cush) if total_cush else 0
         # ارسال داده
         if total_sale == total_buy == total_profit == total_harvest == total_barrow == 0:
             print("📭 اطلاعاتی برای این سال در دیتابیس آفلاین وجود ندارد.")
@@ -323,8 +343,8 @@ class YearThread(QThread):
             "profit": total_profit,
             "harvest": total_harvest,
             "total_barrow": total_barrow,
-            "current_capital": total_buy - total_profit,
-            "total_cush": total_sale,
+            "current_capital": total_cush + total_buy ,
+            "total_cush": total_cush,
         }
 
         self.year_info.emit(box_stats)
@@ -415,15 +435,22 @@ class YearThread(QThread):
                 total_harvest += float(har_result[0]) if har_result[0] else 0
                 print(f'{total_harvest} : total_harvest')
 
-            cursor.execute("select SUM(ABS(amount)) from barrow WHERE user_id=%s AND  type in('برده گی','طلب مردم','پول نقد')",(id_user,))
+            cursor.execute("select SUM(ABS(amount)) from barrow WHERE user_id=%s AND  type in('برده گی','طلب مردم')",(id_user,))
             bar_total= cursor.fetchone()
             total_barrow=0
             if bar_total:
                 total_barrow += float(bar_total[0]) if bar_total[0] else 0
                 print(f"{total_barrow} : total barrow")
+            ##
+            cursor.execute("select SUM(ABS(amount)) from barrow WHERE user_id=%s AND  type in('پول نقد')",(id_user,))
+            mon_total= cursor.fetchone()
+            total_money=0
+            if mon_total:
+                total_money += float(mon_total[0]) if mon_total[0] else 0
+                print(f"{total_money} : total money from barrow")
 
             ##
-            total_cush= total_sale - total_harvest - total_barrow
+            total_cush= total_sale - total_harvest - total_barrow + total_money
             total_cush =  float(total_cush) if total_cush else 0
             ##
             box_stats={
@@ -472,12 +499,8 @@ class YearThread(QThread):
                 return
             id_user = result[0]
 
-            total_sale_f = 0
-            total_sale_on = 0
-            total_profit = 0
-            total_buy = 0
-            total_harvest = 0
-            total_barrow = 0
+            total_sale_f = total_sale_on = total_profit = total_buy = 0
+            total_harvest = total_barrow = total_money = 0
 
             # sale_factor
             cursor.execute("SELECT SUM(total), SUM(profit) FROM sale_factor WHERE user_id = ?", (id_user,))
@@ -485,28 +508,39 @@ class YearThread(QThread):
             if res:
                 total_sale_f = float(res[0]) if res[0] else 0
                 total_profit = float(res[1]) if res[1] else 0
-
-            ###
+            print(f"offline sale_factor total={total_sale_f}, profit={total_profit}")
 
             total_sale = total_sale_f + total_sale_on
 
-            # inventories
+            # products (buy)
             cursor.execute("SELECT SUM(final_total) FROM products WHERE user_id = ?", (id_user,))
             res = cursor.fetchone()
             if res:
                 total_buy = float(res[0]) if res[0] else 0
+            print(f"offline products buy={total_buy}")
 
             # harvest
             cursor.execute("SELECT SUM(amount) FROM harvest WHERE user_id = ?", (id_user,))
             res = cursor.fetchone()
             if res:
                 total_harvest = float(res[0]) if res[0] else 0
+            print(f"offline harvest={total_harvest}")
 
             # barrow
-            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE user_id = ? AND type in('برده گی','طلب مردم','پول نقد')", (id_user,))
+            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE user_id = ? AND type in('برده گی','طلب مردم')", (id_user,))
             res = cursor.fetchone()
             if res:
                 total_barrow = float(res[0]) if res[0] else 0
+            print(f"offline barrow={total_barrow}")
+
+            # money (پول نقد)
+            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE user_id = ? AND type in('پول نقد')", (id_user,))
+            res = cursor.fetchone()
+            if res:
+                total_money = float(res[0]) if res[0] else 0
+            print(f"offline money={total_money}")
+
+            total_cush = total_sale - total_harvest - total_barrow + total_money
 
             box_stats = {
                 "total_buy": total_buy,
@@ -514,12 +548,13 @@ class YearThread(QThread):
                 "profit": total_profit,
                 "harvest": total_harvest,
                 "total_barrow": total_barrow,
-                "current_capital": total_buy - total_profit,
-                "total_cush": total_sale,
+                "current_capital": total_cush + total_buy,  # ✅ مثل آنلاین
+                "total_cush": total_cush,
             }
 
             self.full_info.emit(box_stats)
-            self.chart_data.emit([
+
+            chart_value = [
                 box_stats["total_buy"],
                 box_stats["total_sale"],
                 box_stats["profit"],
@@ -527,11 +562,13 @@ class YearThread(QThread):
                 box_stats["total_barrow"],
                 box_stats["current_capital"],
                 box_stats["total_cush"],
-            ])
+            ]
+            self.chart_data.emit(chart_value)
             print("📦 آمار کلی از دیتابیس آفلاین خوانده شد.")
 
         except Exception as e:
             print("❌ خطا در full_data_offline:", e)
+
 
     ##
     def fetch_years_only(self):
@@ -601,17 +638,17 @@ class YearThread(QThread):
                 return
             id_user = result[0]
 
-            cursor.execute("SELECT create_at FROM products WHERE user_id = ?", (id_user,))
+            cursor.execute("SELECT buy_date FROM products WHERE user_id = ?", (id_user,))
             for row in cursor.fetchall():
                 created_at = row[0]
                 print(created_at)
                 if not created_at:
                     continue
                 try:
-                    miladi = datetime.strptime(str(created_at), "%Y-%m-%d %H:%M:%S")
+                    miladi = datetime.strptime(str(created_at), "%Y/%m/%d %H:%M:%S")
                 except:
                     try:
-                        miladi = datetime.strptime(str(created_at), "%Y-%m-%d")
+                        miladi = datetime.strptime(str(created_at), "%Y/%m/%d")
                     except:
                         continue
                 sh_year = str(jdatetime.date.fromgregorian(date=miladi.date()).year)

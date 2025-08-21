@@ -35,20 +35,6 @@ class ItemThread(QThread):
         
     
     def run(self):
-        self.db_connect= Connection().get_connection()
-        if self.db_connect:
-            if self.selected_month:
-                self.sale_signal()
-                self.buy_signal()
-                self.excecute_sale_table()
-                self.excecute_buy_table()
-                
-            if self.selected_date:
-                self.sale_day_signal()
-                self.buy_day_signal()
-                self.excecute_sale_table_day()
-                self.excecute_buy_table_day()
-        else:
             if self.selected_month:
                 self.offline_sale_month()
                 self.offline_sale_table()
