@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtGui import QFontDatabase
-from PyQt6.QtCore import QTimer,QUrl
+from PyQt6.QtCore import QTimer,QUrl,Qt
 from PyQt6.QtMultimedia import QSoundEffect
 import os,sys
 
@@ -11,6 +11,7 @@ class MessageBox:
         self.msg.setWindowTitle(title)
         self.msg.setText(text)
         self.msg.setStandardButtons(buttons)
+        self.msg.setWindowFlag(Qt.WindowType.Tool)
 
         if type == "info":
             self.msg.setIcon(QMessageBox.Icon.Information)
@@ -32,7 +33,7 @@ class MessageBox:
     def show(self):
         if self.type == "info":
             # اگر تایپ اینفو بود، تایمر ۵۰۰ میلی ثانیه‌ای ست کن
-            QTimer.singleShot(500, self.msg.accept)  # بعد از ۵۰۰ میلی ثانیه پیام رو ببند
+            QTimer.singleShot(1000, self.msg.accept)  # بعد از ۵۰۰ میلی ثانیه پیام رو ببند
         return self.msg.exec()
 
     def message_UI(self):
@@ -65,25 +66,27 @@ class MessageBox:
         try:
             base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # یک فولدر بالاتر از GUI
             sounds_folder = os.path.join(base_path, 'assets', 'sounds')
-            print(sounds_folder)
-            print("فایل‌های موجود در sounds:", os.listdir(sounds_folder))
+            print("📂 مسیر صداها:", sounds_folder)
 
             sound_files = {
                 "info": os.path.join(sounds_folder, "info.wav"),
                 "warning": os.path.join(sounds_folder, "warning.wav"),
-                "error": os.path.join(sounds_folder, "error.wav")
+                "error": os.path.join(sounds_folder, "error.wav"),
+                "question": os.path.join(sounds_folder, "question.wav"),
             }
 
-            sound_path= sound_files.get(self.type)
-            if sound_files and os.path.exists(sound_path):
-                sound= QSoundEffect()
-                sound.setSource(QUrl.fromLocalFile(sound_path))
-                sound.setVolume(0.9)
-                sound.play()
+            sound_path = sound_files.get(self.type)
+            if sound_path and os.path.exists(sound_path):
+                # نگه داشتن به صورت attribute تا GC حذفش نکند
+                self.sound = QSoundEffect()
+                self.sound.setSource(QUrl.fromLocalFile(sound_path))
+                self.sound.setVolume(0.9)
+                self.sound.play()
             else:
                 print(f"⚠ فایل صوتی برای نوع {self.type} یافت نشد: {sound_path}")
         except Exception as e:
-            print(f'{e}:خطا در پخش صدا')
+            print(f'❌ خطا در پخش صدا: {e}')
+
     ##
     def get_asset_path(self, filename):
         try:

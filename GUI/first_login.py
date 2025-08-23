@@ -99,7 +99,7 @@ class Main_login(QMainWindow):
         super().__init__()
         self.main_UI()
         self.InUI()
-        self.db_data= Connection().get_connection()
+        #self.db_data= Connection().get_connection()
         self.load_all_fonts()
     
     def main_UI(self):

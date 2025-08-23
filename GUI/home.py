@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
-    QGraphicsDropShadowEffect, QSizePolicy,QCompleter,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,QThread,QEvent
-from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush
-from PyQt6 import QtCore
+QSizePolicy,QCompleter,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
+from PyQt6.QtCore import Qt,QTimer,QEvent,QSize
+from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QBrush
+from PyQt6 import QtCore,QtGui,QtWidgets
 import jdatetime
 import sqlite3
 import threading
@@ -34,8 +34,25 @@ class BlackTextDelegate(QStyledItemDelegate):
         editor.setPalette(palette)
         return editor
 
-        
+class EditHighlightDelegate(QtWidgets.QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        # وقتی آیتم انتخاب شده، هایلایت خاکستری + متن سیاه
+        opt = QtWidgets.QStyleOptionViewItem(option)
+        if opt.state & QtWidgets.QStyle.StateFlag.State_Selected:
+            opt.palette.setColor(QPalette.ColorRole.Highlight, QColor("#d3d3d3"))
+            opt.palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#000000"))
+        super().paint(painter, opt, index)
 
+    def createEditor(self, parent, option, index):
+        editor = super().createEditor(parent, option, index)
+        pal = editor.palette()
+        pal.setColor(QPalette.ColorRole.Base, QColor("#d3d3d3"))  # پس‌زمینه ادیتور
+        pal.setColor(QPalette.ColorRole.Text, QColor("#000000"))  # متن ادیتور
+        pal.setColor(QPalette.ColorRole.Highlight, QColor("#d3d3d3"))
+        pal.setColor(QPalette.ColorRole.HighlightedText, QColor("#000000"))
+        editor.setPalette(pal)
+        editor.setAutoFillBackground(True)
+        return editor
 
 class WidgetManager(QWidget):
     def __init__(self, parent):
@@ -158,6 +175,11 @@ class WidgetManager(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setGridStyle(Qt.PenStyle.SolidLine)  # اضافه برای نمایش خط‌ها
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        # بعد از setStyleSheet:
+        self.table.setItemDelegate(EditHighlightDelegate())
+        # بهتر: انتخاب تک‌سلولی حتماً روشن باشد
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectItems)
         self.table.setStyleSheet("""
             QTableWidget {
                 border: 2px solid black;
@@ -167,6 +189,8 @@ class WidgetManager(QWidget):
                 font-weight: bold;
                 border-radius: 0px;
                 gridline-color: black;
+                selection-background-color: #d3d3d3;   /* برای برخی استایل‌ها لازم می‌شود */
+                selection-color: black;
             }
             QHeaderView::section {
                 background-color: transparent;
@@ -175,11 +199,15 @@ class WidgetManager(QWidget):
                 font-family: Roboto,'B Nazanin';
                 font-size: 16px;
                 font-weight: bold;
-                border-radius: 0px;  /* صاف کردن سرستون‌ها */
+                border-radius: 0px;
             }
-            QScrollArea {
-                border: none;
+            QTableWidget::item:selected:active,
+            QTableWidget::item:selected:!active {
+                background: #d3d3d3;
+                color: black;
             }
+
+            QScrollArea { border: none; }
             QScrollBar:vertical {
                 background: #eee;
                 width: 10px;
@@ -191,15 +219,10 @@ class WidgetManager(QWidget):
                 min-height: 20px;
                 border-radius: 5px;
             }
-
-        
-        self.table.setItemDelegate(BlackTextDelegate())   QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: #666;
-            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+            QScrollBar::handle:vertical:hover { background: #666; }
         """)
+
 
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
@@ -220,15 +243,16 @@ class WidgetManager(QWidget):
         self.radio_layout= QHBoxLayout()
         self.radio_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
-        
+        self.less_sale= QLabel("پرچون")
+        self.big_sale =QLabel("عمده")
         self.switch= ToggleSwitch()
         self.switch.setChecked(False)
-        #self.switch.setFixedSize(55,30)
         self.switch.clicked = lambda: print("ON") if self.switch.isChecked() else print("OFF")
+        self.radio_layout.addWidget(self.less_sale)
         self.radio_layout.addWidget(self.switch)
+        self.radio_layout.addWidget(self.big_sale)
        
         ##
-        self.lb_layout= QHBoxLayout()
         self.form_title = QLabel("فرم فروشات")
         self.form_title.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         
@@ -265,7 +289,7 @@ class WidgetManager(QWidget):
         self.title_layout.addLayout(self.radio_layout)
         self.title_layout.addStretch(1)
         self.title_layout.addWidget(self.form_title)
-        self.title_layout.addStretch(2)
+        self.title_layout.addStretch(3)
         self.title_layout.setContentsMargins(0, 0, 0, 0)
         
         self.form_layout.addLayout(self.title_layout)
@@ -328,7 +352,7 @@ class WidgetManager(QWidget):
             if input == self.barcode_input:
                 font_family = 'Arial'
             else:
-                font_family = '"B Nazanin", Mirza'  # در صورت عدم موجود بودن فونت اول، Arial استفاده می‌شود
+                font_family = 'Roboto,"B Nazanin"'  # در صورت عدم موجود بودن فونت اول، Arial استفاده می‌شود
             
             input.setStyleSheet(f'''
                 color: black;
@@ -428,6 +452,14 @@ class WidgetManager(QWidget):
             color: black;
             font-family: Mirza;
         ''')
+        ##
+        for label in (self.less_sale,self.big_sale):
+            label.setStyleSheet('''
+                color: black;
+                font-family: B Nazanin;
+                font-weight: bold;
+                font-size: 12px;
+            ''')
         ##
         self.invoice_list.itemClicked.connect(self.load_invoice)
 
@@ -722,7 +754,7 @@ class WidgetManager(QWidget):
                         self.add_product()
                         self.barcode_ready = False
 
-                QTimer.singleShot(3000, delayed_add)
+                QTimer.singleShot(6000, delayed_add)
                 return True
 
             elif source == self.name_input:
@@ -753,9 +785,11 @@ class WidgetManager(QWidget):
     ##
     def auto_search(self):
         text= self.barcode_input.text().strip()
+        name= self.name_input.text().strip()
         if text:
             self.search_barcode()
-
+        elif name:
+            self.search_name_pro()
     ##
     def add_product(self):
         barcode = self.barcode_input.text().strip()
@@ -792,8 +826,14 @@ class WidgetManager(QWidget):
                 big_category, stock_quantity,sale_unit, big_quantity,big_price,buy_price = product_info
                 print(sale_unit)
                 unit_price = float(unit_price or 0)
+                if unit_price.is_integer():
+                    unit_price= int(unit_price)
                 qty = float(qty or 1)
+                if qty.is_integer():
+                    qty= int(qty)
                 discount = float(discount or 0)
+                if discount.is_integer():
+                    discount= int(discount)
                 item_price= float(buy_price/big_quantity)
                 print(f"قمیت فی دانه :{item_price}")
 
@@ -806,6 +846,7 @@ class WidgetManager(QWidget):
                     s_type = sale_unit
                     quantity = qty
                     sale_type = "پرچون"
+                    
                     total_profit= float((unit_price - item_price - discount) * qty)
                 print(f"total_profit: {total_profit} ")
 
@@ -853,11 +894,27 @@ class WidgetManager(QWidget):
                         border: none;
                     }
                 ''')
+                ##
+                self.edit_btn= QPushButton()
+                self.edit_btn.setIcon(QIcon(self.get_asset_path("Edit.png")))
+                self.edit_btn.setIconSize(QSize(25,25))
+                self.edit_btn.setStyleSheet('background-color: transparent;')
 
                 # اتصال دکمه به تابع حذف ردیف مخصوص خود
                 denied_btn.clicked.connect(partial(self.delete_product))
+                self.edit_btn.clicked.connect(partial(self.enable_edditing))
 
                 # ذخیره در لیست دکمه‌ها
+                btn_widget= QWidget()
+                btn_layout= QHBoxLayout(btn_widget)
+                btn_layout.setContentsMargins(0,0,0,0)
+                btn_layout.setSpacing(5)
+                btn_layout.addWidget(denied_btn)
+                btn_layout.addWidget(self.edit_btn)
+                btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                btn_widget.setStyleSheet("background-color: transparent;")
+
+                self.denied_buttons.append(self.edit_btn)
                 self.denied_buttons.append(denied_btn)
 
                 # درج اطلاعات در جدول
@@ -867,7 +924,7 @@ class WidgetManager(QWidget):
                 self.table.setItem(row, 3, self._make_cell(s_type))
                 self.table.setItem(row, 4, self._make_cell(str(discount)))
                 self.table.setItem(row, 5, self._make_cell(total_price))
-                self.table.setCellWidget(row, 6, denied_btn)
+                self.table.setCellWidget(row, 6, btn_widget)
 
                 self.added_products.append({
                     "barcode": barcode,
@@ -1012,6 +1069,23 @@ class WidgetManager(QWidget):
             print(f"{e}: خطا در پایگاه داده")
             MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
             return
+    ##
+    def enable_edditing(self):
+        button= self.sender()
+        for row in range(self.table.rowCount()):
+            cell_widget= self.table.cellWidget(row,6)
+            if cell_widget:
+                if button in cell_widget.findChildren(QPushButton):
+                    self.table.setEditTriggers(QAbstractItemView.EditTrigger.AllEditTriggers)
+                    self.table.setCurrentCell(row,2)
+                    item= self.table.item(row,2)
+                    if item:
+                        # تغییر رنگ پس زمینه و متن
+                        item.setData(QtCore.Qt.ItemDataRole.BackgroundRole, QtGui.QColor("#d3d3d3"))
+                        item.setData(QtCore.Qt.ItemDataRole.ForegroundRole, QtGui.QColor("#000000"))
+
+                        self.table.editItem(item)
+                        break
 
 
     ##
@@ -1487,26 +1561,25 @@ class WidgetManager(QWidget):
         except sqlite3.Error as e:
             print(f"{e}: خطا در پایگاه داده")
             MessageBox(f"خطا در پایگاه داده: {e}", title="❌ خطا", type="error").show()
-
     ##
     def delete_product(self, row=None):
+        # گرفتن ردیف انتخاب‌شده یا ردیف ورودی
         if row is None:
             row = self.table.currentRow()
+
+        # اگر هیچ ردیفی انتخاب نشده بود
         if row < 0:
             MessageBox("هیچ محصولی انتخاب نشده است", title="خطا", type="warning").show()
             return
 
-        selected_row = self.table.currentRow()
-        if selected_row < 0:
-            MessageBox("هیچ ردیفی انتخاب نشده است", title="خطا", type="warning").show()
-            return
-
-        name_item = self.table.item(selected_row, 0)
+        # گرفتن آیتم ستون نام محصول
+        name_item = self.table.item(row, 0)
         if not name_item:
             MessageBox("خطا در دریافت اطلاعات سطر انتخاب‌شده", title="خطا", type="error").show()
             return
         name = name_item.text()
 
+        # تأیید حذف
         confirm_box = MessageBox(
             f"آیا مطمئن هستید که می‌خواهید محصول '{name}' را حذف کنید؟",
             title="تأیید حذف",
@@ -1518,8 +1591,6 @@ class WidgetManager(QWidget):
 
         # اگر محصول هنوز ذخیره نشده (فقط در added_products است)
         items = self.added_products
-
-        # حذف از لیست در صورت وجود در added_products
         for i, item in enumerate(items):
             if item.get("name") == name:
                 del items[i]
@@ -1537,46 +1608,47 @@ class WidgetManager(QWidget):
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
-            # گرفتن شماره فاکتور از آیتم انتخاب‌شده
+            # گرفتن شماره فاکتور
             current_item = self.invoice_list.currentItem()
+            factor_number = None
             if current_item:
                 factor_number = current_item.text().replace("فاکتور ", "").strip()
-            else:
-                MessageBox("شماره فاکتور مشخص نیست", title="خطا", type="error").show()
-                return
 
-            for i, item in enumerate(self.temp_loaded_invoice):
-                if item.get("name") == name:
-                    barcode = item.get("barcode")
-                    qty = item.get("quantity", 0)
+            if factor_number:
+                for i, item in enumerate(self.temp_loaded_invoice):
+                    if item.get("name") == name:
+                        barcode = item.get("barcode")
+                        qty = item.get("quantity", 0)
 
-                    # برگرداندن موجودی انبار
-                    if barcode:
-                        cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
-                        result = cursor.fetchone()
-                        if result:
-                            new_qty = float(result[0]) + float(qty)
-                            cursor.execute("UPDATE products SET quantity=?, is_synced=0 WHERE barcode=?", (new_qty, barcode))
+                        # برگرداندن موجودی انبار
+                        if barcode:
+                            cursor.execute("SELECT quantity FROM products WHERE barcode = ?", (barcode,))
+                            result = cursor.fetchone()
+                            if result:
+                                new_qty = float(result[0]) + float(qty)
+                                cursor.execute(
+                                    "UPDATE products SET quantity=?, is_synced=0 WHERE barcode=?",
+                                    (new_qty, barcode)
+                                )
 
-                    # حذف از دیتابیس
-                    cursor.execute("""
-                        DELETE FROM sale_factor 
-                        WHERE product_name=? AND barcode=? AND factor_number=?
-                    """, (name, barcode, factor_number))
+                        # حذف از دیتابیس
+                        cursor.execute("""
+                            DELETE FROM sale_factor 
+                            WHERE product_name=? AND barcode=? AND factor_number=?
+                        """, (name, barcode, factor_number))
 
-                    del self.temp_loaded_invoice[i]
-                    break
-
-            conn.commit()
-            self.table.removeRow(selected_row)
-
-            # حذف فاکتور اگر خالی شد
-            cursor.execute("SELECT COUNT(*) FROM sale_factor WHERE factor_number=?", (factor_number,))
-            if cursor.fetchone()[0] == 0:
-                for idx in range(self.invoice_list.count()):
-                    if self.invoice_list.item(idx).text() == f"فاکتور {factor_number}":
-                        self.invoice_list.takeItem(idx)
+                        del self.temp_loaded_invoice[i]
                         break
+
+                conn.commit()
+
+                # حذف فاکتور اگر خالی شد
+                cursor.execute("SELECT COUNT(*) FROM sale_factor WHERE factor_number=?", (factor_number,))
+                if cursor.fetchone()[0] == 0:
+                    for idx in range(self.invoice_list.count()):
+                        if self.invoice_list.item(idx).text() == f"فاکتور {factor_number}":
+                            self.invoice_list.takeItem(idx)
+                            break
 
             conn.close()
 
