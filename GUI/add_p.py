@@ -656,7 +656,7 @@ class AddProduct(QDialog):
 
             # واکشی مقدار قبلی
             cursor_sq.execute("""
-                SELECT big_sub, buy_price,big_quantity
+                SELECT big_sub, buy_price,big_quantity,big_category
                 FROM products 
                 WHERE barcode = ?
             """, (barcode,))
@@ -666,6 +666,7 @@ class AddProduct(QDialog):
                 old_quantity = float(row[0]) if row[0] else 0
                 old_price = float(row[1]) if row[1] else 0
                 bg_quantity= float(row[2]) if row[2] else 0
+                big_category= str(row[3]) if row[3] else "خالی"
 
                 updated_quantity = old_quantity + number
 
@@ -679,23 +680,28 @@ class AddProduct(QDialog):
                 ## مجموعه محصول
                 big_quantity= updated_quantity * bg_quantity
                 print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
-
+                if updated_quantity.is_integer():
+                    updated_quantity = int(updated_quantity)
+                else:
+                    updated_quantity= float(updated_quantity or 0)
+                big_display= f"{updated_quantity} {big_category}"
 
                 is_synced = 0
                 cursor_sq.execute("""
                     UPDATE products 
                     SET quantity = ?, buy_price = ?, update_date = ?, 
-                        new_quantity = ?, expire_date = ?, big_sub=?,
-                        sale_price = ?, big_price = ?, 
+                        new_quantity = ?, expire_date = ?, big_sub=?,new_sub=?,
+                        sale_price = ?, big_price = ?,big_sub_display=?,
                         total = ?,final_total=?, is_synced = ?,type_save=?,update_at=?
                     WHERE barcode = ?
                 """, (
                     big_quantity, new_avg_price, date, number,
-                    expire_date,updated_quantity, sale_price, big_sale,
+                    expire_date,updated_quantity, number,sale_price, big_sale,big_display,
                     total,final_total, is_synced,type_save,date_ent, barcode
                 ))
 
                 conn_sq.commit()
+                print("UPDATE values:", big_quantity, number, final_total)
 
                 # پیام موفقیت واضح
                 MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()

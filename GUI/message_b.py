@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QMessageBox
-from PyQt6.QtGui import QFontDatabase
+from PyQt6.QtWidgets import QMessageBox,QLabel
+from PyQt6.QtGui import QFontDatabase,QPixmap
 from PyQt6.QtCore import QTimer,QUrl,Qt
 from PyQt6.QtMultimedia import QSoundEffect
 import os,sys
@@ -13,29 +13,38 @@ class MessageBox:
         self.msg.setStandardButtons(buttons)
         self.msg.setWindowFlag(Qt.WindowType.Tool)
 
-        if type == "info":
-            self.msg.setIcon(QMessageBox.Icon.Information)
-            self.msg.button(QMessageBox.StandardButton.Ok).setText('باشه')
-        elif type == "warning":
-            self.msg.setIcon(QMessageBox.Icon.Warning)
-            self.msg.button(QMessageBox.StandardButton.Ok).setText('لغو')
-        elif type == "error":
-            self.msg.setIcon(QMessageBox.Icon.Critical)
-        elif type == "question":
-            self.msg.setIcon(QMessageBox.Icon.Question)
-        else:
-            self.msg.setIcon(QMessageBox.Icon.NoIcon)
+        self.msg.setIcon(QMessageBox.Icon.NoIcon)
 
         self.message_UI()
         self.load_all_fonts()
         self.play_notification()
+        self.custo_icons()
 
     def show(self):
         if self.type == "info":
             # اگر تایپ اینفو بود، تایمر ۵۰۰ میلی ثانیه‌ای ست کن
             QTimer.singleShot(1000, self.msg.accept)  # بعد از ۵۰۰ میلی ثانیه پیام رو ببند
         return self.msg.exec()
-
+    def custo_icons(self):
+        try:
+            icon_files= {
+                "info" : "information_10015217.png",
+                "warning" : "warning (1).png",
+                "error" : "remove_1828847.png"
+            }
+            icon_path= self.get_asset_path(icon_files.get(self.type, "information_10015217.png"))
+            if icon_path:
+                pixmap= QPixmap(icon_path)
+                label= QLabel()
+                label.setPixmap(pixmap)
+                label.setFixedSize(40,40)
+                label.setScaledContents(True)
+                layout= self.msg.layout()
+                layout.addWidget(label,0,0)
+            
+        except Exception as e:
+            print(f"{e}: some problem ocurs")
+    
     def message_UI(self):
         self.msg.setStyleSheet('''
             QMessageBox {
@@ -86,8 +95,7 @@ class MessageBox:
                 print(f"⚠ فایل صوتی برای نوع {self.type} یافت نشد: {sound_path}")
         except Exception as e:
             print(f'❌ خطا در پخش صدا: {e}')
-
-    ##
+    ##images
     def get_asset_path(self, filename):
         try:
             # حالت build شده با PyInstaller
@@ -107,6 +115,14 @@ class MessageBox:
         except Exception as e:
             print(f"❌ خطا در یافتن مسیر: {e}")
             return None
+    #
+    def resource_path(self,relative_path):
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+        return os.path.join(base_path, relative_path)
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

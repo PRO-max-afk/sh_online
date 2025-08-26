@@ -97,3 +97,39 @@ CREATE TABLE if not exists fixeds (
 
 ''')
 
+
+cursor.execute('''
+        CREATE TABLE IF NOT EXISTS products_log (
+            barcode TEXT,
+            name TEXT,
+            category TEXT,
+            sub_category TEXT,
+            buy_date TEXT,
+            buy_price REAL,
+            sale_price REAL,
+            big_price REAL,
+            big_sub REAL,
+            sale_unit TEXT,
+            big_category TEXT,
+            quantity REAL,
+            new_quantity REAL,
+            update_date TEXT,
+            discount_percent,
+            expire_discount TEXT,
+            new_price REAL,
+            store_name TEXT,
+            total REAL,
+            final_total REAL,
+            big_quantity INTEGER,
+            is_synced INTEGER DEFAULT 0,
+            expire_date TEXT,
+            image_path TEXT,
+            small_price REAL,
+            big_sub_display TEXT,
+            new_sub text,
+            create_at TEXT,
+            update_at TEXT,
+            type_save Text,
+            user_id INTEGER
+        );
+    ''')

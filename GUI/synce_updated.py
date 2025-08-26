@@ -174,6 +174,7 @@ class UpdateThread(QThread):
                         total, final_total, type_save, update_at, barcode, user_id
                     ))
                     
+                    
                     ##
                     cursor.execute('''
                         SELECT invent_id from inventories where barcode=%s and user_id=%s

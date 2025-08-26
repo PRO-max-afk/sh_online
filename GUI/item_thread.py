@@ -1039,10 +1039,10 @@ class ItemThread(QThread):
             id_result = cursor.fetchone()
             id_user = id_result[0]
             cursor.execute('''
-                SELECT strftime('%Y/%m/%d', REPLACE(buy_date, '/', '-')) AS month_buy, COUNT(quantity) as quantity
-                FROM products WHERE user_id= ?
+                SELECT strftime('%Y-%m-%d', REPLACE(update_at, '/', '-')) AS month_buy, COUNT(quantity) as quantity
+                FROM products_log
                 GROUP BY month_buy
-            ''',(id_user,))
+            ''')
             number_result= cursor.fetchall()
             ##
             cursor.execute('''
@@ -1053,12 +1053,11 @@ class ItemThread(QThread):
             expire_result= cursor.fetchall()
             ##
             cursor.execute('''
-                SELECT strftime('%Y/%m/%d', REPLACE(buy_date, '/', '-'))  AS month_buy, name, SUM(quantity) as quantity
-                FROM products 
-                WHERE user_id= ?
+                SELECT strftime('%Y-%m-%d', REPLACE(update_at, '/', '-'))  AS month_buy, name, SUM(quantity) as quantity
+                FROM products_log 
                 GROUP BY month_buy,name
                 ORDER BY month_buy,quantity DESC
-                ''',(id_user,))
+                ''')
             repeated_result= cursor.fetchall()
             # اتمام محصول
             cursor.execute('''
@@ -1078,13 +1077,21 @@ class ItemThread(QThread):
             
             product_counter = {}
 
-             # تعداد خرید و اتمام محصول
+            # تعداد خرید و اتمام محصول
             for result_set in (number_result, empty_result):
                 for row in result_set:
                     try:
                         date_str, quantity = row
-                        year, month, day = map(int, date_str.split("/"))
-                        g_date = datetime.date(year, month, day)
+
+                        # تشخیص فرمت تاریخ
+                        if "-" in date_str:
+                            g_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                        elif "/" in date_str:
+                            g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                        else:
+                            raise ValueError(f"Unknown date format: {date_str}")
+
+                        # تبدیل به تاریخ شمسی
                         j_date = jdatetime.date.fromgregorian(date=g_date)
                         j_month = j_date.month
                         j_year = j_date.year
@@ -1096,10 +1103,12 @@ class ItemThread(QThread):
                                 buy_stats_offline["buy_items"] += int(quantity)
                             elif result_set is empty_result:
                                 buy_stats_offline["low_items"] += int(quantity)
-                        monthly_total[j_month -1] += int(quantity)
+
+                        monthly_total[j_month - 1] += int(quantity)
 
                     except Exception as e:
                         print(f"⚠️ error in quantity convert: {e} → {row}")
+
 
             # تاریخ گذشته
             for row in expire_result:
@@ -1123,7 +1132,7 @@ class ItemThread(QThread):
             for row in repeated_result:
                 try:
                     date_str, name, quantity = row
-                    year, month, day = map(int, date_str.split("/"))
+                    year, month, day = map(int, date_str.split("-"))
                     g_date = datetime.date(year, month, day)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
                     j_month = j_date.month
@@ -1162,10 +1171,10 @@ class ItemThread(QThread):
             id_result = cursor.fetchone()
             id_user = id_result[0]
             cursor.execute('''
-                SELECT strftime('%Y/%m/%d', REPLACE(buy_date, '/', '-'))  AS month_buy, COUNT(quantity) as quantity
-                FROM products WHERE user_id= ?
+                SELECT strftime('%Y-%m-%d', REPLACE(update_at, '/', '-'))  AS month_buy, COUNT(quantity) as quantity
+                FROM products_log
                 GROUP BY month_buy
-            ''',(id_user,))
+            ''')
             number_result= cursor.fetchall()
             ##
             cursor.execute('''
@@ -1179,12 +1188,11 @@ class ItemThread(QThread):
             expire_result= cursor.fetchall()
             ##
             cursor.execute('''
-                SELECT strftime('%Y/%m/%d', REPLACE(buy_date, '/', '-'))  AS month_buy, name, SUM(quantity) as quantity
-                FROM products 
-                WHERE user_id= ?
+                SELECT strftime('%Y-%m-%d', REPLACE(update_at, '/', '-'))  AS month_buy, name, SUM(quantity) as quantity
+                FROM products_log 
                 GROUP BY month_buy,name
                 ORDER BY month_buy,quantity DESC
-                ''',(id_user,))
+                ''')
             repeated_result= cursor.fetchall()
             # اتمام محصول
             cursor.execute('''
@@ -1203,19 +1211,25 @@ class ItemThread(QThread):
             
             product_counter = {}
 
-             # تعداد خرید و اتمام محصول
+            # تعداد خرید و اتمام محصول
             for result_set in (number_result, empty_result):
                 for row in result_set:
                     try:
                         date_str, quantity = row
-                        year, month, day = map(int, date_str.split("/"))
-                        g_date = datetime.date(year, month, day)
-                        j_date = jdatetime.date.fromgregorian(date=g_date)
-                        j_month = j_date.month
-                        j_year = j_date.year
-                        j_day= j_date.day
+                        if "-" in date_str:
+                            g_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                        elif "/" in date_str:
+                            g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                        else:
+                            raise ValueError(f"Unknown date format: {date_str}")
 
-                        key = f"{j_year:04d}/{j_month:02d}/{j_day:02d}"  # درست
+                        # 👇 اینجا تاریخ شمسی رو بساز
+                        j_date = jdatetime.date.fromgregorian(date=g_date)
+                        j_year = j_date.year
+                        j_month = j_date.month
+                        j_day = j_date.day
+
+                        key = f"{j_year:04d}/{j_month:02d}/{j_day:02d}"
 
                         if self.selected_date and self.selected_date == key:
                             if result_set is number_result:
@@ -1225,6 +1239,7 @@ class ItemThread(QThread):
 
                     except Exception as e:
                         print(f"⚠️ error in quantity convert: {e} → {row}")
+
 
             # تاریخ گذشته
             for row in expire_result:
@@ -1248,7 +1263,7 @@ class ItemThread(QThread):
             for row in repeated_result:
                 try:
                     date_str, name, quantity = row
-                    year, month, day = map(int, date_str.split("/"))
+                    year, month, day = map(int, date_str.split("-"))
                     g_date = datetime.date(year, month, day)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
                     j_month = j_date.month
@@ -1288,11 +1303,10 @@ class ItemThread(QThread):
             id_user = rest_id[0]
 
             cursor.execute('''
-                SELECT strftime('%Y/%m/%d', REPLACE(buy_date, '/', '-'))  AS month_date,
-                    name, big_sub,big_category,total
-                FROM products
-                WHERE user_id = ?
-            ''', (id_user,))
+                SELECT strftime('%Y-%m-%d', REPLACE(update_at, '/', '-'))  AS month_date,
+                    name, big_sub,big_category,final_total
+                FROM products_log
+            ''')
             buy_info = cursor.fetchall()
 
             row_data = {}
@@ -1301,7 +1315,7 @@ class ItemThread(QThread):
             for row in buy_info:
                 date_str, product_name, big_sub, big_category, total,  = row
                 try:
-                    year, month, day = map(int, date_str.split("/"))
+                    year, month, day = map(int, date_str.split("-"))
                     g_date = datetime.date(year, month, day)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
                     j_year = j_date.year
@@ -1340,11 +1354,10 @@ class ItemThread(QThread):
             id_user = rest_id[0]
 
             cursor.execute('''
-                SELECT strftime('%Y/%m/%d', REPLACE(buy_date, '/', '-'))  AS month_date,
-                name, big_sub, big_category, total
-                FROM products
-                WHERE user_id = ?
-            ''', (id_user,))
+                SELECT strftime('%Y-%m-%d', REPLACE(update_at, '/', '-'))  AS month_date,
+                name, big_sub, big_category, final_total
+                FROM products_log
+            ''')
             buy_info = cursor.fetchall()
 
             row_datas = {}
@@ -1353,7 +1366,7 @@ class ItemThread(QThread):
             for row in buy_info:
                 date_str, product_name, big_sub, big_category, total = row
                 try:
-                    year, month, day = map(int, date_str.split("/"))
+                    year, month, day = map(int, date_str.split("-"))
                     g_date = datetime.date(year, month, day)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
                     j_year = j_date.year

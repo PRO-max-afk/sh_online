@@ -6,7 +6,7 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-SELECT name FROM products WHERE is_synced = 1
+select * from products
 
 ''')
 rows = cursor.fetchall()

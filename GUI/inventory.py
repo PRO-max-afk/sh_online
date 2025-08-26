@@ -702,13 +702,8 @@ class Inventory(QFrame):
         self.product_container_wrapper.addWidget(self.spinner_widget)
         self.product_container_wrapper.setCurrentWidget(self.spinner_widget)
 
-        QTimer.singleShot(500, self.late_thread)
+        QTimer.singleShot(500, self.run_data_loader)
 
-
-
-    ##
-    def late_thread(self):
-        self.run_data_loader()
     ##
     def run_data_loader(self):
         self.thread = DataLoaderThread()

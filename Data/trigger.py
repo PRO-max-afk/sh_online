@@ -15,7 +15,7 @@ END;
 
 ''')
 cursor.execute('''
-CREATE TRIGGER trg_update_big_sub
+CREATE TRIGGER IF NOT EXISTS trg_update_big_sub
 AFTER UPDATE ON products
 FOR EACH ROW
 WHEN OLD.quantity > 0 AND NEW.big_quantity > 0
@@ -28,18 +28,57 @@ END;
 
 
 ''')
+
 cursor.execute('''
-CREATE TRIGGER trg_update_quantity
-AFTER UPDATE ON products
+CREATE TRIGGER IF NOT EXISTS trg_update_quantity
+BEFORE UPDATE ON products
 FOR EACH ROW
 WHEN OLD.quantity > 0 AND NEW.big_quantity > 0 AND NEW.big_sub > 0
 BEGIN
-    UPDATE products
-    SET quantity = OLD.quantity - (NEW.big_quantity * NEW.big_sub)
-    WHERE invent_id = NEW.invent_id;
+    SELECT NEW.quantity = OLD.quantity - (NEW.big_quantity * NEW.big_sub);
 END;
 
+''')
 
+
+cursor.execute('''
+CREATE TRIGGER IF NOT EXISTS after_insert_products
+AFTER INSERT ON products
+FOR EACH ROW
+BEGIN
+    INSERT INTO products_log (
+        name, category, sub_category, sale_unit,buy_date,
+        buy_price, sale_price, quantity, big_category, big_sub, big_quantity,
+        barcode, image_path, final_total,update_at,is_synced
+    )
+    VALUES (
+        NEW.name, NEW.category, NEW.sub_category, NEW.sale_unit, NEW.buy_date,
+        NEW.buy_price, NEW.sale_price, NEW.quantity, NEW.big_category, NEW.big_sub, NEW.big_quantity,
+        NEW.barcode, NEW.image_path, NEW.final_total,datetime('now'), 0
+    );
+END;
 
 ''')
+cursor.execute('''
+CREATE TRIGGER IF NOT EXISTS after_update_products
+AFTER UPDATE ON products
+FOR EACH ROW
+WHEN 
+    (NEW.new_quantity <> OLD.new_quantity OR NEW.new_sub <> OLD.new_sub)
+BEGIN
+    INSERT INTO products_log (
+        name, category, sub_category, sale_unit,buy_date,
+        buy_price, sale_price, quantity, big_category, big_sub, big_quantity,
+        barcode, image_path, final_total, update_at, is_synced
+    )
+    VALUES (
+        NEW.name, NEW.category, NEW.sub_category, NEW.sale_unit,NEW.buy_date,
+        NEW.buy_price, NEW.sale_price, NEW.new_quantity, NEW.big_category, NEW.new_sub, NEW.big_quantity,
+        NEW.barcode, NEW.image_path, NEW.final_total, datetime('now'), 0
+    );
+END;
+
+''')
+
+
 conn.commit()
