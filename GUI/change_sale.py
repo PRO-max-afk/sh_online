@@ -382,14 +382,22 @@ class ChangingFactor(QMainWindow):
             self.table.setRowCount(0)
             if search_result:
                 for (sale_id,product_name,barcode,sale_date,sale_price,quantity,product_type,sale_type,discount,total) in search_result:
-                    cursor.execute("select big_quantity,buy_price,big_price from products where barcode = ?",(barcode,))
-                    reuslt= cursor.fetchone()
-                    big_qunatity= reuslt[0]
-                    buy_price= reuslt[1]
-                    big_price= reuslt[2]
-                    buy_price =float(buy_price) if buy_price else 0
-                    big_price= float(big_price) if big_price else 0
-                    item_price= float(buy_price / big_qunatity)
+                    cursor.execute("select big_quantity,buy_price,big_price from products where barcode = ?", (barcode,))
+                    reuslt = cursor.fetchone()
+
+                    if reuslt:  # یعنی محصول پیدا شد
+                        big_qunatity = reuslt[0] if reuslt[0] else 1  # جلوگیری از تقسیم بر صفر
+                        buy_price   = float(reuslt[1]) if reuslt[1] else 0
+                        big_price   = float(reuslt[2]) if reuslt[2] else 0
+                        item_price  = float(buy_price / big_qunatity) if big_qunatity else 0
+                    else:
+                        # اگر محصول در جدول products پیدا نشد
+                        big_qunatity = 1
+                        buy_price = 0
+                        big_price = 0
+                        item_price = 0
+                        print(f"محصول با بارکد {barcode} در جدول products پیدا نشد")
+
                     
                     self.sale_ids.append(sale_id)
                     if sale_type== "عمده":
@@ -397,6 +405,10 @@ class ChangingFactor(QMainWindow):
                     elif sale_type== "پرچون":
                         real_quantity = quantity
                     print(f"qunatity in search:{real_quantity}")
+                    if real_quantity.is_integer():
+                        real_quantity= int(real_quantity)
+                    else:
+                        real_quantity= float(real_quantity or 0)
                     row= self.table.rowCount()
                     self.table.insertRow(row)
                     self.table.setItem(row,0,QTableWidgetItem(self._make_cell(product_name)))
