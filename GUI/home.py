@@ -931,9 +931,12 @@ class WidgetManager(QWidget):
                     "name": name,
                     "unit_price": unit_price,
                     "quantity": quantity,
+                    "number": quantity,
                     "raw_qty": qty,
+                    "profit": total_profit,
                     "s_type": s_type,
                     "sale_type": sale_type,
+                    "type" : sale_unit,
                     "discount": discount,
                     "profit" : total_profit,
                     "total": float(total_price),
@@ -1203,6 +1206,27 @@ class WidgetManager(QWidget):
                 """, (factor_num,))
                 rows = cursor.fetchall()
                 self.invoices[invoice_key] = rows
+                cursor.execute("select address,phone from printer LIMIT 1")
+                result= cursor.fetchone()
+                cursor.execute("select store_name from logo limit 1")
+                name_result= cursor.fetchone()
+                address= "خالی"
+                phone= "خالی"
+                store_name= "خالی"
+                if result:
+                    address= result[0]
+                    phone= result[1]
+                else:
+                    address= "خالی"
+                    phone= "خالی"
+                if name_result:
+                        store_name= name_result[0]
+                else:
+                    store_name= "خالی"
+
+                
+
+
 
                 if not any(self.invoice_list.item(i).text() == invoice_key for i in range(self.invoice_list.count())):
                     self.invoice_list.addItem(invoice_key)
@@ -1224,100 +1248,158 @@ class WidgetManager(QWidget):
 
         # چاپ فاکتور
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-        dialog = QPrintDialog(printer, self)
-        if dialog.exec():
-            doc = QTextDocument()
+        doc = QTextDocument()
 
-            total_sum = sum(float(p['total']) for p in items)
+        total_sum = sum(float(p['total']) for p in items)
 
-            html = f"""
+        html = f"""
             <html>
             <head>
             <meta charset="utf-8">
             <style>
                 body {{
-                    font-family: 'B Nazanin', Mirza;
+                    font-family: Roboto,'B Nazanin';
                     direction: rtl;
                     background-color: white;
-                    margin: 0;
-                    padding: 20px;
                 }}
                 .container {{
                     text-align: center;
+                    display: flex;
+                    justify-content: center;
+                    margin: 0 auto;
+                    width: 500px;
+                }}
+                .center {{
+                    text-align: center;
+                    margin-bottom: 3px;
+                }}
+                .factor{{
+                    font-size: 10pt;
+                    font-family: Roboto, 'B Nazanin';
+                    font-weight: bold;
                 }}
                 table {{
-                    width: 80%;
-                    margin: 0 auto;
+                    width: 100%;
+                    margin: 8px 0;
                     border-collapse: collapse;
-                    font-size: 16pt;
+                    font-size: 14pt;
+                    margin-right: 70px;
                 }}
                 th, td {{
-                    border: 1px solid black;
-                    padding: 12px;
+                    padding: 8px;
+                    border: none;
+                    font-size: 11pt;
+                }}
+                thead th {{
+                    border-top: 1px dashed gray;
+                    border-bottom: 1px solid gray;
+                    font-weight: bold;
+                }}
+                th.price-col {{
+                    width: 30%;
+                    text-align: left;
+                }}
+                th.qty-col {{
+                    width: 40%;
+                    
+                }}
+                th.name-col {{
+                    width: 40%;
+                    text-align: right;
+                }}
+                td.price-col {{
+                    text-align: left;
+                }}
+                td.qty-col {{
                     text-align: center;
                 }}
-                h2 {{
-                    font-size: 22pt;
-                    margin-bottom: 20px;
+                td.name-col {{
+                    text-align: right;
+                }}
+                .total-row th {{
+                    border-top: 1px solid gray;
+                    padding-top: 10px;
+                }}
+                .logo {{
+                    text-align: center;
+                    margin-top: 20px;
+                    font-weight: bold;
+                    font-size: 12pt;
                 }}
             </style>
             </head>
             <body>
             <div class="container">
-                <h1>فاکتور فروش</h1 >
-                <table>
-                    <tr>
-                        <td colspan="7">
-                            <b>شماره فاکتور</b> {factor_number}
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                            <b>تاریخ</b> {date}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>مجموعه</th>
-                        <th>تخفیف</th>
-                        <th>واحد</th>
-                        <th>تعداد</th>
-                        <th>قیمت</th>
-                        <th>نام</th>
-                        <th>شماره</th>
-                    </tr>
+                <div>
+                    <h1>{store_name}</h1>
+                    <div class="center">{address}</div>
+                    <div class= "center"> {phone} </div>
+                    <table>
+                        <tr>
+                            <td><b class="factor">{factor_number} :نمبر فاکتور</b></td>
+                            <td style="text-align: left;"><b class="factor">{date} :تاریخ</b></td>
+                        </tr>
+                    </table>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="price-col">قیمت</th>
+                                <th class="qty-col">تعداد</th>
+                                <th class="name-col">نام</th>          
+                            </tr>
+                        </thead>
+                        <tbody>
             """
 
-            for i, product in enumerate(items, 1):
+            # اضافه کردن ردیف‌های محصول
+        for product in items:
                 name = product['name']
-                unit_price = product['unit_price']
-                quantity = product['quantity']
-                raw_qty = product.get('raw_qty')
-                unit = product['s_type']
-                discount = product['discount']
-                total = product['total']
-                qty_display = f"{raw_qty}" 
-
+                product_type = product['type']
+                numer = product['number']
+                final = product['total']
+                qua = round(numer)
                 html += f"""
                     <tr>
-                        <td>{total}</td>
-                        <td>{discount}</td>
-                        <td>{unit}</td>
-                        <td>{qty_display}</td>
-                        <td>{unit_price}</td>
-                        <td>{name}</td>
-                        <td>{i}</td>
+                        <td class="price-col">{final:.2f}</td>
+                        <td class="qty-col">
+                            <div style="width: 100%; display: flex; justify-content: space-between;">
+                                <span style="text-align: left;">{product_type}</span>
+                                <span style="text-align: right;">{qua}</span>
+                            </div>
+                        </td>
+                        <td class="name-col">{name}</td>
                     </tr>
                 """
 
-            html += f"""
-                    <tr>
-                        <td colspan="7"> {total_sum} <b>:مجموع کل</b> </td>
-                    </tr>
-                </table>
+
+            # مجموع، تخفیف و پرداخت‌شده
+        html += f"""
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th style="text-align: left; border-top: 1px solid gray;" colspan="2">{total_sum:.2f}</th>
+                                <th style="text-align: right;border-top: 1px solid gray;" colspan="1">مجموع کل</th>
+                            </tr>
+                            <tr>
+                                <th colspan="2" style="text-align: left;">{total_sum:.2f}</th>
+                                <th style="text-align: right;">پرداخت شده</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div class="logo">
+                        <div>//</div>
+                        <div><b>AQSA GROUP</b></div>
+                    </div>
+                </div>
             </div>
             </body>
             </html>
             """
 
-            doc.setHtml(html)
-            doc.print(printer)
+        doc.setHtml(html)
+        doc.print(printer)
 
         self.table.setRowCount(0)
         self.table.setShowGrid(False)

@@ -886,10 +886,6 @@ class ChangingFactor(QMainWindow):
                                 <th style="text-align: right;border-top: 1px solid gray;" colspan="1">مجموع کل</th>
                             </tr>
                             <tr>
-                                <th colspan="2" style="text-align: left;">{-70:.2f}</th>
-                                <th style="text-align: right;">(30%) تخفیف</th>
-                            </tr>
-                            <tr>
                                 <th colspan="2" style="text-align: left;">{final_total:.2f}</th>
                                 <th style="text-align: right;">پرداخت شده</th>
                             </tr>
