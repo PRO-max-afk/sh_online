@@ -90,6 +90,7 @@ class WidgetManager(QWidget):
         self.load_today_invoices()
         self.load_all_fonts()
         self.update_info_invnenvtory()
+        self.get_info
         self.select_name_products()
         self.start_notification_checker()
 
@@ -394,34 +395,33 @@ class WidgetManager(QWidget):
     ''')
         ##
         self.invoice_list.setStyleSheet('''
-        color: black;
-        font-family: B Nazanin;
-        font-weight: bold;
-        font-size: 14px;
-        padding: 5px;
-                                        
-        QScrollArea {
-                border: none;
-            }
+        QListWidget {
+            color: black;
+            font-family: B Nazanin;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 5px;
+        }
         QScrollBar:vertical {
-                background: #eee;
-                width: 10px;
-                margin: 4px 0 4px 0;
-                border-radius: 5px;
-            }
+            background: #eee;
+            width: 10px;
+            margin: 4px 0 4px 0;
+            border-radius: 5px;
+        }
         QScrollBar::handle:vertical {
-                background: #999;
-                min-height: 20px;
-                border-radius: 5px;
-            }
+            background: #999;
+            min-height: 20px;
+            border-radius: 5px;
+        }
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
+            height: 0px;
+        }
         QScrollBar::handle:vertical:hover {
-                background: #666;
-            }
+            background: #666;
+        }
+''')
 
-    ''')
+
         ##
         self.table_title.setStyleSheet('''
             font-size: 18px;
@@ -832,6 +832,8 @@ class WidgetManager(QWidget):
                 if qty.is_integer():
                     qty= int(qty)
                 discount = float(discount or 0)
+                if big_quantity == 0:
+                    big_quantity= 1
                 if discount.is_integer():
                     discount= int(discount)
                 item_price= float(buy_price/big_quantity)
@@ -1814,9 +1816,11 @@ class WidgetManager(QWidget):
     def update_info_invnenvtory(self):
         from synce_updated import UpdateThread
 
+
         # فقط اگر ترد قبلی وجود نداشت یا تمام شده بود، یک ترد جدید بساز
         if not hasattr(self, "thread_to_server") or not self.thread_to_server.isRunning():
             self.thread_to_server = UpdateThread()
+
             self.thread_to_server.start()
 
         # ⏱ فقط یکبار تایمر بساز (اگر از قبل ساخته نشده باشد)
@@ -1825,7 +1829,10 @@ class WidgetManager(QWidget):
             self.update_timer.timeout.connect(self.update_info_invnenvtory)
             self.update_timer.start(15 * 1000)  # هر ۱۵ ثانیه
     ##
-    
+    def get_info(self):
+        from fixdes import FixThread
+        self.thread_to_get= FixThread()
+        self.thread_to_get.start()
 
     ##
     def start_notification_checker(self):

@@ -44,6 +44,7 @@ class AddProduct(QDialog):
         self.bar_lb= QLabel("بارکد محصول:",self)
         self.bar_line= QLineEdit(self)
         self.barcode_img= QLabel(self)
+        self.bar_line.textChanged.connect(self.auto_search_barcode)
        ##
         self.name_lb= QLabel("نام محصول:", self)
         self.name_line= QLineEdit(self)
@@ -102,6 +103,7 @@ class AddProduct(QDialog):
         self.lable_UI()
         self.enties_UI()
         self.Button_UI()
+
     
     ###
     def center_window(self):
@@ -475,56 +477,63 @@ class AddProduct(QDialog):
         text = self.name_line.text().strip()
         if text:  # اگر حتی یک حرف نوشته شده باشد
             self.search_name()
+    def auto_search_barcode(self):
+        text = self.bar_line.text().strip()
+        if text:  # اگر حتی یک حرف نوشته شده باشد
+            self.search_barcode()
 
 
     ##upadte actions:
     def search_barcode(self):
-        barcode= self.bar_line.text().strip()
+        barcode = self.bar_line.text().strip()
         if not barcode:
-            MessageBox("لطفاً بارکد محصول را وارد کنید",title="یادآوری",type="warning").show()
-        conn_sq=None
-        cursor_sq= None
-        # خواندن شناسه کاربر از دیتابیس محلی
+            MessageBox("لطفاً بارکد محصول را وارد کنید", title="یادآوری", type="warning").show()
+            return
+
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        # رفتن یک سطح بالاتر از پوشه GUI
         root_dir = os.path.dirname(base_dir)
         db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
 
         if not os.path.exists(db_path):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
+
         try:
-            ##
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
-            cursor_sq.execute('''
-            select name,buy_price,
-            sale_price,big_sub,
-            expire_date,big_price
-            From products WHERE  barcode=?''',(barcode,))
-            result= cursor_sq.fetchone()
             
+            cursor_sq.execute("SELECT big_category FROM products WHERE barcode=?",(barcode,))
+            row = cursor_sq.fetchone()
+            if not row:
+                MessageBox("محصولی با این بارکد یافت نشد!", title="یادآوری", type="warning").show()
+                return
+
+            big_category = row[0]
+
+            if big_category in ['دانه','کیلو']:
+                cursor_sq.execute('''
+                    SELECT name, buy_price, sale_price, quantity, expire_date, big_price
+                    FROM products WHERE barcode=?''',(barcode,))
+            else:
+                cursor_sq.execute('''
+                    SELECT name, buy_price, sale_price, big_sub, expire_date, big_price
+                    FROM products WHERE barcode=?''',(barcode,))
+            
+            result = cursor_sq.fetchone()
             if result:
-                self.name_line.clear()
-                self.name_line.insert(str(result[0]))
-                ##
-                self.buy_line.clear()
-                self.buy_line.insert(str(result[1]))
-                ##
-                self.sale_line.clear()
-                self.sale_line.insert(str(result[2]))
-                ##
-                self.sale_big_line.clear()
-                self.sale_big_line.insert(str(result[5]))
-                ##
-                self.quantity_line.clear()
-                self.quantity_line.insert(str(result[3]))
-                ##
-                self.exp_line.clear()
-                self.exp_line.insert(str(result[4]))
-                
-        except pymysql.Error as e:
-            MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
+                self.name_line.setText(str(result[0]))
+                self.buy_line.setText(str(result[1]))
+                self.sale_line.setText(str(result[2]))
+                self.sale_big_line.setText(str(result[5]))
+                self.quantity_line.setText(str(result[3]))
+                self.exp_line.setText(str(result[4]))
+
+        except sqlite3.Error as e:
+            MessageBox(f"{e}: خطا در پایگاه داده", type="error", title="خطا").show()
+        finally:
+            if conn_sq:
+                conn_sq.close()
+
     
     ##
     def search_name(self):
@@ -546,31 +555,59 @@ class AddProduct(QDialog):
             ##
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
-            cursor_sq.execute('''
-            SELECT barcode, buy_price, sale_price, big_sub, expire_date, big_price
-            FROM products
-            WHERE TRIM(name) =?;
-            ''',(name,))
-            result= cursor_sq.fetchone()
-            
-            if result:
-                self.bar_line.clear()
-                self.bar_line.insert(str(result[0]))
-                ##
-                self.buy_line.clear()
-                self.buy_line.insert(str(result[1]))
-                ##
-                self.sale_line.clear()
-                self.sale_line.insert(str(result[2]))
-                ##
-                self.sale_big_line.clear()
-                self.sale_big_line.insert(str(result[5]))
-                ##
-                self.quantity_line.clear()
-                self.quantity_line.insert(str(result[3]))
-                ##
-                self.exp_line.clear()
-                self.exp_line.insert(str(result[4]))
+            cursor_sq.execute("select big_category from products where TRIM(name)=?",(name,))
+            big_category= cursor_sq.fetchone()[0]
+            if big_category in ['کیلو','دانه']:
+                cursor_sq.execute('''
+                SELECT barcode, buy_price, sale_price, quantity, expire_date, big_price
+                FROM products
+                WHERE TRIM(name) =?;
+                ''',(name,))
+                n_result= cursor_sq.fetchone()
+                if n_result:
+                    self.bar_line.clear()
+                    self.bar_line.insert(str(n_result[0]))
+                    ##
+                    self.buy_line.clear()
+                    self.buy_line.insert(str(n_result[1]))
+                    ##
+                    self.sale_line.clear()
+                    self.sale_line.insert(str(n_result[2]))
+                    ##
+                    self.sale_big_line.clear()
+                    self.sale_big_line.insert(str(n_result[5]))
+                    ##
+                    self.quantity_line.clear()
+                    self.quantity_line.insert(str(n_result[3]))
+                    ##
+                    self.exp_line.clear()
+                    self.exp_line.insert(str(n_result[4]))
+            else:
+                cursor_sq.execute('''
+                SELECT barcode, buy_price, sale_price, big_sub, expire_date, big_price
+                FROM products
+                WHERE TRIM(name) =?;
+                ''',(name,))
+                result= cursor_sq.fetchone()
+                
+                if result:
+                    self.bar_line.clear()
+                    self.bar_line.insert(str(result[0]))
+                    ##
+                    self.buy_line.clear()
+                    self.buy_line.insert(str(result[1]))
+                    ##
+                    self.sale_line.clear()
+                    self.sale_line.insert(str(result[2]))
+                    ##
+                    self.sale_big_line.clear()
+                    self.sale_big_line.insert(str(result[5]))
+                    ##
+                    self.quantity_line.clear()
+                    self.quantity_line.insert(str(result[3]))
+                    ##
+                    self.exp_line.clear()
+                    self.exp_line.insert(str(result[4]))
 
         except pymysql.Error as e:
             MessageBox(f"{e}: خطا در دیتابیس",type="error",title="خطا").show()
@@ -656,7 +693,7 @@ class AddProduct(QDialog):
 
             # واکشی مقدار قبلی
             cursor_sq.execute("""
-                SELECT big_sub, buy_price,big_quantity,big_category
+                SELECT big_sub, buy_price,big_quantity,big_category,quantity
                 FROM products 
                 WHERE barcode = ?
             """, (barcode,))
@@ -665,40 +702,65 @@ class AddProduct(QDialog):
             if row:
                 old_quantity = float(row[0]) if row[0] else 0
                 old_price = float(row[1]) if row[1] else 0
-                bg_quantity= float(row[2]) if row[2] else 0
-                big_category= str(row[3]) if row[3] else "خالی"
+                bg_quantity = float(row[2]) if row[2] else 0
+                big_category = str(row[3]) if row[3] else "خالی"
+                old_number= float(row[4]) if row[4] else 0
 
-                updated_quantity = old_quantity + number
+                # مقدار جدید
+                if big_category in ("کیلو", "دانه"):
+                    # جمع وزن/تعداد
+                    updated_quantity = old_number + number
+                    
+                    if updated_quantity > 0:
+                        new_avg_price = ((old_price * old_number) + (buy_price * number)) / updated_quantity
+                    else:
+                        new_avg_price = buy_price
 
-                if updated_quantity > 0:
-                    new_avg_price = ((old_price * old_quantity) + (buy_price * number)) / updated_quantity
+                    total = updated_quantity * new_avg_price
+                    final_total = total
+                    big_quantity = updated_quantity   # در این حالت مستقیم همون مقدار وزن/دانه ذخیره میشه
+                    big_display = f"{updated_quantity} {big_category}"
+
                 else:
-                    new_avg_price = buy_price
+                    # حالت بسته‌ای (پکیج‌ها)
+                    updated_quantity = old_quantity + number
 
-                total = ((old_price * old_quantity) + (buy_price * number))
-                final_total= total
-                ## مجموعه محصول
-                big_quantity= updated_quantity * bg_quantity
-                print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
-                if updated_quantity.is_integer():
-                    updated_quantity = int(updated_quantity)
-                else:
-                    updated_quantity= float(updated_quantity or 0)
-                big_display= f"{updated_quantity} {big_category}"
+                    if updated_quantity > 0:
+                        new_avg_price = ((old_price * old_quantity) + (buy_price * number)) / updated_quantity
+                    else:
+                        new_avg_price = buy_price
 
+                    total = ((old_price * old_quantity) + (buy_price * number))
+                    final_total = total
+
+                    big_quantity = updated_quantity * bg_quantity  # محاسبه محتویات کل بسته‌ها
+                    if updated_quantity.is_integer():
+                        updated_quantity = int(updated_quantity)
+                    else:
+                        updated_quantity = float(updated_quantity or 0)
+
+                    big_display = f"{updated_quantity} {big_category}"
+
+                    if updated_quantity.is_integer():
+                        updated_quantity= int(updated_quantity)
+                    if new_avg_price.is_integer():
+                            new_avg_price=int(new_avg_price)
+
+                # ثبت در دیتابیس
                 is_synced = 0
                 cursor_sq.execute("""
                     UPDATE products 
                     SET quantity = ?, buy_price = ?, update_date = ?, 
-                        new_quantity = ?, expire_date = ?, big_sub=?,new_sub=?,
-                        sale_price = ?, big_price = ?,big_sub_display=?,
-                        total = ?,final_total=?, is_synced = ?,type_save=?,update_at=?
+                        new_quantity = ?, expire_date = ?, big_sub=?, new_sub=?,
+                        sale_price = ?, big_price = ?, big_sub_display=?,
+                        total = ?, final_total=?, is_synced = ?, type_save=?, update_at=?
                     WHERE barcode = ?
                 """, (
                     big_quantity, new_avg_price, date, number,
-                    expire_date,updated_quantity, number,sale_price, big_sale,big_display,
-                    total,final_total, is_synced,type_save,date_ent, barcode
+                    expire_date, updated_quantity, number, sale_price, big_sale, big_display,
+                    total, final_total, is_synced, type_save, date_ent, barcode
                 ))
+
 
                 conn_sq.commit()
                 print("UPDATE values:", big_quantity, number, final_total)

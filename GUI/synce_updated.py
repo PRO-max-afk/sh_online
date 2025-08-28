@@ -8,6 +8,8 @@ import datetime
 from message_b import MessageBox
 import os
 from db_connection import Connection
+from ftplib import FTP
+import ntpath
 
 class UpdateThread(QThread):
     def __init__(self):
@@ -125,8 +127,8 @@ class UpdateThread(QThread):
         cursor_sq = conn_sq.cursor()
 
         cursor_sq.execute('''SELECT name,barcode,
-                            buy_date, buy_price, sale_price, big_price,
-                            quantity, expire_date,new_price,discount_percent,expire_discount,big_sub, total,final_total,type_save,user_id,update_at
+                            buy_date, buy_price, sale_price, big_price,category, sub_category,big_category,big_quantity,small_price,sale_unit,
+                            quantity, expire_date,new_price,discount_percent,expire_discount,big_sub, total,final_total,type_save,user_id,update_at,create_at,image_path
                             FROM products WHERE is_synced = 0''')
 
         unsynced_products = cursor_sq.fetchall()
@@ -140,9 +142,14 @@ class UpdateThread(QThread):
             cursor = db_connect.cursor()
 
             for product in unsynced_products:
-                (name, barcode, buy_date, buy_price,
-                sale_price, big_price, quantity, expire_date, new_price, discount_percent, expire_discount, big_sub,
-                total, final_total, type_save, user_id, update_at) = product
+                (name, barcode,
+                        buy_date, buy_price, sale_price, big_price,
+                        category, sub_category, big_category, big_quantity,
+                        small_price, sale_unit,
+                        quantity, expire_date, new_price, discount_percent,
+                        expire_discount, big_sub, total, final_total,
+                        type_save, user_id, update_at, create_at, image_path
+                    ) = product
 
                 cursor.execute("SELECT COUNT(*) FROM inventories WHERE barcode = %s AND user_id = %s", (barcode, user_id))
                 exists = cursor.fetchone()[0]
@@ -202,8 +209,75 @@ class UpdateThread(QThread):
                     cursor_sq.execute("UPDATE product_details SET is_synced=1 WHERE is_synced=0")
                     conn_sq.commit()
                 else:
-                    print(f"⚠️ محصول {barcode} در سرور پیدا نشد")
-                
+                    ftp_image_url = ""
+
+                    # آپلود تصویر
+                    if image_path and os.path.isfile(image_path):
+                        try:
+                            image_name = ntpath.basename(image_path)
+                            ftp_image_url = f"uploads/app_images/{image_name}"
+
+                            ftp = FTP()
+                            ftp.connect('ihr.blg.mybluehost.me', 21)
+                            ftp.login('shop@ihr.blg.mybluehost.me', 'm8q>cD25he')
+
+                            with open(image_path, 'rb') as file:
+                                ftp.storbinary(f'STOR {image_name}', file)
+
+                            ftp.quit()
+                            print("✅ تصویر آپلود شد:", ftp_image_url)
+
+                        except Exception as e:
+                            print("❌ خطا در آپلود تصویر:", e)
+                            ftp_image_url = ""
+
+                    # درج محصول جدید در inventories
+                    cursor.execute('''
+                        INSERT INTO inventories(
+                            barcode, product_name, category, sub_category, buy_date,
+                            buy_price, sell_price, big_price, big_category, quantity,
+                            expiration_dates, big_quantity, big_sub, product_image,
+                            small_price, sale_unit, total, final_total, type_save,
+                            user_id, created_at
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', (
+                        barcode, name, category, sub_category, buy_date,
+                        buy_price, sale_price, big_price, big_category, quantity,
+                        expire_date, big_quantity, big_sub, ftp_image_url,
+                        small_price, sale_unit, total, final_total, type_save,
+                        user_id, create_at
+                    ))
+
+                    invent_ids = cursor.lastrowid   # کلید جدید سرور
+
+                    # 🟢 گرفتن دیتیل از SQLite: بجای invent_id از barcode استفاده کنیم
+                    cursor_sq.execute('''
+                        SELECT weight, production_date, brand, production_place, product_state,
+                            more_details, keep_place
+                        FROM product_details
+                        WHERE invent_id = ?
+                    ''', (invent_ids,))
+                    detail = cursor_sq.fetchone()
+
+                    if detail:
+                        weight, pro_date, brand, place, status, description, keep_place = detail
+                        cursor.execute('''
+                            INSERT INTO product_details (
+                                weight, production_date, brand, production_place,
+                                product_state, more_detail, keep_place, invent_id
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ''', (
+                            weight, pro_date, brand, place,
+                            status, description, keep_place, invent_ids
+                        ))
+
+                    cursor_sq.execute("UPDATE products SET is_synced = 1 WHERE is_synced = 0")
+                    cursor_sq.execute("UPDATE product_details SET is_synced = 1 WHERE is_synced = 0")
+                    conn_sq.commit()   
+                    
 
             db_connect.commit()
             

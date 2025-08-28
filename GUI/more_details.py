@@ -131,8 +131,8 @@ class MoreDetails(QDialog):
     def Entries_UI(self):
         self.brand_line.setGeometry(360,113,190,45)
         self.brand_line.setStyleSheet('''
-            background-color: white;
-            font-family: B Nazanin;
+            background-color: white;    
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -144,7 +144,7 @@ class MoreDetails(QDialog):
         self.palce_line.setGeometry(80,113,190,45)
         self.palce_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -158,7 +158,7 @@ class MoreDetails(QDialog):
         self.pro_date_line.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.pro_date_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -170,7 +170,7 @@ class MoreDetails(QDialog):
         self.state_line.setGeometry(80,205,190,45)
         self.state_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -182,7 +182,7 @@ class MoreDetails(QDialog):
         self.weight_line.setGeometry(360,301,190,45)
         self.weight_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -194,7 +194,7 @@ class MoreDetails(QDialog):
         self.place_st_line.setGeometry(80,301,190,45)
         self.place_st_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -206,7 +206,7 @@ class MoreDetails(QDialog):
         self.more_detials.setGeometry(84,377,460,85)
         self.more_detials.setStyleSheet(''' 
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 14px;
             color: black;

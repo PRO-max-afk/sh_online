@@ -73,8 +73,8 @@ class MessageBox:
     
     def play_notification(self):
         try:
-            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # یک فولدر بالاتر از GUI
-            sounds_folder = os.path.join(base_path, 'assets', 'sounds')
+            # مسیر فولدر صداها
+            sounds_folder = self.resource_path(os.path.join("assets", "sounds"))
             print("📂 مسیر صداها:", sounds_folder)
 
             sound_files = {
@@ -86,7 +86,6 @@ class MessageBox:
 
             sound_path = sound_files.get(self.type)
             if sound_path and os.path.exists(sound_path):
-                # نگه داشتن به صورت attribute تا GC حذفش نکند
                 self.sound = QSoundEffect()
                 self.sound.setSource(QUrl.fromLocalFile(sound_path))
                 self.sound.setVolume(0.9)
@@ -95,6 +94,7 @@ class MessageBox:
                 print(f"⚠ فایل صوتی برای نوع {self.type} یافت نشد: {sound_path}")
         except Exception as e:
             print(f'❌ خطا در پخش صدا: {e}')
+
     ##images
     def get_asset_path(self, filename):
         try:

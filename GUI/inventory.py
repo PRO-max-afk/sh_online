@@ -25,6 +25,7 @@ class DataLoaderThread(QThread):
     data_loaded = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
     
+    
     def download_image_from_url(self, image_path):
         try:
             if not image_path:
@@ -409,7 +410,8 @@ class Inventory(QFrame):
         self.set_today_date()
         self.set_today_time()
         self.button_UI()
-        self.show_spinner_and_load_data()
+        #self.show_spinner_and_load_data()
+        self.show_first_spinner()
         self.start_auto_refresh()
         self.start_auto_sync_timer()
         self.load_all_fonts()
@@ -679,7 +681,7 @@ class Inventory(QFrame):
     ##
     def show_first_spinner(self):
         self.clear_products()
-        self.show_spinner_and_load_data()
+        self.run_data_loader()
    ##
     def show_spinner_and_load_data(self):
         self.clear_products()
@@ -708,20 +710,12 @@ class Inventory(QFrame):
     def run_data_loader(self):
         self.thread = DataLoaderThread()
         self.thread.data_loaded.connect(self.on_data_loaded)
-        self.thread.error_occurred.connect(self.on_data_error)
+        #self.thread.error_occurred.connect(self.on_data_error)
         self.thread.start()
 
     ##
     def on_data_loaded(self, product_list):
-        # حذف spinner_wrapper در صورت وجود
-        if hasattr(self, "spinner_wrapper") and self.spinner_wrapper:
-            self.box_layout.removeWidget(self.spinner_wrapper)
-            self.spinner_wrapper.setParent(None)
-            self.spinner_wrapper.deleteLater()
-            self.spinner_wrapper = None
-        self.product_container_wrapper.setCurrentWidget(self.product_container)
 
-        has_internet = Connection().get_connection()
         row = 0
         col = 0
 
@@ -730,12 +724,7 @@ class Inventory(QFrame):
 
             image_path = None
             if data["image_path"]:
-                if has_internet:
-                    image_path = self.download_image_from_url(data["image_path"])
-                    if image_path is None:
-                        image_path = self.load_image_from_temp(data["image_path"])
-                else:
-                    image_path = self.load_image_from_temp(data["image_path"])
+                image_path = self.load_image_from_temp(data["image_path"])
 
             product_box.set_product_info(
                 name=data["name"],
@@ -755,7 +744,7 @@ class Inventory(QFrame):
                 col = 0
                 row += 1
 
-        self.spinner.stop()
+        #self.spinner.stop()
 
     ##
     def on_data_error(self, error):
@@ -1102,7 +1091,7 @@ class Inventory(QFrame):
     def start_auto_sync_timer(self):
         self.sync_timer = QTimer(self)
         self.sync_timer.timeout.connect(self.start_sync_thread)
-        self.sync_timer.timeout.connect(self.start_get_fixeds)
+        #self.sync_timer.timeout.connect(self.start_get_fixeds)
         self.sync_timer.start( 3 * 60 * 1000)  # هر 5 دقیقه
 
     def start_sync_thread(self):
@@ -1210,6 +1199,11 @@ class Inventory(QFrame):
     def show_quantity_msg(self, product_names: list):
         for name in product_names:
             self.enqueue_notification("موجودی محصول", f"محصول {name} موجودی آن رو به اتمام است")
-
+    ##
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.show_first_spinner()
+    
+        
 
 

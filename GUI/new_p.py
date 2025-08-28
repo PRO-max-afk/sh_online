@@ -33,6 +33,8 @@ class ProductForm(QDialog):
         self.setFixedSize(929, 630)  # جلوگیری از تغییر اندازه
         self.setStyleSheet("background-color: #E8E6E6;")
         self.inventory_page= inventory_page
+        self.image_path= None
+        
         
 
         self.center_window()  # <-- وسط‌چین کردن
@@ -247,7 +249,7 @@ class ProductForm(QDialog):
         ##
         self.total_line.setGeometry(90,573,70,30)
         self.total_line.setStyleSheet('''
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-size: 15px;
             font-weight: bold;
             color: black;
@@ -304,7 +306,7 @@ class ProductForm(QDialog):
         self.under_choise.setStyleSheet('''
             QComboBox {
                 background-color: white;
-                font-family: "B Nazanin";
+                font-family: Roboto,'B Nazanin';
                 font-size: 15px;
                 font-weight: bold;
                 color: #000;
@@ -344,7 +346,7 @@ class ProductForm(QDialog):
         self.name_line.setGeometry(653,230,250,45)
         self.name_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -356,7 +358,7 @@ class ProductForm(QDialog):
         self.bar_line.setGeometry(355,230,250,45)
         self.bar_line.setStyleSheet('''
             background-color: white;
-            font-family: Arial;
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             border: 1px solid #c2c2c2;
@@ -370,7 +372,7 @@ class ProductForm(QDialog):
         self.exp_line.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.exp_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -383,6 +385,7 @@ class ProductForm(QDialog):
         self.cate_ch.addItems(["انتخاب","دانه","کیلو","کارتن","بسته","کیسه","شانه","جعبه"])
         self.cate_ch.setCurrentText("انتخاب")
         self.cate_ch.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.cate_ch.currentTextChanged.connect(self.killo_label_change)
         self.cate_ch.setStyleSheet('''
             QComboBox {
                 background-color: white;
@@ -425,7 +428,7 @@ class ProductForm(QDialog):
         self.buy_line.setGeometry(653,430,250,45)
         self.buy_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -437,7 +440,7 @@ class ProductForm(QDialog):
         self.number_line.setGeometry(355,430,250,45)
         self.number_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -449,7 +452,7 @@ class ProductForm(QDialog):
         self.sale_line.setGeometry(653,520,250,45)
         self.sale_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -461,7 +464,7 @@ class ProductForm(QDialog):
         self.sale_big_line.setGeometry(355,520,250,45)
         self.sale_big_line.setStyleSheet('''
             background-color: white;
-            font-family: B Nazanin,"Mirza";
+            font-family: Roboto,'B Nazanin';
             font-weight: bold;
             font-size: 15px;
             color: black;
@@ -511,6 +514,7 @@ class ProductForm(QDialog):
              QPushButton {
                 background-color: #2251DB;
                 font-family: "Mirza";
+                color: white;
                 font-size: 18px;
                 font-weight: bold;
                 border-radius: 10px;
@@ -556,6 +560,7 @@ class ProductForm(QDialog):
             QPushButton {
                 background-color: #2251DB;
                 font-family: "Mirza";
+                color: white;
                 font-size: 18px;
                 font-weight: bold;
                 border-radius: 10px;
@@ -603,6 +608,13 @@ class ProductForm(QDialog):
 
         self.under_choise.addItems(self.under_cate)
     ##
+    def killo_label_change(self):
+        selected_item= self.cate_ch.currentText()
+        if selected_item == "کیلو":
+            self.number_lb.setText("مقدار محصول")
+        else:
+            self.number_lb.setText("تعداد محصول")
+
     def show_calendar(self):
         self.calendar_popup = Calendar(self)
         pos = self.calendar_btn.mapToGlobal(self.calendar_btn.rect().bottomRight())
@@ -715,7 +727,10 @@ class ProductForm(QDialog):
 
             # نمایش تصویر و ذخیره مسیر
             self.img_preveiw.setPixmap(QPixmap(webp_path))
-            self.image_path = webp_path
+            if webp_path:
+                self.image_path = webp_path
+            else:
+                self.image_path= os.path.join(os.getcwd(), "default.png")
 
  
     def keyPressEvent(self, event):
@@ -812,7 +827,6 @@ class ProductForm(QDialog):
             self.search_fixeds_info()
     ##
     def insert_product(self):
-        import shutil
         f_ch = self.choise_c.currentText()
         s_ch = self.under_choise.currentText()
         name = self.name_line.text()
@@ -911,9 +925,25 @@ class ProductForm(QDialog):
             big_sub = round(float(per_quantity) / big_s, 1)
         else:
             big_sub = 0
-
+        if per_quantity.is_integer():
+            per_quantity= int(per_quantity)
+        else:
+            per_quantity = float(per_quantity)
+        if per_buy.is_integer():
+            per_buy= int(per_buy)
+        else:
+            per_buy= float(per_buy)
+        
         small_price = float(sale_big) / big_s if big_s else 0
-        new_sub = f'{big_sub} {category}'
+        if category in ['کیلو','دانه']:
+            new_sub = f'{per_quantity} {category}'
+            total= per_buy * per_quantity
+            big_sub=1
+            big_s=1
+            small_price= 1
+
+        else:
+            new_sub = f'{big_sub} {category}'
         final_total = total
 
         # ذخیره فقط آفلاین
@@ -941,6 +971,7 @@ class ProductForm(QDialog):
 
             conn_sq.commit()
             MessageBox("✅ محصول به صورت آفلاین ذخیره شد", title="موفقانه", type="info").show()
+
         except Exception as e:
             MessageBox(f"❌ خطا در ذخیره آفلاین: {e}", title="خطا", type="error").show()
         finally:
@@ -957,7 +988,7 @@ class ProductForm(QDialog):
             expire_date=exp_date,
             big_sub=new_sub,
             big_price=sale_big,
-            image_path=self.image_path
+            image_path=self.image_path or ""
         )
         row, col = divmod(self.inventory_page.box_layout.count(), 4)
         self.inventory_page.box_layout.addWidget(product_box, row, col)
