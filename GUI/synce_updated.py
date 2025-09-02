@@ -18,7 +18,7 @@ class UpdateThread(QThread):
     def run(self):
         self.db_connect = Connection().get_connection()
         if self.db_connect:
-            self.delete_from_server()  # 🗑 بررسی و حذف محصولات که در آفلاین حذف شده‌اند
+            #self.delete_from_server()  # 🗑 بررسی و حذف محصولات که در آفلاین حذف شده‌اند
             self.synced_to_server()    # 🔄 همگام‌سازی باقی محصولات
             self.delete_from_server_sale()
 

@@ -90,7 +90,7 @@ class WidgetManager(QWidget):
         self.load_today_invoices()
         self.load_all_fonts()
         self.update_info_invnenvtory()
-        self.get_info
+        self.get_info()
         self.select_name_products()
         self.start_notification_checker()
 

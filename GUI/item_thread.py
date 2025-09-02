@@ -1327,10 +1327,10 @@ class ItemThread(QThread):
                         row_data[row_index] = [product_name, big_sub, big_category, total]
                         row_index += 1
 
+
                 except Exception as e:
                     print(f" table month problem for buying: {e} → {row}")
-               
-                print(f'{row_data} : offline buy table month info')
+                #print(f'{row_data} : offline buy table month info')
                 self.buy_table_data.emit(row_data)
                 
 

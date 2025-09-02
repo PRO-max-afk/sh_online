@@ -207,13 +207,13 @@ class FixThread(QThread):
             print(f"❌ خطا در دیتابیس آنلاین: {e}")
     
     def get_inventory_info(self):
-        conn= Connection().get_connection()
-        cursor= conn.cursor()
+        conn = Connection().get_connection()   # اتصال MySQL
+        cursor = conn.cursor()
         try:
-            # فرض: فایل FixThread در مسیر D:\projects\sh_online\GUI\fixdes.py قرار دارد
+            # 📂 مسیر دیتابیس آفلاین (SQLite)
             base_dir = os.path.dirname(os.path.abspath(__file__))              # → D:\projects\sh_online\GUI
             project_root = os.path.abspath(os.path.join(base_dir, ".."))       # → D:\projects\sh_online
-            db_path = os.path.join(project_root, "Data", "sh_online.db")  
+            db_path = os.path.join(project_root, "Data", "sh_online.db")
 
             print(f"📂 مسیر دیتابیس آفلاین: {db_path}")
             if not os.path.exists(db_path):
@@ -223,7 +223,7 @@ class FixThread(QThread):
             # اتصال به SQLite برای دریافت user_id
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
-            cursor_sq.execute('SELECT id FROM users LIMIT 1')
+            cursor_sq.execute("SELECT id FROM users LIMIT 1")
             user_row = cursor_sq.fetchone()
 
             if not user_row:
@@ -232,7 +232,7 @@ class FixThread(QThread):
 
             id_user = user_row[0]
 
-            # بارگذاری محصولات فقط برای user_id خاص
+            # 🔹 کوئری روی MySQL → استفاده از %s
             cursor.execute('''
                 SELECT 
                     product_name, barcode, category, sub_category, buy_date, buy_price, sell_price,
@@ -251,13 +251,14 @@ class FixThread(QThread):
                     big_category, quantity, expiration_dates, product_image, store_name,
                     new_price, discount_percent, big_price, big_quantity, big_sub, big_sub_display,
                     sale_unit, total, final_total, created_at) = product
-                # ✅ مدیریت مسیر تصویر
+
+                # ✅ مسیر تصویر
                 if not product_image:
                     downloaded_image_path = os.path.join(os.getcwd(), "default.png")
                 else:
                     downloaded_image_path = self.download_image_from_url(product_image)
-                ##
-            # 🔄 تبدیل Decimal به float
+
+                # 🔄 تبدیل Decimal به float
                 def safe_num(val):
                     return float(val) if isinstance(val, Decimal) else val
 
@@ -270,36 +271,67 @@ class FixThread(QThread):
                 big_sub          = safe_num(big_sub)
                 total            = safe_num(total)
                 final_total      = safe_num(final_total)
-            
-                # بررسی وجود محصول با barcode
-                cursor_sq.execute("SELECT COUNT(*) FROM products WHERE barcode = ? AND user_id = ?", (barcode, id_user))
+
+                # بررسی وجود محصول در SQLite
+                cursor_sq.execute(
+                    "SELECT COUNT(*) FROM products WHERE barcode = ? AND user_id = ?", 
+                    (barcode, id_user)
+                )
                 row = cursor_sq.fetchone()
                 exists = row[0] if row else 0
 
+                # بررسی وجود محصول در SQLite
+                cursor_sq.execute(
+                    "SELECT quantity, big_sub FROM products WHERE barcode=? AND user_id=?",
+                    (barcode, id_user)
+                )
+                row_q = cursor_sq.fetchone()
+
                 if exists:
-                    cursor_sq.execute('''
-                        UPDATE products SET
-                            name = ?, category=?, sub_category=?, buy_date=?, buy_price=?, 
-                            sale_price=?, store_name=?, new_price=?, discount_percent=?, 
-                            big_price=?, big_quantity=?, big_sub=?, big_sub_display=?, 
-                            total=?, final_total=?, sale_unit=?, quantity=?, expire_date=?, 
-                            image_path=?, user_id=?, create_at=?
-                        WHERE barcode = ?
-                    ''', (product_name, category, sub_category, buy_date, buy_price,
-                        sell_price, store_name, new_price, discount_percent, 
-                        big_price, big_quantity, big_sub, big_sub_display,
-                        total, final_total, sale_unit, quantity, expiration_dates,
-                        downloaded_image_path, id_user, created_at, barcode))
+                    qua, big_s = row_q
+
+                    # فقط اگر اختلاف در quantity یا big_sub بود → آپدیت
+                    if qua != quantity or big_s != big_sub:
+                        cursor_sq.execute('''
+                            UPDATE products SET
+                                name = ?, category=?, sub_category=?, buy_date=?, buy_price=?, 
+                                sale_price=?, store_name=?, new_price=?, discount_percent=?, 
+                                big_price=?, big_quantity=?, big_sub=?, big_sub_display=?, 
+                                total=?, final_total=?, sale_unit=?, quantity=?, expire_date=?, 
+                                image_path=?, user_id=?, create_at=?
+                            WHERE barcode = ? AND user_id = ?
+                        ''', (
+                            product_name, category, sub_category, buy_date, buy_price,
+                            sell_price, store_name, new_price, discount_percent,
+                            big_price, big_quantity, big_sub, big_sub_display,
+                            total, final_total, sale_unit, quantity, expiration_dates,
+                            downloaded_image_path, id_user, created_at, barcode, id_user
+                        ))
 
                 else:
-                    # اگر وجود نداشت: درج کن
-                    cursor.execute('''
-                        INSERT INTO products (barcode, name, category,sub_category,buy_date,
-                                buy_price, sale_price,big_category,store_name, new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display,
-                                total,final_total, sale_unit,quantity, expire_date, image_path, user_id,create_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?,?,?,?,?)
-                    ''',(product_name, barcode,category,sub_category,buy_date,buy_price, sell_price,
-                        big_category,quantity, expiration_dates, downloaded_image_path,store_name, 
-                        new_price, discount_percent, big_price,big_quantity,big_sub,big_sub_display,sale_unit, total,final_total,created_at))
+                    # محصول وجود ندارد → درج کن
+                    cursor_sq.execute('''
+                        INSERT INTO products (
+                            barcode, name, category, sub_category, buy_date,
+                            buy_price, sale_price, big_category, store_name,
+                            new_price, discount_percent, big_price, big_quantity,
+                            big_sub, big_sub_display, total, final_total,
+                            sale_unit, quantity, expire_date, image_path,
+                            user_id, create_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        barcode, product_name, category, sub_category, buy_date,
+                        buy_price, sell_price, big_category, store_name,
+                        new_price, discount_percent, big_price, big_quantity,
+                        big_sub, big_sub_display, total, final_total,
+                        sale_unit, quantity, expiration_dates, downloaded_image_path,
+                        id_user, created_at
+                    ))
+            conn_sq.commit()
+            conn_sq.close()
+
         except pymysql.Error as e:
-            print(f"offline db inventory problem:{e}")
+            print(f"❌ مشکل در دریافت اطلاعات از MySQL: {e}")
+        except sqlite3.Error as e:
+            print(f"❌ مشکل در دیتابیس SQLite: {e}")

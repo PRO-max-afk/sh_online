@@ -415,6 +415,7 @@ class Inventory(QFrame):
         self.start_auto_refresh()
         self.start_auto_sync_timer()
         self.load_all_fonts()
+        #self.get_info()
         self.start_notification_checker()
         self.start_synced_to_server()
         
@@ -1101,10 +1102,10 @@ class Inventory(QFrame):
         sync_thread.setDaemon(True)  # اگر پنجره بسته شد، ترد هم بسته شود
         sync_thread.start()
     ##
-    def start_get_fixeds(self):
+    def get_info(self):
         from fixdes import FixThread
-        self.fixeds= FixThread()
-        self.fixeds.start()
+        self.thread_to_get= FixThread()
+        self.thread_to_get.start()
     ###update
     def start_synced_to_server(self):
         self.synced_timer= QTimer(self)

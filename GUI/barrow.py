@@ -36,7 +36,7 @@ class Barrow(QMainWindow):
         self.synced_auto_timer()
         self.select_info()
         self.select_name()
-    
+
     def in_UI(self):
         self.stack_barrow= QStackedWidget()
         self.setCentralWidget(self.stack_barrow)
@@ -86,6 +86,7 @@ class Barrow(QMainWindow):
         ##name
         self.name_line= QLineEdit()
         self.name_line.setPlaceholderText("نام شخص")
+        self.name_line.textChanged.connect(self.auto_search_name)
         ##amount
         self.money_line= QLineEdit()
         self.money_line.setPlaceholderText("مقدار قرض")
@@ -511,15 +512,23 @@ class Barrow(QMainWindow):
 
             # مجموع فعلی قرض (برده گی + طلب مردم)
             cursor.execute("""
-                SELECT SUM(amount) 
+                SELECT b_id, amount, type 
                 FROM barrow 
                 WHERE name=? AND type IN ('برده گی','طلب مردم')
+                ORDER BY b_id DESC LIMIT 1
             """, (name,))
-            re_result = cursor.fetchone()
-            current_number = float(re_result[0]) if re_result and re_result[0] is not None else 0
+            existing = cursor.fetchone()
 
-            # اگر رسیده گی باشد => رکورد جدید + بروزرسانی بدهی قبلی
             if b_types == "رسیده گی":
+                # بررسی مقدار رسیده گی نسبت به بدهی فعلی
+                cursor.execute("""
+                    SELECT SUM(amount) 
+                    FROM barrow 
+                    WHERE name=? AND type IN ('برده گی','طلب مردم')
+                """, (name,))
+                re_result = cursor.fetchone()
+                current_number = float(re_result[0]) if re_result and re_result[0] is not None else 0
+
                 if amount > current_number:
                     MessageBox(text="مقدار رسید بیشتر از قرض فعلی است", type="warning", title="معلومات").show()
                     return
@@ -531,22 +540,28 @@ class Barrow(QMainWindow):
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (name, amount, b_types, phone, date, description, id_user, is_synced))
 
-                # از بدهی (برده گی یا طلب مردم) کم کردن
-                cursor.execute("""
-                    SELECT b_id, amount, type 
-                    FROM barrow 
-                    WHERE name=? AND type IN ('برده گی','طلب مردم')
-                    ORDER BY b_id DESC LIMIT 1
-                """, (name,))
-                last_debt = cursor.fetchone()
-
-                if last_debt:
-                    debt_id, old_amount, debt_type = last_debt
+                # کم کردن از آخرین بدهی
+                if existing:
+                    debt_id, old_amount, debt_type = existing
                     new_amount = old_amount - amount
                     cursor.execute("UPDATE barrow SET amount=? WHERE b_id=?", (new_amount, debt_id))
 
+            elif b_types in ("برده گی", "طلب مردم"):
+                # اگر نام موجود بود → Update
+                if existing:
+                    debt_id, old_amount, debt_type = existing
+                    new_amount = old_amount + amount  # جمع با مقدار قبلی
+                    cursor.execute("UPDATE barrow SET amount=? WHERE b_id=?", (new_amount, debt_id))
+                else:
+                    # اگر نام موجود نبود → Insert
+                    is_synced = 0
+                    cursor.execute("""
+                        INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (name, amount, b_types, phone, date, description, id_user, is_synced))
+
             else:
-                # سایر انواع (برده گی / طلب / پول نقد) → رکورد جدید
+                # سایر انواع همیشه Insert می‌شوند
                 is_synced = 0
                 cursor.execute("""
                     INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced) 
@@ -580,6 +595,11 @@ class Barrow(QMainWindow):
         finally:
             conn.close()
 
+    ##
+    def auto_search_name(self):
+        text= self.name_line.text()
+        if text:
+            self.select_info_name()
 
     ##
     def _make_cell(self, text):
@@ -665,7 +685,8 @@ class Barrow(QMainWindow):
                 self.date_line.insert(result[2])
                 
             else:
-                MessageBox(text="حساب این شخص صفر است",type="warning",title="موجودی حساب").show()
+                pass
+                #MessageBox(text="حساب این شخص صفر است",type="warning",title="موجودی حساب").show()
         except sqlite3.Error as e:
             print(f"{e}: db problem")
     ##
