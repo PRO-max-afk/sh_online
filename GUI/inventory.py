@@ -415,7 +415,8 @@ class Inventory(QFrame):
         self.start_auto_refresh()
         self.start_auto_sync_timer()
         self.load_all_fonts()
-        #self.get_info()
+        #self.timer_sync()
+        self.get_info()
         self.start_notification_checker()
         self.start_synced_to_server()
         
@@ -1099,13 +1100,40 @@ class Inventory(QFrame):
         from new_p import ProductForm
         products= ProductForm(inventory_page=self)
         sync_thread = threading.Thread(target=products.sync_to_server)
-        sync_thread.setDaemon(True)  # اگر پنجره بسته شد، ترد هم بسته شود
+        #sync_thread.setDaemon(True)  # اگر پنجره بسته شد، ترد هم بسته شود
         sync_thread.start()
-    ##
+    ### get info from server:
     def get_info(self):
         from fixdes import FixThread
-        self.thread_to_get= FixThread()
+        self.thread_to_get = FixThread()
+        self.thread_to_get.data_synced.connect(self.refresh_after_sync) 
         self.thread_to_get.start()
+
+        # 🟢 اجرای دوره‌ای فقط برای بررسی تغییرات
+        self.info_timer = QTimer(self)
+        self.info_timer.timeout.connect(self.check_for_changes)
+        self.info_timer.start(50 * 1000)  # هر 30 ثانیه یکبار
+
+    def check_for_changes(self):
+        if self.thread_to_get and self.thread_to_get.isRunning():
+            return  # اگر ترد هنوز در حال اجراست، دوباره استارت نکن
+
+        from fixdes import FixThread
+        self.thread_to_get = FixThread()
+        self.thread_to_get.data_synced.connect(self.refresh_after_sync)
+        self.thread_to_get.start()
+
+
+    def refresh_after_sync(self, changed: bool):
+        if changed:
+            print("🔄 داده‌ها بعد از سینک دوباره بارگذاری شدند")
+            self.clear_products()
+            self.data_full_loaded()   # 👈 فقط وقتی changed=True
+        else:
+            print("✅ هیچ تغییر جدیدی نبود → UI دست نخورده باقی ماند")
+
+
+
     ###update
     def start_synced_to_server(self):
         self.synced_timer= QTimer(self)
@@ -1200,10 +1228,7 @@ class Inventory(QFrame):
     def show_quantity_msg(self, product_names: list):
         for name in product_names:
             self.enqueue_notification("موجودی محصول", f"محصول {name} موجودی آن رو به اتمام است")
-    ##
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.show_first_spinner()
+
     
         
 

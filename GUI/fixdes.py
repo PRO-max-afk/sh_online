@@ -1,39 +1,57 @@
 import os, requests, sqlite3, pymysql, time
-from PyQt6.QtCore import QThread
+from PyQt6.QtCore import QThread,pyqtSignal
 from decimal import Decimal
 from db_connection import Connection
 from decimal import Decimal
 
 class FixThread(QThread):
+    data_synced= pyqtSignal(bool)
     def __init__(self,last_invent_id=0,last_fixed_id=0):
         super().__init__()
         self.last_invent_id = last_invent_id
         self.last_fixed_id = last_fixed_id
         self.db_connect = None
+        self.prev_inventory_state = {}
 
     def has_new_data(self):
-        """ بررسی کند که داده جدیدی نسبت به آخرین اجرا وجود دارد یا خیر """
+        """ بررسی تغییرات واقعی در دیتابیس لوکال نسبت به MySQL """
         try:
             cursor = self.db_connect.cursor()
-            
-            # بررسی fixeds
-            cursor.execute("SELECT MAX(id) FROM fixeds")
-            latest_fixed = cursor.fetchone()[0] or 0
 
-            # بررسی inventories
-            cursor.execute("SELECT MAX(invent_id) FROM inventories")
-            latest_invent = cursor.fetchone()[0] or 0
+            # گرفتن آخرین داده‌ها از MySQL
+            cursor.execute("SELECT invent_id, quantity, big_sub FROM inventories")
+            mysql_rows = cursor.fetchall()
+            mysql_state = {row[0]: (row[1], row[2]) for row in mysql_rows}
 
-            # اگر چیزی جدیدتر از آخرین ذخیره شده بود
-            if latest_fixed > self.last_fixed_id or latest_invent > self.last_invent_id:
-                self.last_fixed_id = latest_fixed
-                self.last_invent_id = latest_invent
+            # گرفتن داده‌های فعلی از SQLite
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.abspath(os.path.join(base_dir, ".."))
+            db_path = os.path.join(project_root, "Data", "sh_online.db")
+
+            if not os.path.exists(db_path):
+                print("❌ دیتابیس آفلاین یافت نشد.")
+                return False
+
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT invent_id, quantity, big_sub FROM products")
+            local_rows = cursor_sq.fetchall()
+            conn_sq.close()
+
+            local_state = {row[0]: (row[1], row[2]) for row in local_rows}
+
+            # مقایسه MySQL با SQLite
+            if mysql_state != local_state:
+                print("🔄 تغییرات در inventory شناسایی شد")
                 return True
 
             return False
+
         except Exception as e:
             print("❌ خطا در بررسی داده جدید:", e)
             return False
+
+
 
     def run(self):
         self.db_connect = Connection().get_connection()
@@ -45,8 +63,10 @@ class FixThread(QThread):
             print("🔄 داده جدید یافت شد → sync شروع شد...")
             self.get_fixed_info()
             self.get_inventory_info()
+            self.data_synced.emit(True)
         else:
             print("ℹ️ داده جدیدی وجود ندارد → ترید اجرا نشد")
+            self.data_synced.emit(False)
 
 
     def download_image_from_url(self, image_path):
@@ -206,132 +226,156 @@ class FixThread(QThread):
         except pymysql.Error as e:
             print(f"❌ خطا در دیتابیس آنلاین: {e}")
     
+
+
     def get_inventory_info(self):
-        conn = Connection().get_connection()   # اتصال MySQL
-        cursor = conn.cursor()
+        rows = []
+        conn = None
+        cursor = None
+
         try:
-            # 📂 مسیر دیتابیس آفلاین (SQLite)
-            base_dir = os.path.dirname(os.path.abspath(__file__))              # → D:\projects\sh_online\GUI
-            project_root = os.path.abspath(os.path.join(base_dir, ".."))       # → D:\projects\sh_online
-            db_path = os.path.join(project_root, "Data", "sh_online.db")
+            # 📌 تلاش برای اتصال آنلاین (MySQL)
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
 
-            print(f"📂 مسیر دیتابیس آفلاین: {db_path}")
-            if not os.path.exists(db_path):
-                print("❌ دیتابیس آفلاین یافت نشد.")
-                return
-            
-            # اتصال به SQLite برای دریافت user_id
-            conn_sq = sqlite3.connect(db_path)
-            cursor_sq = conn_sq.cursor()
-            cursor_sq.execute("SELECT id FROM users LIMIT 1")
-            user_row = cursor_sq.fetchone()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
 
-            if not user_row:
-                self.error_occurred.emit("شناسه کاربر در دیتابیس لوکال یافت نشد❌")
-                return
+                # اتصال به SQLite برای دریافت user_id
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                user_row = cursor_sq.fetchone()
 
-            id_user = user_row[0]
+                if not user_row:
+                    self.error_occurred.emit("شناسه کاربر در دیتابیس لوکال یافت نشد❌")
+                    return []
 
-            # 🔹 کوئری روی MySQL → استفاده از %s
-            cursor.execute('''
-                SELECT 
-                    product_name, barcode, category, sub_category, buy_date, buy_price, sell_price,
-                    big_category, quantity, expiration_dates, product_image, store_name,
-                    new_price, discount_percent, big_price, big_quantity, big_sub, big_sub_display,
-                    sale_unit, total, final_total, created_at
-                FROM inventories
-                WHERE quantity > 0 AND user_id = %s
-                ORDER BY invent_id DESC
-            ''', (id_user,))
+                id_user = user_row[0]
 
-            products = cursor.fetchall()
-            
-            for product in products:
-                (product_name, barcode, category, sub_category, buy_date, buy_price, sell_price,
+                # 🔹 کوئری روی MySQL
+                cursor.execute('''
+                    SELECT 
+                        product_name, barcode, category, sub_category, buy_date, buy_price, sell_price,
+                        big_category, quantity, expiration_dates, product_image, store_name,
+                        new_price, discount_percent, big_price, big_quantity, big_sub, big_sub_display,
+                        sale_unit, total, final_total, created_at
+                    FROM inventories
+                    WHERE quantity > 0 AND user_id = %s
+                    ORDER BY invent_id DESC
+                ''', (id_user,))
+                products = cursor.fetchall()
+
+                for product in products:
+                    (product_name, barcode, category, sub_category, buy_date, buy_price, sell_price,
                     big_category, quantity, expiration_dates, product_image, store_name,
                     new_price, discount_percent, big_price, big_quantity, big_sub, big_sub_display,
                     sale_unit, total, final_total, created_at) = product
 
-                # ✅ مسیر تصویر
-                if not product_image:
-                    downloaded_image_path = os.path.join(os.getcwd(), "default.png")
-                else:
-                    downloaded_image_path = self.download_image_from_url(product_image)
+                    # ✅ مسیر تصویر
+                    if not product_image:
+                        downloaded_image_path = os.path.join(os.getcwd(), "default.png")
+                    else:
+                        downloaded_image_path = self.download_image_from_url(product_image)
 
-                # 🔄 تبدیل Decimal به float
-                def safe_num(val):
-                    return float(val) if isinstance(val, Decimal) else val
+                    # 🔄 تبدیل Decimal به float
+                    def safe_num(val):
+                        return float(val) if isinstance(val, Decimal) else val
 
-                buy_price        = safe_num(buy_price)
-                sell_price       = safe_num(sell_price)
-                quantity         = safe_num(quantity)
-                new_price        = safe_num(new_price)
-                discount_percent = safe_num(discount_percent)
-                big_price        = safe_num(big_price)
-                big_sub          = safe_num(big_sub)
-                total            = safe_num(total)
-                final_total      = safe_num(final_total)
+                    buy_price        = safe_num(buy_price)
+                    sell_price       = safe_num(sell_price)
+                    quantity         = safe_num(quantity)
+                    new_price        = safe_num(new_price)
+                    discount_percent = safe_num(discount_percent)
+                    big_price        = safe_num(big_price)
+                    big_sub          = safe_num(big_sub)
+                    total            = safe_num(total)
+                    final_total      = safe_num(final_total)
 
-                # بررسی وجود محصول در SQLite
-                cursor_sq.execute(
-                    "SELECT COUNT(*) FROM products WHERE barcode = ? AND user_id = ?", 
-                    (barcode, id_user)
-                )
-                row = cursor_sq.fetchone()
-                exists = row[0] if row else 0
+                    # بررسی وجود محصول در SQLite
+                    cursor_sq.execute(
+                        "SELECT COUNT(*) FROM products WHERE barcode = ? AND user_id = ?", 
+                        (barcode, id_user)
+                    )
+                    row = cursor_sq.fetchone()
+                    exists = row[0] if row else 0
 
-                # بررسی وجود محصول در SQLite
-                cursor_sq.execute(
-                    "SELECT quantity, big_sub FROM products WHERE barcode=? AND user_id=?",
-                    (barcode, id_user)
-                )
-                row_q = cursor_sq.fetchone()
+                    # بررسی مقدار quantity و big_sub
+                    cursor_sq.execute(
+                        "SELECT quantity, big_sub FROM products WHERE barcode=? AND user_id=?",
+                        (barcode, id_user)
+                    )
+                    row_q = cursor_sq.fetchone()
 
-                if exists:
-                    qua, big_s = row_q
-
-                    # فقط اگر اختلاف در quantity یا big_sub بود → آپدیت
-                    if qua != quantity or big_s != big_sub:
+                    if exists:
+                        qua, big_s = row_q
+                        if qua != quantity or big_s != big_sub:
+                            # آپدیت محصول
+                            cursor_sq.execute('''
+                                UPDATE products SET
+                                    name=?, category=?, sub_category=?, buy_date=?, buy_price=?, 
+                                    sale_price=?, store_name=?, new_price=?, discount_percent=?, 
+                                    big_price=?, big_quantity=?, big_sub=?, big_sub_display=?, 
+                                    total=?, final_total=?, sale_unit=?, quantity=?, expire_date=?, 
+                                    image_path=?, user_id=?, create_at=?
+                                WHERE barcode=? AND user_id=?
+                            ''', (
+                                product_name, category, sub_category, buy_date, buy_price,
+                                sell_price, store_name, new_price, discount_percent,
+                                big_price, big_quantity, big_sub, big_sub_display,
+                                total, final_total, sale_unit, quantity, expiration_dates,
+                                downloaded_image_path, id_user, created_at, barcode, id_user
+                            ))
+                    else:
+                        # درج محصول جدید
                         cursor_sq.execute('''
-                            UPDATE products SET
-                                name = ?, category=?, sub_category=?, buy_date=?, buy_price=?, 
-                                sale_price=?, store_name=?, new_price=?, discount_percent=?, 
-                                big_price=?, big_quantity=?, big_sub=?, big_sub_display=?, 
-                                total=?, final_total=?, sale_unit=?, quantity=?, expire_date=?, 
-                                image_path=?, user_id=?, create_at=?
-                            WHERE barcode = ? AND user_id = ?
+                            INSERT INTO products (
+                                barcode, name, category, sub_category, buy_date,
+                                buy_price, sale_price, big_category, store_name,
+                                new_price, discount_percent, big_price, big_quantity,
+                                big_sub, big_sub_display, total, final_total,
+                                sale_unit, quantity, expire_date, image_path,
+                                user_id, create_at
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ''', (
-                            product_name, category, sub_category, buy_date, buy_price,
-                            sell_price, store_name, new_price, discount_percent,
-                            big_price, big_quantity, big_sub, big_sub_display,
-                            total, final_total, sale_unit, quantity, expiration_dates,
-                            downloaded_image_path, id_user, created_at, barcode, id_user
-                        ))
-
-                else:
-                    # محصول وجود ندارد → درج کن
-                    cursor_sq.execute('''
-                        INSERT INTO products (
-                            barcode, name, category, sub_category, buy_date,
-                            buy_price, sale_price, big_category, store_name,
+                            barcode, product_name, category, sub_category, buy_date,
+                            buy_price, sell_price, big_category, store_name,
                             new_price, discount_percent, big_price, big_quantity,
                             big_sub, big_sub_display, total, final_total,
-                            sale_unit, quantity, expire_date, image_path,
-                            user_id, create_at
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        barcode, product_name, category, sub_category, buy_date,
-                        buy_price, sell_price, big_category, store_name,
-                        new_price, discount_percent, big_price, big_quantity,
-                        big_sub, big_sub_display, total, final_total,
-                        sale_unit, quantity, expiration_dates, downloaded_image_path,
-                        id_user, created_at
-                    ))
-            conn_sq.commit()
-            conn_sq.close()
+                            sale_unit, quantity, expiration_dates, downloaded_image_path,
+                            id_user, created_at
+                        ))
+
+                conn_sq.commit()
+                conn_sq.close()
+                conn.close()
+                return products
 
         except pymysql.Error as e:
             print(f"❌ مشکل در دریافت اطلاعات از MySQL: {e}")
+
+        # 📌 اگر آنلاین در دسترس نبود → استفاده از دیتابیس آفلاین
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))              
+            project_root = os.path.abspath(os.path.join(base_dir, ".."))       
+            db_path = os.path.join(project_root, "Data", "sh_online.db")
+
+            if not os.path.exists(db_path):
+                print("❌ دیتابیس آفلاین یافت نشد.")
+                return []
+
+            offline_conn = sqlite3.connect(db_path)
+            cursor = offline_conn.cursor()
+            cursor.execute("SELECT * FROM products")
+            rows = cursor.fetchall()
+            offline_conn.close()
+            print("✅ داده‌ها از دیتابیس آفلاین خوانده شدند.")
+            return rows
+
         except sqlite3.Error as e:
             print(f"❌ مشکل در دیتابیس SQLite: {e}")
+            return []

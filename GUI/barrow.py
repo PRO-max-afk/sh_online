@@ -35,6 +35,7 @@ class Barrow(QMainWindow):
         self.load_all_fonts()
         self.synced_auto_timer()
         self.select_info()
+        self.row_data()
         self.select_name()
 
     def in_UI(self):
@@ -110,6 +111,31 @@ class Barrow(QMainWindow):
         self.form.addWidget(self.save_btn)
         self.form_layout.setSpacing(7)
         ###
+        table_frame_1 = QFrame()
+        table_frame_1.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 12px;
+            }
+        """)
+        self.table_layouts = QVBoxLayout(table_frame_1)
+        self.top_frame= QHBoxLayout()
+        ##
+        self.title_lbs= QLabel()
+        self.select_barrow= QComboBox()
+        ##
+        self.top_frame.addWidget(self.select_barrow)
+        self.top_frame.addWidget(self.title_lb)
+        self.top_frame.setAlignment(Qt.AlignmentFlag.AlignRight)
+        ##
+        self.table_layouts.addLayout(self.top_frame)
+
+
+        # ⚠️ جدول را با والد مناسب بساز
+        self.table = QTableWidget(0, 6, table_frame_1)
+        self.table_layouts.addWidget(self.table)
+        self.table_layouts.setContentsMargins(50,50,50,50)
+        ###
         chart_frame= QFrame()
         chart_frame.setStyleSheet("background-color: white; border-radius: 12px;")
         chart_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)      
@@ -121,7 +147,7 @@ class Barrow(QMainWindow):
         chart_layout.addWidget(self.chart_view)
         
         ###
-        middle_layout.addWidget(chart_frame,2)
+        middle_layout.addWidget(table_frame_1,2)
         middle_layout.addWidget(feild_frame,1)
 
         #####adding to the main layout
@@ -155,6 +181,16 @@ class Barrow(QMainWindow):
                 color: black;
                 font-family: B Nazanin;
             ''')
+            self.title_lb.setText("لیست قرضدار ها")
+        self.title_lbs.setMaximumSize(150, 50)
+        self.title_lbs.setMinimumSize(90, 40)
+        self.title_lbs.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        self.title_lbs.setStyleSheet("""
+            font-size: 17px;
+            font-weight: bold; 
+            color: black;
+            font-family: B Nazanin;
+        """)
     ##
     def input_UI(self):
         for feild in (self.name_line,self.money_line,self.phone_line,self.date_line):
@@ -165,7 +201,7 @@ class Barrow(QMainWindow):
             if feild in (self.money_line,self.phone_line):
                 font_family= 'Arial'
             else:
-                font_family= ' "B Nazanin", Roboto'
+                font_family= ' Roboto,"B Nazanin" '
             feild.setStyleSheet(f'''
                 QLineEdit{{
                     color: black;
@@ -300,6 +336,51 @@ class Barrow(QMainWindow):
                 selection-background-color: #f0f0f0;  /* رنگ انتخاب آیتم */
             }
         ''')
+        ###
+        self.select_barrow.addItems(["همه","قرضدار ها","طلب کار ها"])
+        self.select_barrow.setCurrentIndex(0)
+        self.select_barrow.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.select_barrow.currentTextChanged.connect(self.filter_info)
+        self.select_barrow.setStyleSheet('''
+            QComboBox {
+                background-color: white;
+                font-family: "B Nazanin";
+                font-size: 15px;
+                font-weight: bold;
+                color: #000;
+                border: 1px solid #bfbfbf;
+                border-radius: 8px;
+                text-align: right;
+                padding: 6px 10px 6px 30px; /* فضای کافی برای فلش در سمت چپ */
+                padding-left: 40px;
+            }
+
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top left; /* انتقال فلش به چپ */
+                width: 30px;
+                border: none;
+            }
+
+            QComboBox::down-arrow {
+                image: url(assets/Down Button.png);
+                width: 20px;
+                height: 20px;
+            }
+
+            QComboBox QAbstractItemView {
+                background-color: white;  /* پس‌زمینه سفید */
+                color: black;             /* متن سیاه */
+                text-align: left;        /* تراز متن به راست */
+                font-family: "B Nazanin";
+                font-size: 15px;
+                border: 1px solid #bfbfbf;
+                border-radius: 8px;
+                selection-background-color: #f0f0f0;  /* رنگ انتخاب آیتم */
+            }
+
+        ''')
+
     ###
     def table_UI(self):
         self.har_table.setColumnCount(6)
@@ -359,6 +440,257 @@ class Barrow(QMainWindow):
         """)
         # اگر نماینده‌ای برای رنگ یا ظاهر سفارشی داری:
         self.har_table.setItemDelegate(BlackTextDelegate())  # اگر کلاس تعریف شده است
+        ### second table
+        self.table.setHorizontalHeaderLabels(["نام", "شماره تماس", "تاریخ", "وضعیت","مقدار","عملیات"])
+        header = self.table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+
+        # 🔹 انتخاب را غیرفعال کن (هیچ رنگی تغییر نکند)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+
+        self.table.setAlternatingRowColors(True)
+        self.table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+
+        # اندازه ستون‌ها
+        for i in range(self.table.columnCount()):
+            if i == 5:
+                header.setSectionResizeMode(i, QHeaderView.ResizeMode.Fixed)
+                self.table.setColumnWidth(i, 60)   # عرض مناسب برای دکمه
+            else:
+                header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+
+        # استایل‌دهی
+        self.table.setStyleSheet("""
+            QTableWidget {
+                border:None;
+                font-family: Roboto,'B Nazanin';
+                font-size: 14px;
+                color: black;
+                border-radius: 12px;
+                gridline-color: transparent; /* حذف خطوط داخلی */
+                alternate-background-color: #f5f5f5; /* رنگ ردیف‌های زوج */
+                background-color: #ffffff;          /* رنگ ردیف‌های فرد */
+            }
+            QTableWidget::item {
+                border: none;      
+                padding: 8px;      
+            }
+            QTableWidget::item:selected {
+                background: transparent;  /* حذف رنگ انتخاب */
+                color: black;
+            }
+            QHeaderView::section {
+                background-color: #7E22CE; 
+                color: white;
+                font-family: 'B Nazanin';
+                font-size: 15px;
+                font-weight: bold;
+                padding: 5px;
+                border: none;  
+            }
+            QHeaderView::section:first {
+                border-top-left-radius: 10px; 
+            }
+            QHeaderView::section:last {
+                border-top-right-radius: 10px;  
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, 
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
+        """)
+    ##
+            
+    def row_data(self):
+        self.table.setRowCount(0)
+        self.table.setShowGrid(True)
+        base_dir= os.path.dirname(os.path.abspath(__file__))
+        root_dir= os.path.dirname(base_dir)
+        db_path= os.path.join(root_dir, 'Data','sh_online.db')
+        if not os.path.exists(db_path):
+            print("no offline db")
+            return
+        try:
+            conn=sqlite3.connect(db_path)
+            cursor= conn.cursor()
+            cursor.execute('''
+                Select name,phone,date,amount,type from barrow where type in('طلب مردم','برده گی')
+            ''')
+            # 📌 درج داده‌ها + دکمه عملیات
+            result = cursor.fetchall()
+            if result:
+                for name, phone, date, amount, types in result:
+                    if amount == 0:
+                        types = "صفر"
+                    elif types == "برده گی":
+                        types = "قرضدار"
+                    else:
+                        types = "طلب کار"
+
+                    row = self.table.rowCount()
+                    self.table.insertRow(row)
+                    self.table.setItem(row, 0, QTableWidgetItem(name))
+                    self.table.setItem(row, 1, QTableWidgetItem(str(phone)))
+                    self.table.setItem(row, 2, QTableWidgetItem(self._make_cell(date)))
+                    self.table.setItem(row, 3, QTableWidgetItem(self._make_cell(types)))
+                    self.table.setItem(row, 4, QTableWidgetItem(self._make_cell(str(amount))))
+
+                    # === دکمه ویرایش ===
+                    edit_btn = QPushButton()
+                    edit_btn.setIcon(QIcon(self.get_asset_path("edit_2122.png")))
+                    edit_btn.setIconSize(QtCore.QSize(20, 20))
+                    edit_btn.setFixedSize(28, 28)   # اندازه ثابت دکمه
+                    edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                    edit_btn.clicked.connect(lambda _, r=row: self.enter_info(r))
+                    edit_btn.setStyleSheet("""
+                        QPushButton {
+                            border: none;
+                            background-color: transparent;
+                        }
+                        QPushButton:hover {
+                            background-color: #eaeaea;
+                            border-radius: 10px;
+                        }
+                        QPushButton::Pressed{
+                            background-color: white;
+                            border-radius: 10px;
+                                           }
+                    """)
+
+                    # === ویجت حاوی دکمه ===
+                    btn_widget = QWidget()
+                    btn_widget.setStyleSheet("background-color: transparent;")
+                    btn_layout = QHBoxLayout(btn_widget)
+                    btn_layout.addWidget(edit_btn)
+                    btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # وسط‌چین
+                    btn_layout.setContentsMargins(0, 0, 0, 0)
+
+                    self.table.setCellWidget(row, 5, btn_widget)
+
+                    # ارتفاع ردیف
+                    self.table.setRowHeight(row, 50)
+        except sqlite3.Error as e:
+            print(f"db proble:{e}")
+    ##
+    def filter_info(self):
+        filter_type= self.select_barrow.currentText()
+        self.table.setRowCount(0)
+        self.table.setShowGrid(True)
+
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
+        if not os.path.exists(db_path):
+            print("no offline db")
+            return
+        try:
+            conn= sqlite3.connect(db_path)
+            cursor= conn.cursor()
+            # شرط فیلتر
+            if filter_type == "همه":
+                cursor.execute('''
+                    SELECT name, phone, date, amount, type 
+                    FROM barrow 
+                    WHERE type IN ('طلب مردم','برده گی')
+                ''')
+            elif filter_type == "طلب کار ها":
+                cursor.execute('''
+                    SELECT name, phone, date, amount, type 
+                    FROM barrow 
+                    WHERE type = 'طلب مردم'
+                ''')
+            elif filter_type == "قرضدار ها":
+                cursor.execute('''
+                    SELECT name, phone, date, amount, type 
+                    FROM barrow 
+                    WHERE type = 'برده گی'
+                ''')
+
+            result = cursor.fetchall()
+            if result:
+                for name, phone, date, amount, types in result:
+                    if amount == 0:
+                        types = "صفر"
+                    elif types == "برده گی":
+                        types = "قرضدار"
+                    else:
+                        types = "طلب کار"
+
+                    row = self.table.rowCount()
+                    self.table.insertRow(row)
+                    self.table.setItem(row, 0, QTableWidgetItem(name))
+                    self.table.setItem(row, 1, QTableWidgetItem(str(phone)))
+                    self.table.setItem(row, 2, QTableWidgetItem(self._make_cell(date)))
+                    self.table.setItem(row, 3, QTableWidgetItem(self._make_cell(types)))
+                    self.table.setItem(row, 4, QTableWidgetItem(self._make_cell(str(amount))))
+                    edit_btn = QPushButton()
+                    edit_btn.setIcon(QIcon(self.get_asset_path("edit_2122.png")))
+                    edit_btn.setIconSize(QtCore.QSize(20, 20))
+                    edit_btn.setFixedSize(28, 28)   # اندازه ثابت دکمه
+                    edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)  # دست موس روی دکمه
+                    edit_btn.clicked.connect(lambda _, r=row: self.enter_info(r))
+                    edit_btn.setStyleSheet("""
+                        QPushButton {
+                            border: none;
+                            background-color: transparent;
+                        }
+                        QPushButton:hover {
+                            background-color: #eaeaea;
+                            border-radius: 10px;
+                        }
+                        QPushButton::Pressed{
+                            background-color: white;
+                            border-radius: 10px;
+                                           }
+                    """)
+                    btn_widget = QWidget()
+                    btn_widget.setStyleSheet("background: transparent;")   # پس‌زمینه شفاف
+                    btn_layout = QHBoxLayout(btn_widget)
+                    btn_layout.addWidget(edit_btn)
+                    btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    btn_layout.setContentsMargins(0, 0, 0, 0)
+
+                    self.table.setCellWidget(row, 5, btn_widget)
+                    self.table.setRowHeight(row,50)
+
+
+        except sqlite3.Error as e:
+            print(f"db select info:{e}")
+    ##
+    def enter_info(self,row):
+        name= self.table.item(row,0).text()
+        phone= self.table.item(row,1).text()
+        date= self.table.item(row,2).text()
+        amount= self.table.item(row,4).text()
+
+        self.name_line.clear()
+        self.name_line.setText(name)
+
+        self.phone_line.clear()
+        self.phone_line.setText(str(phone))
+
+        self.date_line.clear()
+        self.date_line.setText(date)
+        
+        self.money_line.clear()
+        self.money_line.setText(str(amount))
+
     ##
     def show_calendar(self):
         self.calendar_popup = JalaliCalendar(self)
@@ -687,6 +1019,26 @@ class Barrow(QMainWindow):
             else:
                 pass
                 #MessageBox(text="حساب این شخص صفر است",type="warning",title="موجودی حساب").show()
+            cursor.execute('''
+                SELECT name,amount,type, phone, date,description
+                FROM barrow 
+                WHERE name = ? AND type= 'رسیده گی'
+            ''', (name,))
+
+            table_result= cursor.fetchall()
+            if table_result:
+                self.har_table.setRowCount(0)
+                self.har_table.setShowGrid(True)
+                for name,amount,typ,phone, date,description in table_result:
+                    row= self.har_table.rowCount()
+                    self.har_table.insertRow(row)
+                    self.har_table.setItem(row,0, QTableWidgetItem(self._make_cell(name)))
+                    self.har_table.setItem(row,1, QTableWidgetItem(self._make_cell(str(abs(amount)))))
+                    self.har_table.setItem(row,2, QTableWidgetItem(self._make_cell(typ)))
+                    self.har_table.setItem(row,3, QTableWidgetItem(self._make_cell(str(phone))))
+                    self.har_table.setItem(row, 4, QTableWidgetItem(self._make_cell(date)))
+                    self.har_table.setItem(row,5,QTableWidgetItem(self._make_cell(description)))
+
         except sqlite3.Error as e:
             print(f"{e}: db problem")
     ##
