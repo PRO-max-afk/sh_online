@@ -86,6 +86,7 @@ class Dashboard(QMainWindow):
             ("مفاد خالص", "profit"),
             ("مجموعه برداشت ها","harvest"),
             ("مجموعه قرض ها","total_barrow"),
+            ("موجودی گدام", "total_inventory"),
             ("سرمایه فعلی", "current_capital"), 
             ("پول نقد", "total_cush")
               ]
@@ -276,6 +277,11 @@ class Dashboard(QMainWindow):
         ''')
     
     ## new thread
+    def showEvent(self, event):
+        self.show_first_spinner()
+        super().showEvent(event)
+
+    ##
     def show_first_spinner(self):
         self.hide_run_layout_widgets()  # ← اول مخفی کن
         self.show_spinner_and_load_data()

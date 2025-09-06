@@ -134,7 +134,7 @@ class UpdateThread(QThread):
         unsynced_products = cursor_sq.fetchall()
         cursor_sq.execute('''
             SELECT weight,brand,production_date,production_place,product_state,
-                        more_details,keep_place from product_details
+                        more_details,keep_place from product_details where is_synced=0
             ''')
         un_sypro= cursor_sq.fetchall()
 

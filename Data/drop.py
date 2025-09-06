@@ -3,7 +3,7 @@ import sqlite3
 conn= sqlite3.connect('D:\\projects\\sh_online\\Data\\sh_online.db')
 cursor= conn.cursor()
 
-cursor.execute("delete from factor_number ")
+cursor.execute("drop table product_details")
 conn.commit()
 #DROP TRIGGER IF EXISTS trg_update_big_sub;
 #DROP TRIGGER IF EXISTS trg_update_quantity;

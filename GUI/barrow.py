@@ -731,7 +731,7 @@ class Barrow(QMainWindow):
                 return
             conn= sqlite3.connect(db_path)
             cursor= conn.cursor()
-            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE type= 'طلب مردم'  and is_synced=1")
+            cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE type= 'طلب مردم' ")
             bm_result= cursor.fetchone()
             if bm_result:
                 b_loan= float(bm_result[0]) if bm_result and bm_result[0] is not None else 0
@@ -739,15 +739,15 @@ class Barrow(QMainWindow):
                 print("no b_loan found!")
                 return
             ##
-            cursor.execute("select SUM(amount) FROM barrow WHERE type='برده گی' and is_synced=1")
+            cursor.execute("select SUM(amount) FROM barrow WHERE type='برده گی' ")
             be_result= cursor.fetchone()
             be_loan= float(be_result[0]) if be_result and be_result[0] else 0
             ##
-            cursor.execute("select SUM(ABS(amount)) FROM barrow WHERE type='رسیده گی' and is_synced=1")
+            cursor.execute("select SUM(ABS(amount)) FROM barrow WHERE type='رسیده گی' ")
             bc_result= cursor.fetchone()
             bc_clear= float(bc_result[0]) if bc_result and bc_result[0] else 0
             ##
-            cursor.execute("select SUM(amount) FROM barrow WHERE type='پول نقد' and is_synced=1")
+            cursor.execute("select SUM(amount) FROM barrow WHERE type='پول نقد' ")
             bmn_result= cursor.fetchone()
             b_money= float(bmn_result[0]) if bmn_result and bmn_result[0] else 0
             total=[b_loan,be_loan,bc_clear,b_money]

@@ -30,6 +30,7 @@ class ItemsSettings(QMainWindow):
         ##هشدار ها
         self.notification_queue = []  # صف مرکزی نوتیفیکیشن‌ها
         self.notification_showing = False
+        self.invent_id= None
 
     def setup_ui(self):
         self.stack_items= QStackedWidget()
@@ -455,7 +456,7 @@ class ItemsSettings(QMainWindow):
 
             cursor.execute('''
                 SELECT name, barcode, buy_price, sale_price, big_price,
-                    big_sub, big_quantity,buy_date,expire_date, image_path
+                    big_sub, big_quantity,buy_date,expire_date, image_path, invent_id
                 FROM products
                 WHERE TRIM(name) = ? OR barcode = ?
             ''', (search, search))
@@ -464,7 +465,7 @@ class ItemsSettings(QMainWindow):
             if search_result:
                 # مستقیماً آن را unpack می‌کنیم
                 (name, barcode, buy_price, sale_price, big_price,
-                big_sub, big_quantity, buy_date,expire_date, image_path) = search_result
+                big_sub, big_quantity, buy_date,expire_date, image_path,invent_id) = search_result
 
                 self.line_frame1[0].clear()
                 self.line_frame1[0].setText(name)
@@ -492,6 +493,8 @@ class ItemsSettings(QMainWindow):
 
                 self.line_frame1[8].clear()
                 self.line_frame1[8].setText(str(expire_date))
+                ##
+                self.invent_id= invent_id
 
                 self.center_icon.clear()
                 if image_path and os.path.exists(image_path):
@@ -525,7 +528,7 @@ class ItemsSettings(QMainWindow):
         expir_date= self.line_frame1[8].text()
         type_save= 'inventory'
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
-        ##
+
         base_dir= os.path.dirname(os.path.abspath(__file__))
         root_dir= os.path.dirname(base_dir)
         db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
@@ -539,47 +542,46 @@ class ItemsSettings(QMainWindow):
 
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
+            ##
+            cursor_sq.execute("select id from users limit 1")
+            id_user= cursor_sq.fetchone()[0]
+            product_id= self.invent_id
 
-            
-            ## مجموعه محصول
+            ## محاسبه تعداد کل
             new_quantity= big_sub * big_quantity
             total= float(new_quantity * buy_price)
             print(f"{big_quantity}: تعداد محاسبه محصول✅😉😣")
 
-
             is_synced = 0
             cursor_sq.execute("""
                     UPDATE products 
-                    SET name=?, barcode=?, quantity = ?, buy_price = ?, update_date = ?, 
-                        big_quantity = ?,expire_date = ?, big_sub=?,
-                        sale_price = ?, big_price = ?, 
-                        total = ?, is_synced = ?,type_save=?,update_at=?
-                    WHERE barcode = ?
+                    SET name=?, barcode=?, quantity=?, buy_price=?, update_date=?, 
+                        big_quantity=?, expire_date=?, big_sub=?,
+                        sale_price=?, big_price=?, 
+                        total=?, is_synced=?, type_save=?, update_at=?
+                    WHERE user_id=? AND invent_id=? 
                 """, (
-                    name, barcode,new_quantity, buy_price, buy_date, big_quantity,
-                    expir_date,big_sub, sale_price,big_price,
-                    total, is_synced,type_save,date_ent, barcode
+                    name, barcode, new_quantity, buy_price, buy_date,
+                    big_quantity, expir_date, big_sub, sale_price, big_price,
+                    total, is_synced, type_save, date_ent,
+                    id_user, product_id
                 ))
 
             conn_sq.commit()
 
-            # پیام موفقیت واضح
+            # پیام موفقیت
             MessageBox("✅ اطلاعات محصول با موفقیت به‌روزرسانی شد.", title="عملیات موفق", type="info").show()
             print("✅ تغییرات در جدول products ثبت شد.")
-            self.line_frame1[0].clear()
-            self.line_frame1[1].clear()
-            self.line_frame1[2].clear()
-            self.line_frame1[3].clear()
-            self.line_frame1[4].clear()
-            self.line_frame1[5].clear()
-            self.line_frame1[6].clear()
-            self.line_frame1[7].clear()
-            self.line_frame1[8].clear()
+
+            # پاک کردن فیلدها
+            for i in range(9):
+                self.line_frame1[i].clear()
             self.frame1_search_input.clear()
             self.center_icon.clear()
 
         except sqlite3.Error as e:
             MessageBox(f"{e}: خطا در پایگاه داده", title="❌ خطا", type="error").show()
+
     ##
     def select_file(self):
         file_path, _ = QFileDialog.getOpenFileName(

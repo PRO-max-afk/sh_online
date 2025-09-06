@@ -402,7 +402,7 @@ class Harvest(QMainWindow):
             cursor = conn.cursor()
 
             # فرض بر این است که ستون amount برای مبلغ و ستون date برای تاریخ است
-            cursor.execute("SELECT amount, date FROM harvest WHERE is_synced=1")
+            cursor.execute("SELECT amount, date FROM harvest")
             rows = cursor.fetchall()
 
             for amount, date_str in rows:

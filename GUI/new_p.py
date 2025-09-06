@@ -890,7 +890,7 @@ class ProductForm(QDialog):
             else:
                 cursor_sq.execute('''
                     SELECT weight, production_date, brand, production_place, product_state, more_details, keep_place
-                    FROM details
+                    FROM details 
                     ORDER BY production_date DESC
                     LIMIT 1;
                 ''')
@@ -938,9 +938,9 @@ class ProductForm(QDialog):
         if category in ['کیلو','دانه']:
             new_sub = f'{per_quantity} {category}'
             total= per_buy * per_quantity
-            big_sub=1
+            big_sub=quantity
             big_s=1
-            small_price= 1
+            small_price= buy_price
 
         else:
             new_sub = f'{big_sub} {category}'
@@ -1135,7 +1135,7 @@ class ProductForm(QDialog):
 
                 except Exception as e:
                     print(f"❌ خطا در سینک محصول {name}: {e}")
-                    # ⚠️ در صورت خطا این محصول is_synced=0 باقی می‌ماند
+
 
             db_connect.commit()
             print("✅ همگام‌سازی با موفقیت انجام شد")
@@ -1147,11 +1147,6 @@ class ProductForm(QDialog):
             conn_sq.close()
             if db_connect:
                 db_connect.close()
-
-
-   
-    
-
     ##
     def open_details(self):
         details= MoreDetails()
@@ -1161,6 +1156,7 @@ class ProductForm(QDialog):
         if self.inventory_page:
             #self.inventory_page.show_first_spinner()
             self.inventory_page.start_sync_thread()
+        #self.sync_to_server()
         event.accept()
         
 

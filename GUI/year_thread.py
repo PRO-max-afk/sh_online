@@ -263,6 +263,7 @@ class YearThread(QThread):
             return
 
         total_buy = 0.0
+        total_inventory= 0
         total_sale = 0.0
         total_profit = 0.0
         total_harvest = 0.0
@@ -299,7 +300,22 @@ class YearThread(QThread):
                     continue
             if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
                 total_buy += float(total) if total else 0
-                print(f'{total_buy}: total_buy offline')
+                print(f'{total_buy}: total_inventory offline')
+        ##total_inventory:
+        cursor.execute("SELECT buy_date,sum(small_price * quantity) FROM products WHERE user_id = ?", (id_user,))
+        for buy_dates, totals in cursor.fetchall():
+            if not buy_dates:
+                continue
+            try:
+                miladi = datetime.strptime(str(buy_date), "%Y/%m/%d ")
+            except ValueError:
+                try:
+                    miladi = datetime.strptime(str(buy_date), "%Y/%m/%d")
+                except:
+                    continue
+            if str(jdatetime.date.fromgregorian(date=miladi.date()).year) == self.year_selected:
+                total_inventory += float(totals) if total else 0
+                print(f'{total_inventory}: total_buy offline')
 
         # harvest (تاریخ شمسی است)
         cursor.execute("SELECT date, amount FROM harvest WHERE user_id = ?", (id_user,))
@@ -343,7 +359,8 @@ class YearThread(QThread):
             "profit": total_profit,
             "harvest": total_harvest,
             "total_barrow": total_barrow,
-            "current_capital": total_cush + total_buy ,
+            "total_inventory" : total_inventory,
+            "current_capital": total_cush + total_inventory,
             "total_cush": total_cush,
         }
 
@@ -518,7 +535,12 @@ class YearThread(QThread):
             if res:
                 total_buy = float(res[0]) if res[0] else 0
             print(f"offline products buy={total_buy}")
-
+            ###
+            cursor.execute("SELECT SUM(small_price * quantity) FROM products WHERE user_id=?",(id_user,))
+            rest= cursor.fetchone()
+            total_inventory= 0
+            if rest:
+                total_inventory= float(rest[0] )if rest[0] else 0
             # harvest
             cursor.execute("SELECT SUM(amount) FROM harvest WHERE user_id = ?", (id_user,))
             res = cursor.fetchone()
@@ -548,7 +570,8 @@ class YearThread(QThread):
                 "profit": total_profit,
                 "harvest": total_harvest,
                 "total_barrow": total_barrow,
-                "current_capital": total_cush + total_buy,  # ✅ مثل آنلاین
+                "total_inventory":total_inventory,
+                "current_capital": total_cush + total_inventory,  # ✅ مثل آنلاین
                 "total_cush": total_cush,
             }
 

@@ -1135,6 +1135,10 @@ class Inventory(QFrame):
 
 
     ###update
+    def showEvent(self, event):
+        self.show_first_spinner()
+        super().showEvent(event)
+    ##
     def start_synced_to_server(self):
         self.synced_timer= QTimer(self)
         self.synced_timer.timeout.connect(self.start_synced_to_thread)

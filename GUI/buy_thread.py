@@ -188,8 +188,8 @@ class BuyThread(QThread):
             id_user = result[0]
 
             cursor.execute('''
-                SELECT sale_date, total
-                FROM sale_factor
+                SELECT buy_date, final_total
+                FROM products
                 WHERE user_id = ?
             ''', (id_user,))
             results = cursor.fetchall()

@@ -6,12 +6,25 @@ cursor= conn.cursor()
 cursor.execute('''
 CREATE TRIGGER IF NOT EXISTS after_sale_insert
 AFTER INSERT ON sale_factor
-
 BEGIN
+  -- کم کردن تعداد محصول و total
   UPDATE products
-  SET quantity = quantity - NEW.quantity
+  SET quantity = quantity - NEW.quantity,
+      total    = total - NEW.total
   WHERE barcode = NEW.barcode;
-END;
+
+  -- محاسبه big_sub با توجه به big_quantity در products
+  UPDATE products
+  SET big_sub = NEW.quantity  / big_quantity
+  WHERE barcode = NEW.barcode
+    AND big_quantity > 0
+    AND NEW.quantity > 0;
+               
+ -- به‌روزرسانی big_sub_display = ترکیب big_sub + big_category
+  UPDATE products
+  SET big_sub_display = CAST(big_sub AS TEXT) || ' ' || big_category
+  WHERE barcode = NEW.barcode;
+END;    
 
 ''')
 cursor.execute('''
