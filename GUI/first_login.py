@@ -13,16 +13,15 @@ import pytz
 from datetime import datetime
 from db_connection_f import Connection
 
-
 class LoginThread(QThread):
-    login_result = pyqtSignal(bool, str)   
+    login_result = pyqtSignal(bool, str, int)   # bool=success , str=msg , int=user_id
 
     def __init__(self, username, password, db_path_func, get_conn_func):
         super().__init__()
         self.username = username
         self.password = password
-        self.get_db_path = db_path_func     # تابع کمکی برای گرفتن مسیر sqlite
-        self.get_connection = get_conn_func # تابع کمکی برای گرفتن connection MySQL
+        self.get_db_path = db_path_func
+        self.get_connection = get_conn_func
 
     def run(self):
         conn = None
@@ -43,29 +42,37 @@ class LoginThread(QThread):
             kabul_time = pytz.utc.localize(utc_time).astimezone(kabul_tz)
             expire_date = kabul_time.strftime('%Y-%m-%d %H:%M:%S')
 
-            # --- اتصال به MySQL ---
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            user_id = None
+            # --- تلاش برای اتصال آنلاین ---
+            try:
+                conn = self.get_connection()
+                if conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT id, username, password, expirition_dates 
+                        FROM user_s 
+                        WHERE username = %s 
+                        AND password = %s 
+                        AND expirition_dates > %s
+                    """, (self.username, self.password, expire_date))
 
-            cursor.execute("""
-                SELECT id, username, password, expirition_dates 
-                FROM user_s 
-                WHERE username = %s 
-                AND password = %s 
-                AND expirition_dates > %s
-            """, (self.username, self.password, expire_date))
-
-            result = cursor.fetchone()
-            if not result:
-                self.login_result.emit(False, "نام کاربری یا رمز عبور اشتباه است یا حساب منقضی شده است")
+                    result = cursor.fetchone()
+                    if result:
+                        user_id = result[0]
+                    else:
+                        self.login_result.emit(False, "❌ نام کاربری یا رمز عبور اشتباه است یا حساب منقضی شده است", -1)
+                        return
+                else:
+                    raise Exception("اتصال به سرور برقرار نشد")
+            except Exception as e:
+                # اگر سرور در دسترس نبود → ورود آفلاین
+                self.login_result.emit(False, f"⚠ ورود آفلاین: اتصال سرور ممکن نشد ({e})", -1)
                 return
 
-            user_id = result[0]
-
-            # --- اتصال به SQLite ---
+            # --- اتصال به SQLite و ذخیره کاربر ---
             db_path = self.get_db_path()
             if not os.path.exists(db_path):
-                self.login_result.emit(False, "فایل دیتابیس محلی یافت نشد")
+                self.login_result.emit(False, "⚠ فایل دیتابیس محلی یافت نشد", -1)
                 return
 
             conn_sq = sqlite3.connect(db_path)
@@ -76,12 +83,10 @@ class LoginThread(QThread):
             conn_sq.commit()
 
             # اگر همه چیز موفق بود
-            self.login_result.emit(True, "ورود موفق ✅")
+            self.login_result.emit(True, "✅ ورود موفق", user_id)
 
-        except pymysql.Error as e:
-            self.login_result.emit(False, f"خطای اتصال MySQL: {e}")
         except Exception as e:
-            self.login_result.emit(False, f"خطای غیرمنتظره: {e}")
+            self.login_result.emit(False, f"❌ خطای غیرمنتظره: {e}", -1)
         finally:
             if cursor:
                 cursor.close()
@@ -91,15 +96,12 @@ class LoginThread(QThread):
                 cursor_sq.close()
             if conn_sq:
                 conn_sq.close()
-
-
-
 class Main_login(QMainWindow):
     def __init__(self):
         super().__init__()
         self.main_UI()
         self.InUI()
-        #self.db_data= Connection().get_connection()
+        self.db_data= Connection().get_connection()
         self.load_all_fonts()
     
     def main_UI(self):
@@ -550,21 +552,22 @@ class Main_login(QMainWindow):
         # ✅ استارت ترید را به چرخه بعدی موکول کن تا Splash فرصت رندر داشته باشد
         QTimer.singleShot(0, self.thread.start)
     ##
-    def handle_login_result(self, success, msg):
+    def handle_login_result(self, success, msg, user_id):
         if success:
-            # ✅ بعد از چند ثانیه برو سراغ MainWindow
+            # ✅ فقط در ورود موفق برو به mainwindow
             QTimer.singleShot(500, self.open_mainwindow_with_animation)
-
         else:
-            MessageBox(text=msg, title="❌ خطا", type="error").show()
-            # بازگرداندن دوباره UI لاگین
+            # ❌ خطا → روی همان صفحه لاگین پیام نشان داده شود
+            self.ne_lb.setText(msg)
+            self.ne_lb.setStyleSheet("""
+                color: red;
+                font-size: 16px;
+                font-family: B Nazanin;
+                font-weight: bold;
+            """)
+            # splash رو هم برگردون به فرم لاگین
             self.main_UI()
             self.InUI()
-    ##  
-    def late_connect(self):
-        self.db_data= Connection().get_connection()
-        QTimer.singleShot(3000,self.late_connect)
-
     ##
     def show_splash_screen(self):
         old_layout = self.frame.layout()
@@ -597,11 +600,6 @@ class Main_login(QMainWindow):
 
         movie.start()
         QApplication.processEvents()
-
-
-
-
-
     ##fonts
     def load_all_fonts(self):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -624,7 +622,14 @@ class Main_login(QMainWindow):
         
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = Main_login()
-    window.show()
-    sys.exit(app.exec())
+    import traceback
+
+    try:
+        app = QApplication(sys.argv)
+        window = Main_login()
+        window.show()
+        print("🔹 UI ساخته شد")
+        sys.exit(app.exec())
+    except Exception:
+        print("❌ خطای اجرای برنامه:")
+        traceback.print_exc()

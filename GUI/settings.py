@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QStackedWidget,QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout,QToolButton,
     QSizePolicy,QScrollArea,QWidget,QGridLayout)
-from PyQt6.QtCore import Qt,QPoint,QPropertyAnimation,QEasingCurve
+from PyQt6.QtCore import Qt,QPoint,QPropertyAnimation,QEasingCurve,QTimer
 from PyQt6.QtGui import QIcon,QFontDatabase
 from PyQt6 import QtCore
 import jdatetime
@@ -302,21 +302,32 @@ class Settings(QMainWindow):
     def open_login_with_animation(self):
         from first_login import Main_login
 
-        # ساخت پنجره لاگین
-        login_window = Main_login()
-        login_window.setWindowOpacity(0)
-        login_window.showMaximized()
+        # نگه‌داری به صورت attribute
+        self.login_window = Main_login()
+        self.login_window.setWindowOpacity(0)
+        self.login_window.showMaximized()
 
-        # اجرای انیمیشن
-        animation = QPropertyAnimation(login_window, b"windowOpacity")
-        animation.setDuration(700)
-        animation.setStartValue(0)
-        animation.setEndValue(1)
-        animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
-        animation.start()
+        # نگه‌داری انیمیشن در attribute
+        self.animation = QPropertyAnimation(self.login_window, b"windowOpacity")
+        self.animation.setDuration(700)
+        self.animation.setStartValue(0)
+        self.animation.setEndValue(1)
+        self.animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self.animation.start()
 
-        # حذف کامل و فوری تمام چهارچوب پنجره فعلی
-        self.window().destroy()
+        # گرفتن مرجع امن به پنجره‌ی اصلی قبل از بستن
+        main_win = self.window()
+
+        # بستن فرم Settings
+        self.close()
+        self.deleteLater()
+
+        # اجرای destroy روی مرجع ذخیره‌شده بعد از 5 ثانیه
+        QTimer.singleShot(900, lambda: main_win.destroy())
+
+
+
+
 
     ##images
     def get_asset_path(self, filename):

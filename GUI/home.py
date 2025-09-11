@@ -954,11 +954,45 @@ class WidgetManager(QWidget):
                 self.switch.setChecked(False)
                 self.table.setShowGrid(True)
                 self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+                # اطمینان از اینکه cellChanged برای بروزرسانی فعال است
+                self.table.cellChanged.connect(self.update_product_from_table)
+                self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
             except sqlite3.Error as e:
                 MessageBox(text=f"{e}: خطا در دیتابیس", title="ناموفق", type="error").show()
             finally:
                 conn.close()
+    ##
+    def update_product_from_table(self, row, column):
+        if column == 2:  # ستون qty
+            try:
+                new_qty_item = self.table.item(row, column)
+                if not new_qty_item:
+                    return
+
+                new_qty = float(new_qty_item.text())
+
+                # انتخاب لیست مناسب
+                if row < len(self.added_products):
+                    target_list = self.added_products
+                elif row < len(self.temp_loaded_invoice):
+                    target_list = self.temp_loaded_invoice
+                else:
+                    return  # اگر هیچ داده‌ای پیدا نشد
+
+                target_list[row]['raw_qty'] = new_qty
+                target_list[row]['quantity'] = new_qty
+                unit_price = float(target_list[row]['unit_price'])
+                discount = float(target_list[row].get('discount', 0))
+                target_list[row]['total'] = (unit_price - discount) * new_qty
+
+                # بروزرسانی جدول
+                self.table.blockSignals(True)
+                self.table.setItem(row, 5, self._make_cell(str(target_list[row]['total'])))
+                self.table.blockSignals(False)
+
+            except ValueError:
+                pass
     ##
     def save_prouducts(self):
         items = self.added_products if self.added_products else self.temp_loaded_invoice
@@ -1091,15 +1125,12 @@ class WidgetManager(QWidget):
 
                         self.table.editItem(item)
                         break
-
-
     ##
     def _make_cell(self, text):
         item = QTableWidgetItem(text)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         item.setForeground(Qt.GlobalColor.black)
         return item
-
     ##
     def update_total_price(self):
         try:
@@ -1738,9 +1769,6 @@ class WidgetManager(QWidget):
 
         except sqlite3.Error as e:
             MessageBox(f"{e} : خطا در حذف یا بروزرسانی محصول", title="خطای دیتابیس", type="error").show()
-
-
-
     ##
     def select_name_products(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))
