@@ -31,6 +31,7 @@ class ItemsSettings(QMainWindow):
         self.notification_queue = []  # صف مرکزی نوتیفیکیشن‌ها
         self.notification_showing = False
         self.invent_id= None
+        self.image_picture= None
 
     def setup_ui(self):
         self.stack_items= QStackedWidget()
@@ -528,6 +529,7 @@ class ItemsSettings(QMainWindow):
         expir_date= self.line_frame1[8].text()
         type_save= 'inventory'
         date_ent = datetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
+        image_path= self.image_picture
 
         base_dir= os.path.dirname(os.path.abspath(__file__))
         root_dir= os.path.dirname(base_dir)
@@ -557,12 +559,12 @@ class ItemsSettings(QMainWindow):
                     UPDATE products 
                     SET name=?, barcode=?, quantity=?, buy_price=?, update_date=?, 
                         big_quantity=?, expire_date=?, big_sub=?,
-                        sale_price=?, big_price=?, 
+                        sale_price=?, big_price=?, image_path=?,
                         total=?, is_synced=?, type_save=?, update_at=?
                     WHERE user_id=? AND invent_id=? 
                 """, (
                     name, barcode, new_quantity, buy_price, buy_date,
-                    big_quantity, expir_date, big_sub, sale_price, big_price,
+                    big_quantity, expir_date, big_sub, sale_price, big_price,image_path,
                     total, is_synced, type_save, date_ent,
                     id_user, product_id
                 ))
@@ -592,10 +594,12 @@ class ItemsSettings(QMainWindow):
 
         if not os.path.exists(file_path):
             print("عکس انتخاب نشد")
+            
         else:
             self.center_icon.setFixedSize(75, 75)
             self.center_icon.setScaledContents(True)
             self.center_icon.setPixmap(QPixmap(file_path))
+            self.image_picture= file_path
         
     ##
     def back_settings(self):

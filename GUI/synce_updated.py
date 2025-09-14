@@ -18,7 +18,7 @@ class UpdateThread(QThread):
     def run(self):
         self.db_connect = Connection().get_connection()
         if self.db_connect:
-            #self.delete_from_server()  # 🗑 بررسی و حذف محصولات که در آفلاین حذف شده‌اند
+            self.delete_from_server()  # 🗑 بررسی و حذف محصولات که در آفلاین حذف شده‌اند
             self.synced_to_server()    # 🔄 همگام‌سازی باقی محصولات
             self.delete_from_server_sale()
 
@@ -35,26 +35,24 @@ class UpdateThread(QThread):
             MessageBox(text="فایل دیتابیس محلی یافت نشد!", title="❌ خطا", type="error").show()
             return
 
-        # اتصال به SQLite
         conn_sq = sqlite3.connect(db_path)
         cursor_sq = conn_sq.cursor()
 
-        # گرفتن همه بارکدهای آفلاین
-        cursor_sq.execute("SELECT barcode FROM products")
-        offline_barcodes = {row[0] for row in cursor_sq.fetchall()}
+        # فقط محصولاتی که حذف شده‌اند
+        cursor_sq.execute("SELECT barcode, user_id FROM products WHERE is_deleted=1")
+        deleted_products = cursor_sq.fetchall()
 
         try:
             cursor = db_connect.cursor()
 
-            # گرفتن همه بارکدهای آنلاین
-            cursor.execute("SELECT barcode, user_id FROM inventories")
-            online_products = cursor.fetchall()
+            for barcode, user_id in deleted_products:
+                cursor.execute("DELETE FROM inventories WHERE barcode=%s AND user_id=%s", (barcode, user_id))
+                print(f"🗑 محصول {barcode} برای کاربر {user_id} از سرور حذف شد")
 
-            for barcode, user_id in online_products:
-                if barcode not in offline_barcodes:
-                    cursor.execute("DELETE FROM inventories WHERE barcode = %s AND user_id = %s", (barcode, user_id))
-                    print(f"🗑 محصول {barcode} از سرور حذف شد")
+                # بعد از موفقیت، رکورد از آفلاین حذف شود
+                cursor_sq.execute("DELETE FROM products WHERE barcode=? AND user_id=?", (barcode, user_id))
 
+            conn_sq.commit()
             db_connect.commit()
 
         except Exception as e:
@@ -64,6 +62,7 @@ class UpdateThread(QThread):
             conn_sq.close()
             if db_connect:
                 db_connect.close()
+
     
     def delete_from_server_sale(self):
         db_connect = Connection().get_connection()
@@ -155,6 +154,27 @@ class UpdateThread(QThread):
                 exists = cursor.fetchone()[0]
 
                 if exists:
+                    ftp_image_url = ""
+
+                    # آپلود تصویر
+                    if image_path and os.path.isfile(image_path):
+                        try:
+                            image_name = ntpath.basename(image_path)
+                            ftp_image_url = f"uploads/app_images/{image_name}"
+
+                            ftp = FTP()
+                            ftp.connect('ihr.blg.mybluehost.me', 21)
+                            ftp.login('shop@ihr.blg.mybluehost.me', 'm8q>cD25he')
+
+                            with open(image_path, 'rb') as file:
+                                ftp.storbinary(f'STOR {image_name}', file)
+
+                            ftp.quit()
+                            print("✅ تصویر آپلود شد:", ftp_image_url)
+
+                        except Exception as e:
+                            print("❌ خطا در آپلود تصویر:", e)
+                            ftp_image_url = ""
                     cursor.execute('''
                         UPDATE inventories SET
                             product_name=%s,
@@ -170,6 +190,7 @@ class UpdateThread(QThread):
                             expir_discount=%s,
                             big_sub=%s,
                             total=%s,
+                            product_image= %s,
                             final_total=%s,
                             type_save=%s,
                             updated_at=%s,
@@ -178,7 +199,7 @@ class UpdateThread(QThread):
                     ''', (
                         name, barcode, quantity, buy_price, buy_date,
                         sale_price, big_price, expire_date, new_price, discount_percent, expire_discount, big_sub,
-                        total, final_total, type_save, update_at, barcode, user_id
+                        total, ftp_image_url,final_total,type_save, update_at, barcode, user_id
                     ))
                     
                     

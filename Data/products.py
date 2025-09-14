@@ -28,6 +28,7 @@ cursor.execute('''
             final_total REAL,
             big_quantity INTEGER,
             is_synced INTEGER DEFAULT 0,
+            is_deleted INTEGER DEFAULT 0,
             expire_date TEXT,
             image_path TEXT,
             small_price REAL,

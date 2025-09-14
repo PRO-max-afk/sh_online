@@ -110,7 +110,7 @@ class Money(QMainWindow):
         self.harvest_reports= QToolButton()
         self.barrow_reports= QToolButton()
         self.item_reports= QToolButton()
-        #self.customer_report= QToolButton()
+        self.customer_report= QToolButton()
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
         self.notification_frame = QFrame(self.finance_page)
@@ -141,14 +141,15 @@ class Money(QMainWindow):
         self.harvest_reports.clicked.connect(self.page_harvest)
         self.barrow_reports.clicked.connect(self.page_barrow)
         self.item_reports.clicked.connect(self.page_item)
-        #self.customer_report.clicked.connect(self.page_customerb)
+        self.customer_report.clicked.connect(self.page_customerb)
         # آیکون و متن‌ها
         buttons_info = [
             (self.sell_reports, "sale-report_11357276.png", "گزارش فروش"),
             (self.buy_reports, "shopping-analytics_18086140.png", "گزارش خرید"),
             (self.harvest_reports, "clipboard_8915058.png", "گزارش برداشت ها"),
             (self.barrow_reports, "report_18765735.png", "گزارش قرض ها"),
-            (self.item_reports, "clipboard_6932327.png", "گزارش محصولات")
+            (self.item_reports, "clipboard_6932327.png", "گزارش محصولات"),
+            (self.customer_report,"seller_10312135.png","گزارش حساب مشتریان")
         ]
 
         buttons = []
@@ -279,8 +280,8 @@ class Money(QMainWindow):
     ##
     ##
     def page_customerb(self):
-        from barrow_cus import CutomerBarrow
-        self.customer_page= CutomerBarrow()
+        from customer import Customer
+        self.customer_page= Customer()
         self.stack.addWidget(self.customer_page)
         
         ## out of page

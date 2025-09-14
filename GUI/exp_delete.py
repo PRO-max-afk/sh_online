@@ -130,7 +130,9 @@ class Delete_Exp(QDialog):
             cursor= conn.cursor()
             cursor.execute("select id from users limit 1")
             id_user= cursor.fetchone()[0]
-            cursor.execute("delete from products  where name=? and quantity=? and user_id=?",(name,quantity,id_user))
+            cursor.execute("select barcode from products where name=? and quantity=? and user_id=?",(name,quantity,id_user))
+            barcode= cursor.fetchone()[0]
+            cursor.execute("Update products SET is_deleted=1 where barcode=?",(barcode,))
             conn.commit()
             MessageBox(text="محصول موفقانه حذف شد",title="موفقانه",type="info").show()
             self.name_line.clear()

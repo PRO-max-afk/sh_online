@@ -140,7 +140,7 @@ class Harvest(QMainWindow):
             font-weight: bold; 
             color: black;
             font-family: Mirza;
-    ''')
+        ''')
         for label in (self.title_lb,self.title_from):
             label.setSizePolicy(QSizePolicy.Policy.Maximum,QSizePolicy.Policy.Fixed)
             label.setMaximumHeight(20)

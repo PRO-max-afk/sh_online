@@ -665,7 +665,7 @@ class ProductForm(QDialog):
             self.unit_lineedit.setGeometry(260, 330, 90, 45)
             self.unit_lineedit.setStyleSheet('''
                 background-color: white;
-                font-family: B Nazanin;
+                font-family: Roboto,'B Nazanin';
                 font-size: 15px;
                 font-weight: bold;
                 color: black;

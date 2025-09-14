@@ -164,7 +164,7 @@ class WidgetManager(QWidget):
         self.factor_lb.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.factor_number.setAlignment(Qt.AlignmentFlag.AlignRight)
         ##
-        self.factor_layout.addLayout(self.date_layout)
+        #self.factor_layout.addLayout(self.date_layout)
         self.factor_layout.addStretch(1)
         self.factor_layout.addWidget(self.factor_number)
         self.factor_layout.addWidget(self.factor_lb) 

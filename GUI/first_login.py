@@ -475,26 +475,33 @@ class Main_login(QMainWindow):
             return None
     ##db
     def get_db_path(self):
+        import os
+        import sys
         import shutil
         import tempfile
+
         try:
             if hasattr(sys, '_MEIPASS'):
-                # مسیر دیتابیس داخل فولدر موقت build شده
-                bundled_db_path = os.path.join(sys._MEIPASS, 'Data', 'sh_online.db')
-
-                # چون sqlite باید فایل writable داشته باشد، دیتابیس را در temp کپی می‌کنیم
-                temp_db_path = os.path.join(tempfile.gettempdir(), 'sh_online.db')
-                if not os.path.exists(temp_db_path):
-                    shutil.copyfile(bundled_db_path, temp_db_path)
-                return temp_db_path
+                # فولدر موقت PyInstaller
+                base_dir = sys._MEIPASS
             else:
-                # حالت اجرای عادی یا بیلد فولدر
+                # فولدر جاری (همان جایی که برنامه اجرا می‌شود)
                 base_dir = os.path.dirname(os.path.abspath(__file__))
-                root_dir = os.path.dirname(base_dir)
-                return os.path.join(root_dir, 'Data', 'sh_online.db')
+
+            # مسیر relative به پوشه Data
+            bundled_db_path = os.path.join(base_dir, 'Data', 'sh_online.db')
+
+            # چون sqlite باید فایل writable داشته باشد، نسخه کپی در temp ساخته می‌شود
+            temp_db_path = os.path.join(tempfile.gettempdir(), 'sh_online.db')
+            if not os.path.exists(temp_db_path):
+                shutil.copyfile(bundled_db_path, temp_db_path)
+
+            return temp_db_path
+
         except Exception as e:
             print(f"❌ خطا در مسیر دیتابیس: {e}")
             return None
+
     ##animated
     def show_security_login_fullscreen(self):
         # پاک کردن محتوای فعلی پنجره
