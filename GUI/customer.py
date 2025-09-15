@@ -27,6 +27,8 @@ class Customer(QMainWindow):
         self.load_all_fonts()
         self.lable_UI()
         self.Button_UI()
+        self.table_UI()
+        self.show_customers()
 
     def in_UI(self):
         self.cust_widget= QStackedWidget()
@@ -48,7 +50,7 @@ class Customer(QMainWindow):
         ### middle page
         middle_layout= QHBoxLayout()
         ##
-        middle_layout.addWidget(self.frame2(),1)
+        middle_layout.addWidget(self.frame2(),alignment=Qt.AlignmentFlag.AlignTop)
         middle_layout.addWidget(self.frame1(),2)
         
 
@@ -65,8 +67,16 @@ class Customer(QMainWindow):
         frame_layout= QVBoxLayout(frame1)
         frame_layout.setSpacing(5)
         ##
+        top_layout= QHBoxLayout()
+        top_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.man_lable= QLabel()
-        frame_layout.addWidget(self.man_lable, alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight))
+        ##
+        self.add_btn= QPushButton()
+        self.add_btn.setContentsMargins(10,40,0,0)
+        ##
+        top_layout.addWidget(self.add_btn,alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        top_layout.addWidget(self.man_lable, alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight))
+        frame_layout.addLayout(top_layout)
         ###
         box_layout= QHBoxLayout()
         ##
@@ -78,11 +88,20 @@ class Customer(QMainWindow):
         box_layout.addWidget(self.customer_b)
         box_layout.addWidget(self.customer_s)
         ###
+        table_layout= QHBoxLayout()
+        self.customer_table= QTableWidget(0,4)
+        table_layout.addWidget(self.customer_table,1)
+        
+
+        ###
         frame_layout.addLayout(box_layout)
+        frame_layout.addSpacing(20)
+        frame_layout.addLayout(table_layout)
         return frame1
     ##
     def frame2(self):
         frame = QFrame()
+        frame.setMaximumHeight(400)
         frame.setStyleSheet("background-color: white; border-radius: 15px;")
         frame_layout = QVBoxLayout(frame)
         frame_layout.setSpacing(10)
@@ -106,13 +125,13 @@ class Customer(QMainWindow):
         self.name_label.setStyleSheet("font-size: 16px; font-weight: bold; color: black; font-family: B Nazanin;")
 
         self.phone_label = QLabel("03123456789")
-        self.phone_label.setStyleSheet("font-size: 14px; color: black; font-family: B Nazanin;")
+        self.phone_label.setStyleSheet("font-size: 15px; color: black; font-family: Roboto;")
 
         self.email_label = QLabel("mostafafa.naim/@example.com")
         self.email_label.setStyleSheet("font-size: 13px; color: gray; font-family: B Nazanin;")
 
-        info_layout.addWidget(self.name_label)
-        info_layout.addWidget(self.phone_label)
+        info_layout.addWidget(self.name_label,alignment=Qt.AlignmentFlag.AlignHCenter)
+        info_layout.addWidget(self.phone_label,alignment=Qt.AlignmentFlag.AlignHCenter)
         info_layout.addWidget(self.email_label)
 
         top_layout.addLayout(info_layout)
@@ -134,6 +153,14 @@ class Customer(QMainWindow):
         # افزودن به لایه اصلی
         frame_layout.addLayout(top_layout)
         #frame_layout.addWidget(self.green_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        return frame
+    ##
+    def frame3(self):
+        frame = QFrame()
+        #frame.setMaximumHeight(400)
+        frame.setStyleSheet("background-color: transparent; border-radius: 15px;")
+
 
         return frame
 
@@ -172,6 +199,101 @@ class Customer(QMainWindow):
             } 
         ''')
         ##
+        self.add_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
+        self.add_btn.setMaximumSize(150,45)
+        self.add_btn.clicked.connect(self.open_form)
+        self.add_btn.setText("افزودن مشتری")
+        self.add_btn.setStyleSheet('''
+            QPushButton {
+                background-color: #2251DB;
+                font-family: "B Nazanin";
+                font-size: 15px;
+                font-weight: bold;
+                color: white;
+                border-radius: 7px;
+                text-align: center;
+                padding: 5px;
+
+            }
+            QPushButton:hover {
+                background-color: #498bf5;  
+            }
+            QPushButton:pressed {
+                background-color: #2251DB;
+            }
+        ''')
+    ##
+    def table_UI(self):
+        self.customer_table.setHorizontalHeaderLabels(["کد مشتری","نام مشتری","شماره تماس","عملیات"])
+        header=self.customer_table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.customer_table.verticalHeader().setVisible(False)
+        self.customer_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.customer_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.customer_table.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        for table in range(self.customer_table.columnCount()):
+            if table == 4:  # ستون عملیات
+                header.setSectionResizeMode(table, QHeaderView.ResizeMode.Fixed)
+                self.customer_table.setColumnWidth(table, 60)
+            else:
+                header.setSectionResizeMode(table, QHeaderView.ResizeMode.Stretch)
+
+        #
+        self.customer_table.setStyleSheet('''
+            QTableWidget {
+                border:None;
+                font-family: Roboto,'B Nazanin';
+                font-size: 15px;
+                color: black;
+                border-radius: 12px;
+                gridline-color: transparent; /* حذف خطوط داخلی */
+                alternate-background-color: #f5f5f5; /* رنگ ردیف‌های زوج */
+                background-color: #ffffff;          /* رنگ ردیف‌های فرد */
+            }
+            QTableWidget::item {
+                border-bottom: 1px solid #d8e6e3;      
+                padding: 8px;      
+            }
+            QTableWidget::item:selected {
+                background: transparent;  /* حذف رنگ انتخاب */
+                color: black;
+            }
+            QHeaderView::section {
+                background-color: transparent; 
+                color: black;
+                font-family: 'B Nazanin';
+                font-size: 15px;
+                font-weight: bold;
+                padding: 5px;
+                border-top: 1px solid #d8e6e3;
+                border-bottom: 1px solid #d8e6e3;  
+            }
+            QHeaderView::section:first {
+                border-top-left-radius: 0px; 
+            }
+            QHeaderView::section:last {
+                border-top-right-radius: 0px;  
+            }
+            QScrollBar:vertical {
+                background: #eee;
+                width: 10px;
+                margin: 4px 0 4px 0;
+                border-radius: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #999;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, 
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #666;
+            }
+        ''')
+
 
     ##
     def make_round_pixmap(self,pixmap: QPixmap, size: int = 50) -> QPixmap:
@@ -239,4 +361,99 @@ class Customer(QMainWindow):
         animation.setEndValue(end_pos)
         animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         animation.start()
-    
+    ##
+    def open_form(self):
+        from customer_info import Customer_Form
+        form= Customer_Form(customer_page=self)
+        form.exec()
+    ##
+    def showEvent(self, event):
+        self.show_customers()
+        return super().showEvent(event)
+    ##
+    def show_customers(self):
+        self.customer_table.setRowCount(0)
+        self.customer_table.setShowGrid(True)
+
+        base_dir= os.path.dirname(os.path.abspath(__file__))
+        root_dir= os.path.dirname(base_dir)
+        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
+        if not os.path.exists(db_path):
+            print(f'{db_path}: not found in select action')
+            return
+        try:
+            conn= sqlite3.connect(db_path)
+            cursor= conn.cursor()
+            cursor.execute("select id from users limit 1")
+            id_user= cursor.fetchone()[0]
+            cursor.execute("select id,name,last_name,phone from customers where user_id=?",(id_user,))
+            result= cursor.fetchall()
+            if result:
+                for id_e,name,last_name,phone in result:
+                    full_name= f"{name} {last_name}"
+                    row= self.customer_table.rowCount()
+                    self.customer_table.insertRow(row)
+                    self.customer_table.setItem(row,0,QTableWidgetItem(self._make_cell(str(id_e))))
+                    self.customer_table.setItem(row,1,QTableWidgetItem(self._make_cell(full_name)))
+                    self.customer_table.setItem(row,2,QTableWidgetItem(self._make_cell(str(phone))))
+                    # === دکمه ویرایش ===
+                    edit_btn = QPushButton()
+                    edit_btn.setIcon(QIcon(self.get_asset_path("edit_2122.png")))
+                    edit_btn.setIconSize(QtCore.QSize(20, 20))
+                    edit_btn.setFixedSize(28, 28)   # اندازه ثابت دکمه
+                    edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                    #edit_btn.clicked.connect(lambda _, r=row: self.enter_info(r))
+                    edit_btn.setStyleSheet("""
+                        QPushButton {
+                            border: none;
+                            background-color: transparent;
+                        }
+                        QPushButton:hover {
+                            background-color: #eaeaea;
+                            border-radius: 10px;
+                        }
+                        QPushButton::Pressed{
+                            background-color: white;
+                            border-radius: 10px;
+                                           }
+                    """)
+                    
+                    ##
+                    denied_btn = QPushButton()
+                    denied_icon = QIcon(self.get_asset_path("Trash Can.png"))
+                    denied_btn.setIcon(denied_icon)
+                    denied_btn.setIconSize(QtCore.QSize(25, 25))
+                    denied_btn.setStyleSheet('''
+                        QPushButton {
+                            border: none;
+                            background-color: transparent;
+                        }
+                        QPushButton:hover {
+                            background-color: #eaeaea;
+                            border-radius: 7px;
+                        }
+                        QPushButton::Pressed{
+                            background-color: white;
+                            border-radius: 7px;
+                                           }
+                    ''')
+                    # === ویجت حاوی دکمه ===
+                    btn_widget = QWidget()
+                    btn_widget.setStyleSheet("background-color: transparent;")
+                    btn_layout = QHBoxLayout(btn_widget)
+                    btn_layout.addWidget(denied_btn)
+                    btn_layout.addWidget(edit_btn)
+                    btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # وسط‌چین
+                    btn_layout.setContentsMargins(0, 0, 0, 0)
+                    self.customer_table.setCellWidget(row,3,btn_widget)
+                    self.customer_table.setRowHeight(row,50)
+
+
+        except sqlite3.Error as e:
+            print(f"searching data problem:{e}")
+    ##
+    def _make_cell(self, text):
+        item = QTableWidgetItem(text)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        item.setForeground(Qt.GlobalColor.black)
+        return item
