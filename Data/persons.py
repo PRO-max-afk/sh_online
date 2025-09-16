@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS customers(
             phone TEXT not null,
             email TEXT,
             register_date TEXT,
-            user_id INTEGER
+            user_id INTEGER,
+            is_synced INTEGER default 0
              
                );
 ''')

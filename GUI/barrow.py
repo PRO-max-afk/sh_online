@@ -841,6 +841,9 @@ class Barrow(QMainWindow):
                 print("no user id found!")
                 return
             id_user = rest[0]
+            ##
+            cursor.execute("select id from customers where name=?",(name,))
+            id_cus= cursor.fetchone()[0]
 
             # مجموع فعلی قرض (برده گی + طلب مردم)
             cursor.execute("""
@@ -868,37 +871,37 @@ class Barrow(QMainWindow):
                 # درج رکورد رسیده گی
                 is_synced = 0
                 cursor.execute("""
-                    INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (name, amount, b_types, phone, date, description, id_user, is_synced))
+                    INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced,cus_id) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
+                """, (name, amount, b_types, phone, date, description, id_user, is_synced,id_cus))
 
                 # کم کردن از آخرین بدهی
                 if existing:
                     debt_id, old_amount, debt_type = existing
                     new_amount = old_amount - amount
-                    cursor.execute("UPDATE barrow SET amount=? WHERE b_id=?", (new_amount, debt_id))
+                    cursor.execute("UPDATE barrow SET amount=? WHERE b_id=? and cus_id=?", (new_amount, debt_id,id_cus))
 
             elif b_types in ("برده گی", "طلب مردم"):
                 # اگر نام موجود بود → Update
                 if existing:
                     debt_id, old_amount, debt_type = existing
                     new_amount = old_amount + amount  # جمع با مقدار قبلی
-                    cursor.execute("UPDATE barrow SET amount=? WHERE b_id=?", (new_amount, debt_id))
+                    cursor.execute("UPDATE barrow SET amount=? WHERE b_id=? And cus_id=?", (new_amount, debt_id,id_cus))
                 else:
                     # اگر نام موجود نبود → Insert
                     is_synced = 0
                     cursor.execute("""
-                        INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (name, amount, b_types, phone, date, description, id_user, is_synced))
+                        INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced,cus_id) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
+                    """, (name, amount, b_types, phone, date, description, id_user, is_synced,id_cus))
 
             else:
                 # سایر انواع همیشه Insert می‌شوند
                 is_synced = 0
                 cursor.execute("""
-                    INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (name, amount, b_types, phone, date, description, id_user, is_synced))
+                    INSERT INTO barrow(name, amount, type, phone, date, description, user_id, is_synced,cus_id) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
+                """, (name, amount, b_types, phone, date, description, id_user, is_synced,id_cus))
 
             conn.commit()
 
@@ -952,7 +955,7 @@ class Barrow(QMainWindow):
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            cursor.execute('SELECT DISTINCT name FROM barrow')
+            cursor.execute('SELECT DISTINCT name FROM customers')
             result = cursor.fetchall()
 
             # فقط اسامی را به صورت لیست استخراج کن
@@ -998,6 +1001,9 @@ class Barrow(QMainWindow):
         try:
             conn= sqlite3.connect(db_path)
             cursor= conn.cursor()
+            cursor.execute("select phone from customers where name=?",(name,))
+            phone= cursor.fetchone()
+            #
             cursor.execute('''
                 SELECT amount, phone, date 
                 FROM barrow 
@@ -1005,12 +1011,12 @@ class Barrow(QMainWindow):
             ''', (name,))
 
             result= cursor.fetchone()
-            if result:
+            if result and phone:
                 self.money_line.clear()
                 self.money_line.insert(str(result[0]))
                 ##
                 self.phone_line.clear()
-                self.phone_line.insert(str(result[1]))
+                self.phone_line.insert(str(phone[0]))
                 ##
                 self.date_line.clear()
                 self.date_line.setAlignment(Qt.AlignmentFlag.AlignRight)

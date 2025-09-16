@@ -6,7 +6,7 @@ cursor= conn.cursor()
 
 
 cursor.execute('''
-select * from product_details where is_synced=0
+select * from customers where is_synced=0
 
 ''')
 rows = cursor.fetchall()

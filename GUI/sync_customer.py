@@ -13,16 +13,16 @@ from message_b import MessageBox
 import os
 from db_connection import Connection
 
-class BarrowThread(QThread):
+class CustomerThread(QThread):
     def __init__(self):
         super().__init__()
 
     def run(self):
         self.db_connect= Connection().get_connection()
         if self.db_connect:
-            self.synced_barrow_to_server()
+            self.synced_customer_to_server()
     ##
-    def synced_barrow_to_server(self):
+    def synced_customer_to_server(self):
         data= Connection().get_connection()
         if not data:
             print("no connection to the server to send info")
@@ -36,22 +36,25 @@ class BarrowThread(QThread):
         conn_sq= sqlite3.connect(db_path)
         cursor_sq= conn_sq.cursor()
         cursor_sq.execute('''
-        SELECT name,amount,type,phone,date,description,user_id FROM barrow WHERE is_synced= 0
+        SELECT id,name,last_name,phone,email,register_date,user_id FROM customers WHERE is_synced= 0
         ''')
         un_synced= cursor_sq.fetchall()
         try:
             
             cursor= data.cursor()
             for row in un_synced:
-                (name,amount,b_type,phone,date,description,user_id)= row
+                (id_e, name, last_name, phone, email, register_date, user_id) = row
 
-                cursor.execute("INSERT INTO barrow (name,amount,type,phone,date,description,user_id) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                               (name,amount,b_type,phone,date,description,user_id))
-                print("info barrow successfully entered to server ✅")
+                cursor.execute(
+                    "INSERT INTO customer (id,name,last_name,phone,email,register_date,user_id) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+                    (id_e, name, last_name, phone, email, register_date, user_id)
+                )
+                print(f"Customer {id_e} synced to server ✅")
                 data.commit()
 
-                cursor_sq.execute('UPDATE barrow set is_synced = 1 WHERE is_synced=0')
+                cursor_sq.execute('UPDATE customers SET is_synced = 1 WHERE id = ?', (id_e,))
                 conn_sq.commit()
+
         except pymysql.Error as e:
             print(f"{e} : online db error") 
         finally: 

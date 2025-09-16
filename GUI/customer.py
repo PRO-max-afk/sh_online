@@ -29,6 +29,7 @@ class Customer(QMainWindow):
         self.Button_UI()
         self.table_UI()
         self.show_customers()
+        self.synced_auto_timer()
 
     def in_UI(self):
         self.cust_widget= QStackedWidget()
@@ -370,6 +371,16 @@ class Customer(QMainWindow):
     def showEvent(self, event):
         self.show_customers()
         return super().showEvent(event)
+    ##
+    def synced_auto_timer(self):
+        from sync_customer import CustomerThread
+        self.customer_thread= CustomerThread()
+        self.customer_thread.start()
+    
+        if hasattr(self, 'synced_timer'):
+            self.synced_timer= QTimer(self)
+            self.synced_timer.timeout.connect(self.synced_auto_timer)
+            self.synced_timer.start(30 *1000)
     ##
     def show_customers(self):
         self.customer_table.setRowCount(0)

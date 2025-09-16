@@ -18,14 +18,17 @@ CREATE TABLE IF NOT EXISTS harvest(
 
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS  barrow(
-               b_id INTEGER primary key AUTOINCREMENT,
-               name TEXT NOT NULL,
-               amount REAL NOT NULL,
-               date TEXT NOT NULL,
-               type TEXT NOT NULL,
-               phone INTEGER,
-               description TEXT,
-               user_id INTEGER,
-               is_synced INTEGER DEFAULT 0
-               );
+            b_id INTEGER primary key AUTOINCREMENT,
+            name TEXT NOT NULL,
+            amount REAL NOT NULL,
+            date TEXT NOT NULL,
+            type TEXT NOT NULL,
+            phone INTEGER,
+            description TEXT,
+            user_id INTEGER,
+            is_synced INTEGER DEFAULT 0,
+            cus_id INTEGER NOT NULL,
+            foreign key(cus_id) references customers(id) on delete cascade
+            );
     ''')
+
