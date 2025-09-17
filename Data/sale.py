@@ -21,8 +21,11 @@ Create TABLE IF NOT EXISTS sale_factor(
             created_at TEXT,
             updated_at TEXT,
             sync INTEGER,
-            is_synced INTEGER DEFAULT 0
-               )
+            is_synced INTEGER DEFAULT 0,
+            cus_id INTEGER,
+            foreign key(cus_id) references customers(id) ON DELETE set null
+            
+               );
 ''')
 
 cursor.execute('''

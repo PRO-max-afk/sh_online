@@ -32,7 +32,7 @@ class Customer_Buy(QWidget):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
-        self.number_label = QLabel("1200")
+        self.number_label = QLabel("0")
 
         self.text_label = QLabel("مجموعه قرض")
         

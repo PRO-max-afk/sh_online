@@ -1,19 +1,10 @@
 from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
     QGraphicsDropShadowEffect,QTextEdit,QStyledItemDelegate, QSizePolicy,QScrollArea,QComboBox,QMessageBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
 from PyQt6.QtCore import Qt,QTimer,QThread,QPoint,QPropertyAnimation,QEasingCurve
-from PyQt6.QtGui import QColor,QIcon,QPainterPath,QFontDatabase,QPixmap,QBrush,QPalette,QPainter
+from PyQt6.QtGui import QColor,QIcon,QPainterPath,QFontDatabase,QPixmap,QPen,QFont,QPainter
 from PyQt6 import QtCore
-from circle import CircularSpinner
+from PyQt6.QtCharts import QChart, QChartView, QPieSeries
 import sqlite3
-import pymysql
-import requests
-from notifi_box import Notification
-from calendars import JalaliCalendar
-from PyQt6.QtCharts import QChart, QChartView, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
-import threading
-from switch import ToggleSwitch
-from message_b import MessageBox
-from switch import ToggleSwitch
 import os
 from db_connection import Connection
 from reme import Customer_Pay
@@ -49,10 +40,17 @@ class Customer(QMainWindow):
         top_layout.addStretch(2)
         top_layout.addWidget(self.top_label)
         ### middle page
-        middle_layout= QHBoxLayout()
-        ##
-        middle_layout.addWidget(self.frame2(),alignment=Qt.AlignmentFlag.AlignTop)
-        middle_layout.addWidget(self.frame1(),2)
+        # لایه اصلی افقی
+        middle_layout = QGridLayout()
+
+        # ستون 0 → frame2 بالا و frame3 پایین
+        middle_layout.addWidget(self.frame2(), 0, 0, alignment=Qt.AlignmentFlag.AlignTop)
+        middle_layout.addWidget(self.frame3(), 1, 0)
+
+        # ستون 1 → frame1
+        middle_layout.addWidget(self.frame1(), 0, 1, 2, 1, alignment=Qt.AlignmentFlag.AlignTop)
+
+        
         
 
         ##
@@ -71,11 +69,14 @@ class Customer(QMainWindow):
         top_layout= QHBoxLayout()
         top_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.man_lable= QLabel()
+        self.customer_name= QLabel("")
         ##
         self.add_btn= QPushButton()
         self.add_btn.setContentsMargins(10,40,0,0)
         ##
         top_layout.addWidget(self.add_btn,alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        top_layout.addStretch(1)
+        top_layout.addWidget(self.customer_name, alignment=(Qt.AlignmentFlag.AlignRight))
         top_layout.addWidget(self.man_lable, alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight))
         frame_layout.addLayout(top_layout)
         ###
@@ -89,6 +90,8 @@ class Customer(QMainWindow):
         box_layout.addWidget(self.customer_b)
         box_layout.addWidget(self.customer_s)
         ###
+        self.list_lb= QLabel("لیست مشتریان")
+        ##
         table_layout= QHBoxLayout()
         self.customer_table= QTableWidget(0,4)
         table_layout.addWidget(self.customer_table,1)
@@ -97,12 +100,13 @@ class Customer(QMainWindow):
         ###
         frame_layout.addLayout(box_layout)
         frame_layout.addSpacing(20)
+        frame_layout.addWidget(self.list_lb,alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight))
         frame_layout.addLayout(table_layout)
         return frame1
     ##
     def frame2(self):
         frame = QFrame()
-        frame.setMaximumHeight(400)
+        frame.setMaximumWidth(300)
         frame.setStyleSheet("background-color: white; border-radius: 15px;")
         frame_layout = QVBoxLayout(frame)
         frame_layout.setSpacing(10)
@@ -122,14 +126,14 @@ class Customer(QMainWindow):
 
         # اطلاعات کاربر
         info_layout = QVBoxLayout()
-        self.name_label = QLabel("مصطفی نعیمی")
+        self.name_label = QLabel("نامشخص")
         self.name_label.setStyleSheet("font-size: 16px; font-weight: bold; color: black; font-family: B Nazanin;")
 
-        self.phone_label = QLabel("03123456789")
+        self.phone_label = QLabel("بدون شماره تماس")
         self.phone_label.setStyleSheet("font-size: 15px; color: black; font-family: Roboto;")
 
-        self.email_label = QLabel("mostafafa.naim/@example.com")
-        self.email_label.setStyleSheet("font-size: 13px; color: gray; font-family: B Nazanin;")
+        self.email_label = QLabel("gamail@example.com")
+        self.email_label.setStyleSheet("font-size: 13px; color: gray; font-family: Roboto,'B Nazanin';")
 
         info_layout.addWidget(self.name_label,alignment=Qt.AlignmentFlag.AlignHCenter)
         info_layout.addWidget(self.phone_label,alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -157,14 +161,51 @@ class Customer(QMainWindow):
 
         return frame
     ##
-    def frame3(self):
+    def frame3(self): 
         frame = QFrame()
-        #frame.setMaximumHeight(400)
-        frame.setStyleSheet("background-color: transparent; border-radius: 15px;")
+        frame.setMaximumWidth(300)
+        frame.setStyleSheet("background-color: white; border-radius: 15px;")
+        frame_layout = QVBoxLayout(frame)
 
+        # --- سری دایره (Donut) ---
+        self.pie_series = QPieSeries()
+        self.pie_series.setHoleSize(0.45)   # donut chart
+        self.pie_series.append("قرض", 1)
+        self.pie_series.append("پرداخت",1 )
 
+        # تغییر رنگ هر Slice + نمایش لیبل
+        slices = self.pie_series.slices()
+        if len(slices) > 0:
+            slices[0].setColor(QColor("#56B2E3"))  # آبی
+            slices[0].setPen(QPen(Qt.PenStyle.NoPen))
+            slices[0].setLabelVisible(True)
+            slices[0].setLabelColor(Qt.GlobalColor.black)
+            slices[0].setLabelFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
+        if len(slices) > 1:
+            slices[1].setColor(QColor("#F28768"))  # سرخ
+            slices[1].setPen(QPen(Qt.PenStyle.NoPen))
+            slices[1].setLabelVisible(True)
+            slices[1].setLabelColor(Qt.GlobalColor.black)
+            slices[1].setLabelFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
+
+        # --- ساخت چارت ---
+        chart = QChart()
+        chart.addSeries(self.pie_series)
+        chart.setTitle("وضعیت حساب")
+        chart.setTitleFont(QFont("B Nazanin", 14, QFont.Weight.Bold))
+        chart.legend().setVisible(True)
+        chart.legend().setFont(QFont("B Nazanin", 11))
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+
+        # فعال‌سازی انیمیشن
+        chart.setAnimationOptions(QChart.AnimationOption.AllAnimations)
+
+        # --- ساخت ویو ---
+        chart_view = QChartView(chart)
+        chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        frame_layout.addWidget(chart_view)
         return frame
-
 
     ##
     def lable_UI(self):
@@ -173,6 +214,22 @@ class Customer(QMainWindow):
             font-weight: bold; 
             color: black;
             font-family: Mirza;
+        ''')
+        ##
+        self.customer_name.setStyleSheet('''
+            font-size: 18px;
+            font-weight: bold; 
+            color: black;
+            font-family: Roboto,'B Nazanin';
+        ''')
+        ##
+        self.list_lb.setContentsMargins(10,10,10,10)
+        self.list_lb.setStyleSheet('''
+            font-size: 18px;
+            font-weight: bold; 
+            color: black;
+            font-family: Roboto,'B Nazanin';
+        
         ''')
         ##
         man_icon= QPixmap(self.get_asset_path("man_18663555.png"))
@@ -413,7 +470,7 @@ class Customer(QMainWindow):
                     edit_btn.setIconSize(QtCore.QSize(20, 20))
                     edit_btn.setFixedSize(28, 28)   # اندازه ثابت دکمه
                     edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                    #edit_btn.clicked.connect(lambda _, r=row: self.enter_info(r))
+                    edit_btn.clicked.connect(lambda _, r=row: self.select_info(r))
                     edit_btn.setStyleSheet("""
                         QPushButton {
                             border: none;
@@ -462,6 +519,88 @@ class Customer(QMainWindow):
 
         except sqlite3.Error as e:
             print(f"searching data problem:{e}")
+    ##
+    def select_info(self,row):
+        id_e = self.customer_table.item(row,0).text()
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, "Data","sh_online.db")
+        if not os.path.exists(db_path):
+            print("no db file found in select_info function")
+            return
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            ##
+            cursor.execute("select SUM(amount) as total_barrow from barrow WHERE cus_id=? AND type='برده گی' OR  type='طلب مردم' ",(id_e,))
+            b_result = cursor.fetchone()
+            ##
+            cursor.execute("SELECT SUM(amount) as total_deposit from barrow where cus_id=? AND type='رسیده گی' ",(id_e,))
+            r_result = cursor.fetchone()
+            ##
+            cursor.execute("select name,phone,email,last_name from customers where id=?",(id_e,))
+            info_result = cursor.fetchone()
+            ##
+            b_total = b_result[0] if b_result and b_result[0] is not None else 0
+            r_total = r_result[0] if r_result and r_result[0] is not None else 0
+
+            if info_result:
+                name = info_result[0]
+                last = info_result[3]
+                full_name = f'{name} {last}'
+                self.name_label.setText(full_name)
+                self.customer_name.setText(full_name)
+                self.phone_label.setText(str(info_result[1]))
+                self.email_label.setText(info_result[2])
+            else:
+                self.name_label.setText("نامشخص")
+                self.customer_name.setText("")
+                self.phone_label.setText("بدون شماره تماس")
+                self.email_label.setText("بدون ایمیل آدرس")
+
+            # ارسال به UI
+            if b_total.is_integer() and r_total.is_integer():
+                b_total = int(b_total)
+                r_total = int(r_total)
+
+            self.customer_b.set_product_info(number=b_total)
+            self.customer_s.set_product_info(number=r_total)
+
+            # --- آپدیت Pie Chart ---
+            self.pie_series.clear()
+
+            if b_total == 0 and r_total == 0:
+                # حالت بدون داده
+                self.pie_series.append("بدون داده", 1)
+                slice0 = self.pie_series.slices()[0]
+                slice0.setColor(QColor("#CCCCCC"))   # خاکستری
+                slice0.setPen(QPen(Qt.PenStyle.NoPen))
+                slice0.setLabelVisible(True)
+                slice0.setLabelColor(Qt.GlobalColor.black)
+                slice0.setLabelFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
+            else:
+                # حالت نرمال
+                self.pie_series.append("قرض", b_total)
+                self.pie_series.append("پرداخت", r_total)
+
+                slices = self.pie_series.slices()
+                if len(slices) > 0:
+                    slices[0].setColor(QColor("#56B2E3"))  # آبی
+                    slices[0].setPen(QPen(Qt.PenStyle.NoPen))
+                    slices[0].setLabelVisible(True)
+                    slices[0].setLabelColor(Qt.GlobalColor.black)
+                    slices[0].setLabelFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
+                if len(slices) > 1:
+                    slices[1].setColor(QColor("#F28768"))  # نارنجی-سرخ
+                    slices[1].setPen(QPen(Qt.PenStyle.NoPen))
+                    slices[1].setLabelVisible(True)
+                    slices[1].setLabelColor(Qt.GlobalColor.black)
+                    slices[1].setLabelFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
+
+        except sqlite3.Error as e:
+            print(f"db problem: {e}")
+
+
     ##
     def _make_cell(self, text):
         item = QTableWidgetItem(text)

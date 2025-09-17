@@ -36,17 +36,17 @@ class BarrowThread(QThread):
         conn_sq= sqlite3.connect(db_path)
         cursor_sq= conn_sq.cursor()
         cursor_sq.execute('''
-        SELECT name,amount,type,phone,date,description,user_id FROM barrow WHERE is_synced= 0
+        SELECT name,amount,type,phone,date,description,user_id,cus_id FROM barrow WHERE is_synced= 0
         ''')
         un_synced= cursor_sq.fetchall()
         try:
             
             cursor= data.cursor()
             for row in un_synced:
-                (name,amount,b_type,phone,date,description,user_id)= row
+                (name,amount,b_type,phone,date,description,user_id,cus_id)= row
 
-                cursor.execute("INSERT INTO barrow (name,amount,type,phone,date,description,user_id) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                               (name,amount,b_type,phone,date,description,user_id))
+                cursor.execute("INSERT INTO barrow (name,amount,type,phone,date,description,user_id,cus_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
+                               (name,amount,b_type,phone,date,description,user_id,cus_id))
                 print("info barrow successfully entered to server ✅")
                 data.commit()
 

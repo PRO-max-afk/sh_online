@@ -3,7 +3,7 @@ import sqlite3
 conn= sqlite3.connect('D:\\projects\\sh_online\\Data\\sh_online.db')
 cursor= conn.cursor()
 
-cursor.execute("update customers set is_synced=0;")
+cursor.execute("drop table sale_factor")
 conn.commit()
 #DROP TRIGGER IF EXISTS trg_update_big_sub;
 #DROP TRIGGER IF EXISTS trg_update_quantity;
