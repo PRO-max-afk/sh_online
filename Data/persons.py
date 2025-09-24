@@ -26,12 +26,14 @@ CREATE TABLE  IF NOT EXISTS employees (
     phone        TEXT UNIQUE,
     email        TEXT UNIQUE,
     address      TEXT,
-    city         TEXT,
+    city         TEXT Default Herat,
     position     TEXT NOT NULL,
     salary       REAL DEFAULT 0.0,
     hire_date    TEXT DEFAULT (datetime('now','localtime')),
     status       TEXT DEFAULT 'active',
-    picture TEXT
+    picture TEXT,
+    user_id INTEGER,
+    is_synced INTEGER DEFAULT 0
 );
 
 ''')

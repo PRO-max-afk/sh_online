@@ -843,7 +843,9 @@ class Barrow(QMainWindow):
             id_user = rest[0]
             ##
             cursor.execute("select id from customers where name=?",(name,))
-            id_cus= cursor.fetchone()[0]
+            id_cust= cursor.fetchone()
+            if id_cust:
+                id_cus= id_cust[0]
 
             # مجموع فعلی قرض (برده گی + طلب مردم)
             cursor.execute("""
@@ -923,7 +925,7 @@ class Barrow(QMainWindow):
             self.date_line.clear()
             self.descprit_text.clear()
 
-            MessageBox(text="برداشت موفقانه ثبت شد✅", title="موفقانه", type="info").show()
+            MessageBox(text="قرض تنظیم شد", title="موفقانه", type="info").show()
 
         except sqlite3.Error as e:
             print(f'{e}: db error offline')

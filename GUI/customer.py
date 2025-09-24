@@ -6,7 +6,6 @@ from PyQt6 import QtCore
 from PyQt6.QtCharts import QChart, QChartView, QPieSeries
 import sqlite3
 import os
-from db_connection import Connection
 from reme import Customer_Pay
 from reme_buy import Customer_Buy
 from reme_sell import Customer_Sell
@@ -170,23 +169,20 @@ class Customer(QMainWindow):
         # --- سری دایره (Donut) ---
         self.pie_series = QPieSeries()
         self.pie_series.setHoleSize(0.45)   # donut chart
-        self.pie_series.append("قرض", 1)
-        self.pie_series.append("پرداخت",1 )
+        self.pie_series.append("بدون داده", 1)
+        #self.pie_series.append("پرداخت",1 )
 
         # تغییر رنگ هر Slice + نمایش لیبل
         slices = self.pie_series.slices()
-        if len(slices) > 0:
-            slices[0].setColor(QColor("#56B2E3"))  # آبی
-            slices[0].setPen(QPen(Qt.PenStyle.NoPen))
-            slices[0].setLabelVisible(True)
-            slices[0].setLabelColor(Qt.GlobalColor.black)
-            slices[0].setLabelFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
-        if len(slices) > 1:
-            slices[1].setColor(QColor("#F28768"))  # سرخ
-            slices[1].setPen(QPen(Qt.PenStyle.NoPen))
-            slices[1].setLabelVisible(True)
-            slices[1].setLabelColor(Qt.GlobalColor.black)
-            slices[1].setLabelFont(QFont("B Nazanin", 12, QFont.Weight.Bold))
+        if len(slices) == 0:
+            self.pie_series.append("بدون داده",1)
+            slice0= self.pie_series.slices()[0]
+            slice0.setColor(QColor("#CCCCCC"))
+            slice0.setPen(QPen(Qt.PenStyle.NoPen))
+            slice0.setLabelVisible(True)
+            slice0.setLabelColor(Qt.GlobalColor.black)
+            slice0.setLabelFont(QFont("B Nazanin",12,QFont.Weight.bold))
+
 
         # --- ساخت چارت ---
         chart = QChart()
@@ -351,8 +347,6 @@ class Customer(QMainWindow):
                 background: #666;
             }
         ''')
-
-
     ##
     def make_round_pixmap(self,pixmap: QPixmap, size: int = 50) -> QPixmap:
         # تغییر اندازه
@@ -541,8 +535,12 @@ class Customer(QMainWindow):
             cursor.execute("select name,phone,email,last_name from customers where id=?",(id_e,))
             info_result = cursor.fetchone()
             ##
+            cursor.execute("select sum(total) from sale_factor where cus_id=?",(id_e,))
+            s_result= cursor.fetchone()
+            ##
             b_total = b_result[0] if b_result and b_result[0] is not None else 0
             r_total = r_result[0] if r_result and r_result[0] is not None else 0
+            s_total= s_result[0] if s_result and s_result[0] is not None else 0
 
             if info_result:
                 name = info_result[0]
@@ -559,12 +557,14 @@ class Customer(QMainWindow):
                 self.email_label.setText("بدون ایمیل آدرس")
 
             # ارسال به UI
-            if b_total.is_integer() and r_total.is_integer():
+            if b_total.is_integer() and r_total.is_integer() and s_total.is_integer():
                 b_total = int(b_total)
                 r_total = int(r_total)
+                s_total= int(s_total)
 
             self.customer_b.set_product_info(number=b_total)
             self.customer_s.set_product_info(number=r_total)
+            self.customer_p.set_product_info(number=s_total)
 
             # --- آپدیت Pie Chart ---
             self.pie_series.clear()

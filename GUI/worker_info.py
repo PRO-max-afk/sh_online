@@ -16,13 +16,13 @@ import pymysql
 import sqlite3
 
 
-class Customer_Form(QDialog):
-    def __init__(self, customer_page=None):
+class Worker_Form(QDialog):
+    def __init__(self, worker_page=None):
         super().__init__()
-        self.customer_page= customer_page
-        self.setWindowTitle("ثبت نام مشتریان")
-        self.resize(470,500)
-        self.setFixedSize(470,500)
+        self.worker_page= worker_page
+        self.setWindowTitle("ثبت نام کارمندان")
+        self.resize(490,650)
+        self.setFixedSize(470,650)
         self.setStyleSheet("background-color: #E8E6E6;")
         self.load_all_fonts()
         self.center_window()
@@ -33,20 +33,29 @@ class Customer_Form(QDialog):
 
     def in_UI(self):
         ##top
-        self.top_label= QLabel("ثبت نام مشتریان",self)
+        self.top_label= QLabel("ثبت نام کارمندان",self)
         self.add_horizontal_line()
         ##middle:
-        self.name_lb= QLabel("نام مشتری:",self)
+        self.name_lb= QLabel("نام کارمند:",self)
         self.name_line= QLineEdit(self)
         ##
-        self.last_lb= QLabel("تخلص مشتری:",self)
+        self.last_lb= QLabel("تخلص کارمند:",self)
         self.last_line= QLineEdit(self)
         ##
         self.phone_lb= QLabel("شماره تماس:",self)
         self.phone_line= QLineEdit(self)
         ##
-        self.email_lb= QLabel("ایمیل مشتری:",self)
+        self.email_lb= QLabel("ایمیل کارمند:",self)
         self.email_line= QLineEdit(self)
+        ##
+        self.address_lb= QLabel("آدرس کارمند:",self)
+        self.address_line= QLineEdit(self)
+        ##
+        self.salary_lb= QLabel("معاش کارمند:",self)
+        self.salary_line= QLineEdit(self)
+        ##
+        self.position= QLabel("موقف کاری:",self)
+        self.position_line= QLineEdit(self)
         ##
         self.save_btn= QPushButton(self)
 
@@ -54,13 +63,13 @@ class Customer_Form(QDialog):
         
     def Button_UI(self):
                 ##
-        self.save_btn.setGeometry(100,430,300,45)
+        self.save_btn.setGeometry(100,600,300,45)
         self.sub_icon= QIcon(self.get_asset_path("Bookmark.png"))
         self.save_btn.setIcon(self.sub_icon)
         self.save_btn.setIconSize(QtCore.QSize(36,36))
         self.save_btn.setText(" ذخیره اطلاعات")
         self.save_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.save_btn.clicked.connect(self.insert_customer)
+        self.save_btn.clicked.connect(self.insert_worker)
         self.save_btn.setStyleSheet('''
             QPushButton {
                 background-color: #3EB516;
@@ -84,7 +93,7 @@ class Customer_Form(QDialog):
         ''')
     ##
     def Lable_UI(self):
-        self.top_label.setGeometry(180,20,115,30)
+        self.top_label.setGeometry(180,20,120,30)
         self.top_label.setStyleSheet('''
             font-size: 20px;
             font-weight: bold; 
@@ -120,6 +129,31 @@ class Customer_Form(QDialog):
             color: black;
             font-family: B Nazanin;
         ''')
+        ##
+        self.address_lb.setGeometry(357,385,85,30)
+        self.address_lb.setStyleSheet('''
+            font-size: 16px;
+            font-weight: bold; 
+            color: black;
+            font-family: B Nazanin;
+        ''')
+        ##
+        self.salary_lb.setGeometry(357,455,85,30)
+        self.salary_lb.setStyleSheet('''
+            font-size: 16px;
+            font-weight: bold; 
+            color: black;
+            font-family: B Nazanin;
+        ''')
+        ##
+        self.position.setGeometry(357,525,85,30)
+        self.position.setStyleSheet('''
+            font-size: 16px;
+            font-weight: bold; 
+            color: black;
+            font-family: B Nazanin;
+        ''')
+
     ##
     def Input_UI(self):
         self.name_line.setGeometry(150,90,210,45)
@@ -170,15 +204,51 @@ class Customer_Form(QDialog):
             border-radius: 7px;
             padding: 7px;
             ''')     
+        ##
+        self.address_line.setGeometry(150,380,210,45)
+        self.address_line.setStyleSheet('''
+            background-color: white;
+            font-family: Roboto,'B Nazanin';
+            font-weight: bold;
+            font-size: 15px;
+            color: black;
+            border: 1px solid #c2c2c2;
+            border-radius: 7px;
+            padding: 7px;
+            ''') 
+        ##
+        self.salary_line.setGeometry(150,450,210,45)
+        self.salary_line.setStyleSheet('''
+            background-color: white;
+            font-family: Roboto,'B Nazanin';
+            font-weight: bold;
+            font-size: 15px;
+            color: black;
+            border: 1px solid #c2c2c2;
+            border-radius: 7px;
+            padding: 7px;
+            ''')
+        ##
+        self.position_line.setGeometry(150,520,210,45)
+        self.position_line.setStyleSheet('''
+            background-color: white;
+            font-family: Roboto,'B Nazanin';
+            font-weight: bold;
+            font-size: 15px;
+            color: black;
+            border: 1px solid #c2c2c2;
+            border-radius: 7px;
+            padding: 7px;
+            ''')     
     ##
     def closeEvent(self, event):
-        if self.customer_page:
-            self.customer_page.show_customers()
+        if self.worker_page:
+            self.worker_page.show_wk_info()
         event.accept()
     ##
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return,Qt.Key.Key_Enter):
-            self.insert_customer()
+            self.insert_worker()
     ##
     def add_horizontal_line(self):
         self.line = QFrame(self)
@@ -195,13 +265,16 @@ class Customer_Form(QDialog):
             int((screen.height() - size.height())/2)
         )
     ##
-    def insert_customer(self):
+    def insert_worker(self):
         name= self.name_line.text().strip()
         last_name= self.last_line.text().strip()
         phone= self.phone_line.text()
         email= self.email_line.text()
+        position= self.position_line.text()
+        address= self.address_line.text()
+        salary= self.salary_line.text()
         register_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if not (name,last_name,phone):
+        if not (name,last_name,phone,position,salary):
             MessageBox(text="لطفاً اطلاعات مورد نیاز را وارد کنید",title="هشدار!",type="warning").show()
             return
         base_dir=os.path.dirname(os.path.abspath(__file__))
@@ -216,14 +289,17 @@ class Customer_Form(QDialog):
             cursor.execute("select id from users limit 1")
             id_user= cursor.fetchone()[0]
             cursor.execute('''
-                INSERT INTO customers(name,last_name,phone,email,register_date,user_id) Values(?,?,?,?,?,?)
-            ''',(name,last_name,phone,email,register_date,id_user))
+                INSERT INTO employees(first_name,last_name,phone,email,position,address,salary,user_id) Values(?,?,?,?,?,?,?,?)
+            ''',(name,last_name,phone,email,position,address,salary,id_user))
             conn.commit()
-            MessageBox(text="اطلاعات مشتری موفقانه ذخیره شد",title="موفقانه",type="info").show()
+            MessageBox(text="اطلاعات کارمند موفقانه ذخیره شد",title="موفقانه",type="info").show()
             self.name_line.clear()
             self.last_line.clear()
             self.phone_line.clear()
             self.email_line.clear()
+            self.position_line.clear()
+            self.address_line.clear()
+            self.salary_line.clear()
         except sqlite3.Error as e:
             print(f"{e}: db problem")
     ##images
@@ -259,6 +335,6 @@ class Customer_Form(QDialog):
 
 if __name__== "__main":
     app= QApplication(sys.argv)
-    window= Customer_Form()
+    window= Worker_Form()
     window.show()
     sys.exit(app.exec())

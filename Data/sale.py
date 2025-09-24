@@ -18,6 +18,7 @@ Create TABLE IF NOT EXISTS sale_factor(
             discount REAL DEFAULT 0,
             user_id INTEGER NOT NULL,
             total REAL NOT NULL,
+            choise_type TEXT,
             created_at TEXT,
             updated_at TEXT,
             sync INTEGER,
@@ -53,5 +54,30 @@ cursor.execute('''
 Create TABLE IF NOT EXISTS printer(
             address Text,
             phone Text );
+''')
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    buyer_id INTEGER NOT NULL,
+    address TEXT NOT NULL,
+    home_number TEXT NOT NULL,
+    area TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    invent_id INTEGER NOT NULL,
+    product_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    price REAL NOT NULL,
+    sale_number INTEGER NOT NULL,
+    product_unit TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    approve INTEGER NOT NULL DEFAULT 0,
+    denied INTEGER NOT NULL DEFAULT 0,
+    message TEXT NOT NULL DEFAULT 'جنس که سفارش داده اید به زودی به دسترس شما قرار خواهد گرفت<',
+    created_at TEXT DEFAULT NULL,
+    updated_at TEXT DEFAULT NULL,
+    customer_name TEXT NOT NULL,
+    FOREIGN KEY (invent_id) REFERENCES products(invent_id) ON DELETE CASCADE
+);
+
 ''')
 

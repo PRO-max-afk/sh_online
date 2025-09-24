@@ -858,7 +858,7 @@ class ItemThread(QThread):
             cursor.execute(''' 
                 SELECT
                 strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS month_sale,
-                COUNT(quantity),
+                COUNT(product_name),
                 product_name
                 FROM sale_factor
                 WHERE user_id = ?
@@ -877,19 +877,23 @@ class ItemThread(QThread):
             for row in offline_result:
                 date_str,quantity,pro_name= row
                 try:
-                    year,month,day= map(int, date_str.split("/"))
-                    g_date= datetime.date(year,month,day)
-                    j_date= jdatetime.date.fromgregorian(date=g_date)
-                    j_year= j_date.year
-                    j_month= j_date.month
+                    year, month, day = map(int, date_str.split("/"))
+                    g_date = datetime.date(year, month, day)
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    j_year = j_date.year
+                    j_month = j_date.month
 
-                    key_month= f"{j_year:04d}/{j_month:02d}"
-                    if self.selected_month and self.selected_month== key_month:
+                    key_month = f"{j_year:04d}/{j_month:02d}"
+                    if self.selected_month and self.selected_month == key_month:
                         sale_stats_off["offline_sale"] += int(quantity)
-                        product_Counter[pro_name] = product_Counter.get(pro_name,0) + int(quantity)
-                    monthly_totals[key_month -1] += int(quantity)
+                        product_Counter[pro_name] = product_Counter.get(pro_name, 0) + int(quantity)
+
+                    # ✅ اصلاح شده
+                    monthly_totals[j_month - 1] += int(quantity)
+
                 except Exception as e:
                     print(f"⚠️db خطا در تبدیل تاریخ آفلاین: {e} → {date_str}")
+
                 ##
                 if product_Counter:
                     best_item= max(product_Counter, key=product_Counter.get)
@@ -972,11 +976,17 @@ class ItemThread(QThread):
             id_result = cursor.fetchone()
             id_user = id_result[0]
             cursor.execute(''' 
-                SELECT strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS month_sale,
-                product_name,quantity,product_type,total,sale_type
+                SELECT 
+                    strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS month_sale,
+                    product_name,
+                    SUM(quantity) AS total_quantity,
+                    product_type,
+                    SUM(total) AS total_sale,
+                    sale_type
                 FROM sale_factor
                 WHERE user_id = ?
-                GROUP BY month_sale, product_name;
+                GROUP BY month_sale, product_name, product_type, sale_type;
+
             ''',(id_user,))
             offline_result_table= cursor.fetchall()
             
@@ -998,8 +1008,8 @@ class ItemThread(QThread):
                         if sale_type == "عمده":
                             # واکشی big_quantity برای این محصول
                             cursor.execute('''
-                                SELECT big_quantity FROM sale_factor
-                                WHERE user_id= ? AND product_name= ?
+                                SELECT big_quantity FROM products
+                                WHERE user_id= ? AND name= ?
                             ''',(id_user,product_name))
                             bg_result = cursor.fetchone()
                             if bg_result and bg_result[0] > 0:

@@ -111,6 +111,7 @@ class Money(QMainWindow):
         self.barrow_reports= QToolButton()
         self.item_reports= QToolButton()
         self.customer_report= QToolButton()
+        self.worker_report= QToolButton()
 
         # 🟢 ایجاد notification_frame در انتها و بالا بردن آن
         self.notification_frame = QFrame(self.finance_page)
@@ -142,6 +143,7 @@ class Money(QMainWindow):
         self.barrow_reports.clicked.connect(self.page_barrow)
         self.item_reports.clicked.connect(self.page_item)
         self.customer_report.clicked.connect(self.page_customerb)
+        self.worker_report.clicked.connect(self.page_workers)
         # آیکون و متن‌ها
         buttons_info = [
             (self.sell_reports, "sale-report_11357276.png", "گزارش فروش"),
@@ -149,7 +151,8 @@ class Money(QMainWindow):
             (self.harvest_reports, "clipboard_8915058.png", "گزارش برداشت ها"),
             (self.barrow_reports, "report_18765735.png", "گزارش قرض ها"),
             (self.item_reports, "clipboard_6932327.png", "گزارش محصولات"),
-            (self.customer_report,"seller_10312135.png","گزارش حساب مشتریان")
+            (self.customer_report,"seller_10312135.png","گزارش حساب مشتریان"),
+            (self.worker_report,"group_151943.png","گزارش کارمندان")
         ]
 
         buttons = []
@@ -278,7 +281,6 @@ class Money(QMainWindow):
         self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animate.start()
     ##
-    ##
     def page_customerb(self):
         from customer import Customer
         self.customer_page= Customer()
@@ -294,6 +296,23 @@ class Money(QMainWindow):
         self.animate.setEndValue(QPoint(0,0))
         self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animate.start()
+    ##
+    def page_workers(self):
+        from worker import Worker
+        self.worker_page= Worker()
+        self.stack.addWidget(self.worker_page)
+        
+        ## out of page
+        self.worker_page.move(self.stack.width(),0)
+        self.stack.setCurrentWidget(self.worker_page)
+        ##
+        self.animate= QPropertyAnimation(self.worker_page, b'pos',self)
+        self.animate.setDuration(700)
+        self.animate.setStartValue(QPoint(self.stack.width(),0))
+        self.animate.setEndValue(QPoint(0,0))
+        self.animate.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animate.start()
+    ##
     ##
     def page_harvest(self):
         from harvest import Harvest
