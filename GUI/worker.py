@@ -16,6 +16,7 @@ class Worker(QMainWindow):
         self.Label_UI()
         self.Input_UI()
         self.table_View()
+        self.syce_to_server()
     
     def In_UI(self):
         self.worker_stack= QStackedWidget()
@@ -129,6 +130,7 @@ class Worker(QMainWindow):
         self.renew_btn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.renew_btn.setIconSize(QtCore.QSize(25,25))
         self.renew_btn.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Fixed)
+        self.renew_btn.clicked.connect(self.open_salary)
         self.renew_btn.setStyleSheet('''
             QPushButton{
                 background-color: #2251DB;
@@ -148,7 +150,7 @@ class Worker(QMainWindow):
                     background-color: #2251DB;
                 }
             ''')
-        ##  
+         
     ##
     def Label_UI(self):
         self.top_title.setStyleSheet('''
@@ -325,6 +327,7 @@ class Worker(QMainWindow):
                     edit_btn.setIconSize(QtCore.QSize(20, 20))
                     edit_btn.setFixedSize(28, 28)
                     edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                    edit_btn.clicked.connect(lambda _, r=row: self.add_info(r))
                     edit_btn.setStyleSheet("""
                         QPushButton {
                             border: none;
@@ -381,6 +384,16 @@ class Worker(QMainWindow):
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         item.setForeground(Qt.GlobalColor.black)
         return item
+    ##
+    def syce_to_server(self):
+        from sync_worker import WorkerThread
+        self.work= WorkerThread()
+        self.work.start()
+
+        if hasattr(self,'synced_timer'):
+            self.synced_timer= QTimer(self)
+            self.synced_timer.timeout.connect(self.syce_to_server)
+            self.synced_timer.start(30*1000)
 
     ##events
     def showEvent(self, event):
@@ -414,3 +427,26 @@ class Worker(QMainWindow):
                     families = QFontDatabase.applicationFontFamilies(font_id)
                     if families:
                         pass
+    ##
+    def open_salary(self):
+        from worker_salary import Worker_Salary
+        self.worker_salary= Worker_Salary()
+        self.worker_salary.exec()
+    ##
+    def add_info(self, row):
+        from worker_salary import Worker_Salary
+
+        amount_item = self.table.item(row, 5)
+        name_item = self.table.item(row, 1)
+
+        if not amount_item or not name_item:
+            print(f"⚠ سلول خالی یا یافت نشد (row={row})")
+            return
+
+        amount = amount_item.text()
+        name = name_item.text()
+
+        work = Worker_Salary(self)
+        work.set_info(quantity=amount, name=name)
+        work.exec()
+

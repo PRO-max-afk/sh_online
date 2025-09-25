@@ -37,3 +37,16 @@ CREATE TABLE  IF NOT EXISTS employees (
 );
 
 ''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS salaries (
+    salary_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id INTEGER NOT NULL,
+    pay_date    TEXT DEFAULT (datetime('now','localtime')),
+    amount      REAL NOT NULL,
+    note        TEXT,
+    is_synced INTEGER DEFAULT 0,
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE
+);
+
+''')

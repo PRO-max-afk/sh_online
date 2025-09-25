@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import (QMainWindow,QGridLayout,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
+from PyQt6.QtWidgets import (QMainWindow,QFrame, QLabel, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,QRadioButton,QAbstractItemView,
     QGraphicsDropShadowEffect,QTextEdit,QStyledItemDelegate, QSizePolicy,QCompleter,QComboBox,QWidget,QTableWidgetItem,QTableWidget,QHeaderView,QListWidget,QStackedWidget)
-from PyQt6.QtCore import Qt,QTimer,QThread,QEvent,QPoint,QPropertyAnimation,QEasingCurve
+from PyQt6.QtCore import Qt,QTimer,QObject,QEvent,QPoint,QPropertyAnimation,QEasingCurve
 from PyQt6.QtGui import QColor,QIcon,QFontDatabase,QFont,QBrush,QPalette,QPainter
 from PyQt6 import QtCore
 from circle import CircularSpinner
@@ -17,6 +17,15 @@ from switch import ToggleSwitch
 import os
 from db_connection import Connection
 
+class LineEditClickFilter(QObject):
+    def __init__(self, callback):
+        super().__init__()
+        self.callback = callback
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.MouseButtonPress:
+            self.callback()
+        return False  # ادامه پردازش عادی
 class BlackTextDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         editor = super().createEditor(parent, option, index)
@@ -97,8 +106,11 @@ class Barrow(QMainWindow):
         ##date
         self.date_line= QLineEdit()
         self.date_line.setPlaceholderText("تاریخ قرض")
-        self.date_line.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self.date_line.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.date_line.setReadOnly(True)
+        ##
+        click_filter = LineEditClickFilter(self.show_calendar)
+        self.date_line.installEventFilter(click_filter)
         ##
         self.descprit_text= QTextEdit()
         self.descprit_text.setPlaceholderText("....توضیحات بیشتر")
@@ -686,6 +698,7 @@ class Barrow(QMainWindow):
         self.phone_line.setText(str(phone))
 
         self.date_line.clear()
+        self.date_line.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.date_line.setText(date)
         
         self.money_line.clear()

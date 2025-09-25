@@ -2130,6 +2130,16 @@ class WidgetManager(QWidget):
                     if families:
                         pass
     ##
+    def update_worker(self):
+        from worker_up_sa import Salary_worker
+        self.worker= Salary_worker()
+        self.worker.start()
+
+        if hasattr('woker_timer',self):
+            self.worker_timer= QTimer(self)
+            self.worker_timer.timeout.connect(self.update_worker)
+            self.worker_timer.start(24 * 60 * 60 * 1000)
+    ##
     def update_info_invnenvtory(self):
         from synce_updated import UpdateThread
 
