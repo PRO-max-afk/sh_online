@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS orders (
     product_name TEXT NOT NULL,
     quantity INTEGER NOT NULL,
     price REAL NOT NULL,
+    profit REAL,
     sale_number INTEGER NOT NULL,
     product_unit TEXT NOT NULL,
     user_id INTEGER NOT NULL,

@@ -37,19 +37,6 @@ class SaleThread(QThread):
         
 
     def run(self):
-        self.db_data= Connection().get_connection()
-        if self.db_data:
-            # اول ماهانه، اگر تنظیم شده
-            if self.selected_month:
-                self.month_sale()
-                self.day_off()
-                self.week_sale_off()
-            # بعد هفته‌ای، اگر تنظیم شده
-            elif self.selected_week:
-                today_j = jdatetime.date.today()
-                self.selected_month = f"{today_j.year:04d}/{today_j.month:02d}"
-                self.week_sale_off()
-        else:
             if self.selected_month:
                 self.month_sale_offline_only()
                 self.day_sale_offline_only()
@@ -62,6 +49,26 @@ class SaleThread(QThread):
             
     
     ###
+    def parse_date_safe(self,date_str):
+        """
+        تبدیل رشته تاریخ (ممکن است با یا بدون زمان باشد) به datetime.date
+        """
+        if isinstance(date_str, datetime.date):
+            return date_str
+        if isinstance(date_str, datetime.datetime):
+            return date_str.date()
+
+        date_str = str(date_str).strip()
+        formats = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"]
+
+        for fmt in formats:
+            try:
+                return datetime.datetime.strptime(date_str, fmt).date()
+            except ValueError:
+                continue
+
+        raise ValueError(f"فرمت تاریخ ناشناخته: {date_str}")
+    ##
     def month_sale(self):
         db_data= Connection().get_connection()
         if not db_data:
@@ -241,6 +248,15 @@ class SaleThread(QThread):
             result = cursor.fetchone()
             id_user = result[0]
 
+            # 📌 خواندن سفارشات (آنلاین)
+            cursor.execute('''
+                SELECT created_at, price, profit
+                FROM orders 
+                WHERE user_id=?
+            ''', (id_user,))
+            order_result = cursor.fetchall()
+
+            # 📌 خواندن فاکتورها (آفلاین)
             cursor.execute('''
                 SELECT sale_date, total, profit
                 FROM sale_factor
@@ -250,27 +266,63 @@ class SaleThread(QThread):
 
             total = 0
             total_profit = 0
+            total_online = 0
+            total_offline = 0
             monthly_totals = [0] * 12
 
+            # -------------------
+            # 🟦 بخش آنلاین (orders)
+            # -------------------
+            for row in order_result:
+                order_date, price, profit = row
+                try:
+                    g_dates = self.parse_date_safe(order_date)
+                    j_dates = jdatetime.date.fromgregorian(date=g_dates)
+                    j_months = j_dates.month
+
+                    quantity = float(price) if price else 0
+                    profits = float(profit) if profit else 0
+
+                    monthly_totals[j_months - 1] += quantity
+                    total_online += quantity
+                    total += quantity
+                    total_profit += profits
+                except Exception as e:
+                    print(f'⚠️ error in order db: {e} → {row}')
+
+
+
+            # -------------------
+            # 🟩 بخش آفلاین (sale_factor)
+            # -------------------
             for row in results:
                 date_str, value, profit = row
                 try:
-                    g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                    g_date = self.parse_date_safe(date_str)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
                     j_month = j_date.month
+
                     amount = float(value) if value else 0
                     profit = float(profit) if profit else 0
+
                     monthly_totals[j_month - 1] += amount
+                    total_offline += amount
                     total += amount
                     total_profit += profit
                 except Exception as e:
                     print(f"⚠️ خطا در تبدیل تاریخ آفلاین: {e} → {row}")
 
-            self.ofline_sale.emit(total)
-            self.online_sale.emit(0)  # فروش آنلاین صفر
+            # -------------------
+            # 📤 ارسال سیگنال‌ها
+            # -------------------
+            self.ofline_sale.emit(total_offline)
+            self.online_sale.emit(total_online)
             self.total_sale.emit(total)
             self.monthly_sale.emit(monthly_totals, total)
 
+            # -------------------
+            # 🔎 محاسبه ماه انتخاب‌شده
+            # -------------------
             if self.selected_month:
                 try:
                     j_year, j_month = map(int, self.selected_month.split("/"))
@@ -280,29 +332,47 @@ class SaleThread(QThread):
 
                 selected_total = 0
                 selected_profit = 0
+                selected_online = 0
+                selected_offline = 0
 
+                # آفلاین
                 for row in results:
                     date_str, value, profit = row
                     try:
-                        g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                        g_date = self.parse_date_safe(date_str)
                         j_date = jdatetime.date.fromgregorian(date=g_date)
                         prefix = f"{j_date.year:04d}/{j_date.month:02d}"
                         if prefix == target_prefix:
+                            selected_offline += float(value) if value else 0
                             selected_total += float(value) if value else 0
                             selected_profit += float(profit) if profit else 0
                     except:
                         continue
 
+                # آنلاین
+                for row in order_result:
+                    order_date, price, profit = row
+                    try:
+                        g_date = self.parse_date_safe(order_date)
+                        j_date = jdatetime.date.fromgregorian(date=g_date)
+                        prefix = f"{j_date.year:04d}/{j_date.month:02d}"
+                        if prefix == target_prefix:
+                            selected_online += float(price) if price else 0
+                            selected_total += float(price) if price else 0
+                            selected_profit += float(profit) if profit else 0
+                    except:
+                        continue
+
                 self.monthly_sa.emit({
-                    "offline": selected_total,
-                    "online": 0,
-                    "mobile": 0,
+                    "offline": selected_offline,
+                    "online": selected_online,
                     "total": selected_total,
                     "profit": selected_profit
                 })
 
         except sqlite3.Error as e:
             print(f"❌ خطای دیتابیس آفلاین: {e}")
+
     ##
     def week_sale_off(self):
         db_data = Connection().get_connection()
@@ -464,12 +534,21 @@ class SaleThread(QThread):
             cursor.execute("SELECT id FROM users LIMIT 1;")
             id_user = cursor.fetchone()[0]
 
+            # 🟩 آفلاین
             cursor.execute('''
                 SELECT sale_date, total, profit
                 FROM sale_factor
                 WHERE user_id = ?
             ''', (id_user,))
             results = cursor.fetchall()
+
+            # 🟦 آنلاین
+            cursor.execute('''
+                SELECT created_at, price, profit
+                FROM orders
+                WHERE user_id = ?
+            ''', (id_user,))
+            order_result = cursor.fetchall()
 
             if not self.selected_month:
                 print("ماه انتخابی مشخص نیست!")
@@ -479,12 +558,14 @@ class SaleThread(QThread):
 
             week_totals = [0, 0, 0, 0]
             offline_week = [0, 0, 0, 0]
+            online_week = [0, 0, 0, 0]
             profit_week = [0, 0, 0, 0]
 
+            # آفلاین
             for row in results:
                 try:
                     date_str, value, profit = row
-                    g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                    g_date = self.parse_date_safe(date_str)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
                     if j_date.year == j_year and j_date.month == j_month:
                         week_index = (j_date.day - 1) // 7
@@ -497,14 +578,31 @@ class SaleThread(QThread):
                 except:
                     continue
 
+            # آنلاین
+            for row in order_result:
+                try:
+                    created_at, price, profit = row
+                    g_date = self.parse_date_safe(created_at)
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    if j_date.year == j_year and j_date.month == j_month:
+                        week_index = (j_date.day - 1) // 7
+                        if 0 <= week_index < 4:
+                            amount = float(price) if price else 0
+                            profit = float(profit) if profit else 0
+                            week_totals[week_index] += amount
+                            online_week[week_index] += amount
+                            profit_week[week_index] += profit
+                except Exception as e:
+                    print(f"⚠️ خطا در تاریخ آنلاین: {e} → {row}")
+
+
             if self.selected_week:
                 week_num = int(self.selected_week.replace("هفته ", "")) - 1
                 total_w = week_totals[week_num]
                 self.weekly_sale.emit(week_totals, sum(week_totals))
                 self.weekly_sa.emit({
                     "offlines": offline_week[week_num],
-                    "onlines": 0,
-                    "mobiles": 0,
+                    "onlines": online_week[week_num],
                     "totals": total_w,
                     "profits": profit_week[week_num]
                 })
@@ -513,14 +611,14 @@ class SaleThread(QThread):
                 self.week_sales.emit(sum(week_totals))
                 self.weekly_sa.emit({
                     "offlines": sum(offline_week),
-                    "onlines": 0,
-                    "mobiles": 0,
+                    "onlines": sum(online_week),
                     "totals": sum(week_totals),
                     "profits": sum(profit_week)
                 })
 
         except sqlite3.Error as e:
             print(f"❌ خطای دیتابیس آفلاین: {e}")
+
 
     ##
     def day_off(self):
@@ -650,7 +748,7 @@ class SaleThread(QThread):
 
         except pymysql.Error as e:
             print(f"{e}: خطا در اتصال یا اجرای کوئری به پایگاه داده")
-    #
+    ##
     def day_sale_offline_only(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         root_dir = os.path.dirname(base_dir)
@@ -661,70 +759,131 @@ class SaleThread(QThread):
             return
 
         try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users LIMIT 1;")
-            id_user = cursor.fetchone()[0]
+            conn_sq = sqlite3.connect(db_path)
+            cursor_sq = conn_sq.cursor()
+            cursor_sq.execute("SELECT id FROM users LIMIT 1;")
+            result = cursor_sq.fetchone()
+            if not result:
+                print("❌ هیچ کاربری یافت نشد")
+                return
+            id_user = result[0]
+        except sqlite3.Error as e:
+            print(f"{e}: خطا در دیتابیس آفلاین")
+            return
 
-            cursor.execute('''
+        try:
+            cursor_sq.execute('''
                 SELECT sale_date, total, profit
                 FROM sale_factor
                 WHERE user_id = ?
             ''', (id_user,))
-            results = cursor.fetchall()
+            of_result = cursor_sq.fetchall()
+
+            cursor_sq.execute('''
+                SELECT created_at, price, profit
+                FROM orders
+                WHERE user_id = ?
+            ''', (id_user,))
+            on_result = cursor_sq.fetchall()
 
             days = ["شنبه", "یک‌شنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"]
             day_totals = {day: 0 for day in days}
             offline_day = {day: 0 for day in days}
+            online_day = {day: 0 for day in days}
             profit_day = {day: 0 for day in days}
 
             today = jdatetime.date.today()
 
-            for row in results:
-                try:
-                    date_str, value, profit = row
-                    g_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
-                    j_date = jdatetime.date.fromgregorian(date=g_date)
-                    # فقط اگر در هفته جاری شمسی باشد، پردازش کن
-                    start_of_week = today - jdatetime.timedelta(days=today.weekday())  # شنبه این هفته
-                    end_of_week = start_of_week + jdatetime.timedelta(days=6)          # جمعه این هفته
-                    if not (start_of_week <= j_date <= end_of_week):
-                        continue
+            def handle_rows(rows, is_online=False):
+                for row in rows:
+                    try:
+                        if not is_online:
+                            date_str, value, profit_val = row
+                        else:
+                            # اگر ستون profit در orders نیست، مقدار صفر بده
+                            if len(row) == 3:
+                                date_str, value, profit_val = row
+                            else:
+                                date_str, value = row
+                                profit_val = 0
 
-                    weekday_name = days[j_date.weekday()]
-                    amount = float(value) if value else 0
-                    profit = float(profit) if profit else 0
-                    day_totals[weekday_name] += amount
-                    offline_day[weekday_name] += amount
-                    profit_day[weekday_name] += profit
-                except:
-                    continue
+                        g_date = self.parse_date_safe(str(date_str))
+                        j_date = jdatetime.date.fromgregorian(date=g_date)
+
+                        start_of_week = today - jdatetime.timedelta(days=today.weekday())
+                        end_of_week = start_of_week + jdatetime.timedelta(days=6)
+                        if not (start_of_week <= j_date <= end_of_week):
+                            continue
+
+                        weekday_name = days[j_date.weekday()]
+                        amount = float(value) if value else 0
+                        profit = float(profit_val) if profit_val else 0
+
+                        day_totals[weekday_name] += amount
+                        if is_online:
+                            online_day[weekday_name] += amount
+                            profit_day[weekday_name] += profit
+                        else:
+                            offline_day[weekday_name] += amount
+                            profit_day[weekday_name] += profit
+
+                        print(f"{'[آنلاین]' if is_online else '[آفلاین]'} {j_date} → {weekday_name} → +{amount} (سود: {profit})")
+                    except Exception as e:
+                        print(f"⚠️ خطا در تبدیل تاریخ: {e} → {row}")
+
+            handle_rows(of_result, is_online=False)
+            handle_rows(on_result, is_online=True)
 
             if self.selected_day and self.selected_day in days:
-                index = days.index(self.selected_day)
                 value = day_totals[self.selected_day]
+                index = days.index(self.selected_day)
                 sales_list = [0] * 7
                 sales_list[index] = value
 
                 self.daily_sale.emit(sales_list, value)
                 self.daily_sa.emit({
                     "offliness": offline_day[self.selected_day],
-                    "onliness": 0,
-                    "mobiless": 0,
+                    "onliness": online_day[self.selected_day],
                     "totalss": value,
                     "profitss": profit_day[self.selected_day]
                 })
+                return
+
+            ordered_values = [day_totals[day] for day in days]
+            total_sum = sum(ordered_values)
+            total_profit = sum(profit_day.values())
+
+            print("📊 فروش روزانه ۷ روز اخیر (آنلاین + آفلاین):")
+            for d in days:
+                print(f"{d}: {day_totals[d]} (سود: {profit_day[d]})")
+
+            # ✅ شرط روز انتخابی
+            if self.selected_day and self.selected_day in days:
+                value = day_totals.get(self.selected_day, 0)  # اگر نبود 0
+                profit_val = profit_day.get(self.selected_day, 0)
+                index = days.index(self.selected_day)
+
+                sales_list = [0] * 7
+                sales_list[index] = value
+
+                self.daily_sale.emit(sales_list, value)
+                self.daily_sa.emit({
+                    "offliness": offline_day.get(self.selected_day, 0),
+                    "onliness": online_day.get(self.selected_day, 0),
+                    "totalss": value,
+                    "profitss": profit_val
+                })
             else:
-                ordered_values = [day_totals[day] for day in days]
-                self.daily_sale.emit(ordered_values, sum(ordered_values))
+                # نمایش همه روزها
+                self.daily_sale.emit(ordered_values, total_sum)
                 self.daily_sa.emit({
                     "offliness": sum(offline_day.values()),
-                    "onliness": 0,
-                    "mobiless": 0,
-                    "totalss": sum(day_totals.values()),
-                    "profitss": sum(profit_day.values())
+                    "onliness": sum(online_day.values()),
+                    "totalss": total_sum,
+                    "profitss": total_profit
                 })
 
+
         except sqlite3.Error as e:
-            print(f"❌ خطای دیتابیس آفلاین: {e}")
-    
+            print(f"{e}: خطا در اجرای کوئری دیتابیس آفلاین")
+

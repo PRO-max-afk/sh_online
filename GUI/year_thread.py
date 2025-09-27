@@ -7,7 +7,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 import pymysql
 import sqlite3
 from message_b import MessageBox
-import os
+import os,datetime
 import requests
 from db_connection import Connection
 
@@ -35,6 +35,27 @@ class YearThread(QThread):
         else:
             print("📭 سالی برای نمایش وجود ندارد")
     ###
+    ###
+    def parse_date_safe(self,date_str):
+        """
+        تبدیل رشته تاریخ (ممکن است با یا بدون زمان باشد) به datetime.date
+        """
+        if isinstance(date_str, datetime.date):
+            return date_str
+        if isinstance(date_str, datetime.datetime):
+            return date_str.date()
+
+        date_str = str(date_str).strip()
+        formats = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"]
+
+        for fmt in formats:
+            try:
+                return datetime.datetime.strptime(date_str, fmt).date()
+            except ValueError:
+                continue
+
+        raise ValueError(f"فرمت تاریخ ناشناخته: {date_str}")
+    ##
     def year_datas(self):
         from datetime import datetime
         import jdatetime
@@ -268,6 +289,23 @@ class YearThread(QThread):
         total_profit = 0.0
         total_harvest = 0.0
         total_barrow = 0.0
+
+        ## online_sale
+        cursor.execute("SELECT created_at, price, profit FROM orders WHERE user_id=?", (id_user,))
+        for created_at, prices, profits in cursor.fetchall():
+            if not created_at:
+                continue
+            try:
+                miladi_date = self.parse_date_safe(created_at)
+            except Exception:
+                continue
+
+            # تبدیل به تاریخ شمسی و مقایسه سال
+            j_year = str(jdatetime.date.fromgregorian(date=miladi_date).year)
+            if j_year == self.year_selected:
+                total_sale += float(prices) if prices else 0
+                total_profit += float(profits) if profits else 0
+                print(f'{total_sale}: total_sale online')
 
         # sale_factor
         cursor.execute("SELECT sale_date, total, profit FROM sale_factor WHERE user_id = ?", (id_user,))
@@ -516,10 +554,16 @@ class YearThread(QThread):
                 return
             id_user = result[0]
 
-            total_sale_f = total_sale_on = total_profit = total_buy = 0
+            total_sale_f = total_sale_on = total_profit = total_buy=total_full_profit =total_profit_on=0
             total_harvest = total_barrow = total_money = 0
 
             # sale_factor
+            cursor.execute("select sum(price),sum(profit) from orders where user_id=?",(id_user,))
+            online_res= cursor.fetchone()
+            if online_res:
+                total_sale_on= float(online_res[0]) if online_res[0] else 0
+                total_profit_on= float(online_res[1]) if online_res[1] else 0
+            ##
             cursor.execute("SELECT SUM(total), SUM(profit) FROM sale_factor WHERE user_id = ?", (id_user,))
             res = cursor.fetchone()
             if res:
@@ -528,6 +572,7 @@ class YearThread(QThread):
             print(f"offline sale_factor total={total_sale_f}, profit={total_profit}")
 
             total_sale = total_sale_f + total_sale_on
+            total_full_profit= total_profit + total_profit_on
 
             # products (buy)
             cursor.execute("SELECT SUM(final_total) FROM products WHERE user_id = ?", (id_user,))
@@ -567,7 +612,7 @@ class YearThread(QThread):
             box_stats = {
                 "total_buy": total_buy,
                 "total_sale": total_sale,
-                "profit": total_profit,
+                "profit":total_full_profit,
                 "harvest": total_harvest,
                 "total_barrow": total_barrow,
                 "total_inventory":total_inventory,

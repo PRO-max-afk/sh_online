@@ -1174,10 +1174,18 @@ class WidgetManager(QWidget):
 
             cursor.execute("SELECT id,name,phone FROM customers WHERE name || ' ' || last_name = ?", (full_name,))
             id_cu = cursor.fetchone()
-            id_cus = id_cu[0] if id_cu and id_cu[0] is not None else 0
-            cus_name= id_cu[1]
-            cus_phone= id_cu[2]
+
+            if id_cu:
+                id_cus = id_cu[0] if id_cu[0] is not None else 0
+                cus_name = id_cu[1] if id_cu[1] else "بدون مشتری"
+                cus_phone = id_cu[2] if id_cu[2] else "-"
+            else:
+                id_cus = 0
+                cus_name = "بدون مشتری"
+                cus_phone = "-"
+                
             print(f"this customer offline id:{id_cus} {cus_name} {cus_phone}")
+
 
             # --- محاسبه تخفیف کلی (اگر وجود داشت) ---
             discount_val_global = float(discount) if discount else 0

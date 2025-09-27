@@ -100,7 +100,6 @@ class SalesDashboard(QMainWindow):
         stats = [
             ("فروشات حضوری", "offline"),
             ("فروشات آنلاین", "online"),
-            ("فروشات مبایل", "mobile"),
             ("مجموعه فروشات", "total"), 
             ("فایده کلی", "profit") ]
         for title, key in stats:
@@ -159,7 +158,6 @@ class SalesDashboard(QMainWindow):
         statse = [
             ("فروشات حضوری", "offlines"),
             ("فروشات آنلاین", "onlines"),
-            ("فروشات مبایل", "mobiles"),
             ("مجموعه فروشات", "totals"), 
             ("فایده کلی", "profits") ]
         for title, key in statse:
@@ -218,7 +216,6 @@ class SalesDashboard(QMainWindow):
         statses = [
             ("فروشات حضوری", "offliness"),
             ("فروشات آنلاین", "onliness"),
-            ("فروشات مبایل", "mobiless"),
             ("مجموعه فروشات", "totalss"), 
             ("فایده کلی", "profitss") ]
         for title, key in statses:

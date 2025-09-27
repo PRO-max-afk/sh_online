@@ -63,6 +63,7 @@ class FixThread(QThread):
             print("🔄 داده جدید یافت شد → sync شروع شد...")
             self.get_fixed_info()
             self.get_inventory_info()
+            self.get_orders_info()
             self.data_synced.emit(True)
         else:
             print("ℹ️ داده جدیدی وجود ندارد → ترید اجرا نشد")
@@ -379,3 +380,60 @@ class FixThread(QThread):
         except sqlite3.Error as e:
             print(f"❌ مشکل در دیتابیس SQLite: {e}")
             return []
+    
+    def get_orders_info(self):
+        try:
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                id_user = cursor_sq.fetchone()[0]
+
+                cursor.execute('''
+                    SELECT 
+                        id,buyer_id,address,home_number,area,phone,invent_id,product_name,
+                        quantity,price,profit,sale_number,product_unit,user_id,approve,denied,
+                        message,created_at,updated_at,customer_name
+                    FROM orders 
+                    WHERE user_id = %s AND approve = 1
+                ''', (id_user,))
+                unsaved = cursor.fetchall()
+
+                for sale_orders in unsaved:
+                    (id_e, buyer_id, address, home_number, area, phone, invenit_id, product_name,
+                    quantity, price, profit, sale_number, product_unit, user_id, approve, denied,
+                    message, created_at, updated_at, customer_name) = sale_orders
+
+                    def safe_num(val):
+                        return float(val) if isinstance(val, Decimal) else val
+
+                    total = safe_num(price)
+                    total_profit = safe_num(profit)
+
+                    # ✅ بررسی وجود id_e در دیتابیس آفلاین
+                    cursor_sq.execute("SELECT COUNT(*) FROM orders WHERE id = ?", (id_e,))
+                    exists = cursor_sq.fetchone()[0]
+
+                    if exists == 0:  # فقط اگر وجود ندارد وارد کن
+                        cursor_sq.execute('''
+                            INSERT INTO orders(
+                                id,buyer_id,address,home_number,area,phone,invent_id,product_name,
+                                quantity,price,profit,sale_number,product_unit,user_id,approve,denied,
+                                message,created_at,updated_at,customer_name
+                            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        ''', (id_e, buyer_id, address, home_number, area, phone, invenit_id, product_name,
+                            quantity, total, total_profit, sale_number, product_unit, user_id, approve, denied,
+                            message, created_at, updated_at, customer_name))
+                        conn_sq.commit()
+                        print(f"✅ info orders inserted: {id_e}")
+                    else:
+                        print(f"⚠️ سفارش {id_e} قبلا ذخیره شده و دوباره insert نشد.")
+
+        except pymysql.Error as e:
+            print(f"online orders problem: {e}")
