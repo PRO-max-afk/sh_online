@@ -47,7 +47,27 @@ class ItemThread(QThread):
                 self.excecute_buy_table_day_offline()
             
 
+    ###
+    def parse_date_safe(self,date_str):
+        """
+        تبدیل رشته تاریخ (ممکن است با یا بدون زمان باشد) به datetime.date
+        """
+        if isinstance(date_str, datetime.date):
+            return date_str
+        if isinstance(date_str, datetime.datetime):
+            return date_str.date()
 
+        date_str = str(date_str).strip()
+        formats = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"]
+
+        for fmt in formats:
+            try:
+                return datetime.datetime.strptime(date_str, fmt).date()
+            except ValueError:
+                continue
+
+        raise ValueError(f"فرمت تاریخ ناشناخته: {date_str}")
+    ##
     
     def sale_signal(self):
         data_connect = Connection().get_connection()
@@ -843,65 +863,95 @@ class ItemThread(QThread):
             print(f"{e} : db online table error")
     ##############offline mode
     def offline_sale_month(self):
-        base_dir= os.path.dirname(os.path.abspath(__file__))
-        root_dir= os.path.dirname(base_dir)
-        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
         if not os.path.exists(db_path):
             print("no offline month sale db found")
             return
+
         try:
-            conn= sqlite3.connect(db_path)
-            cursor= conn.cursor()
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
             cursor.execute("select id from users limit 1")
             id_result = cursor.fetchone()
             id_user = id_result[0]
+
+            # 🟩 فروش آفلاین (sale_factor)
             cursor.execute(''' 
                 SELECT
-                strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS month_sale,
-                COUNT(product_name),
-                product_name
+                    strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS sale_date,
+                    COUNT(product_name),
+                    product_name
                 FROM sale_factor
                 WHERE user_id = ?
-                GROUP BY month_sale, product_name;
-            ''',(id_user,))
-            offline_result= cursor.fetchall()
+                GROUP BY sale_date, product_name;
+            ''', (id_user,))
+            offline_result = cursor.fetchall()
 
-            monthly_totals= [0] *12
-            product_Counter= {}
-            sale_stats_off= {
+            # 🟦 فروش آنلاین ذخیره‌شده (orders)
+            cursor.execute(''' 
+                SELECT
+                    strftime('%Y/%m/%d', REPLACE(created_at, '/', '-')) AS sale_date,
+                    COUNT(product_name),
+                    product_name
+                FROM orders
+                WHERE user_id = ?
+                GROUP BY sale_date, product_name;
+            ''', (id_user,))
+            online_result = cursor.fetchall()
+
+            monthly_totals = [0] * 12
+            product_Counter = {}
+            sale_stats_off = {
                 "online_sale": 0,
                 "offline_sale": 0,
                 "best_item": "خالی",
             }
 
+            # 🔹 پردازش آفلاین
             for row in offline_result:
-                date_str,quantity,pro_name= row
+                date_str, quantity, pro_name = row
                 try:
-                    year, month, day = map(int, date_str.split("/"))
-                    g_date = datetime.date(year, month, day)
+                    g_date = self.parse_date_safe(date_str)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
-                    j_year = j_date.year
-                    j_month = j_date.month
+                    j_year, j_month = j_date.year, j_date.month
 
                     key_month = f"{j_year:04d}/{j_month:02d}"
                     if self.selected_month and self.selected_month == key_month:
                         sale_stats_off["offline_sale"] += int(quantity)
                         product_Counter[pro_name] = product_Counter.get(pro_name, 0) + int(quantity)
 
-                    # ✅ اصلاح شده
                     monthly_totals[j_month - 1] += int(quantity)
 
                 except Exception as e:
-                    print(f"⚠️db خطا در تبدیل تاریخ آفلاین: {e} → {date_str}")
+                    print(f"⚠️ خطا در پردازش آفلاین: {e} → {row}")
 
-                ##
-                if product_Counter:
-                    best_item= max(product_Counter, key=product_Counter.get)
-                    sale_stats_off["best_item"] = best_item
-                ##
-                print(f'month sale offline :{sale_stats_off}')
-                self.sale_box_signal.emit(sale_stats_off)
-                
+            # 🔹 پردازش آنلاین
+            for row in online_result:
+                date_str, quantity, pro_name = row
+                try:
+                    g_date = self.parse_date_safe(date_str)
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    j_year, j_month = j_date.year, j_date.month
+
+                    key_month = f"{j_year:04d}/{j_month:02d}"
+                    if self.selected_month and self.selected_month == key_month:
+                        sale_stats_off["online_sale"] += int(quantity)
+                        product_Counter[pro_name] = product_Counter.get(pro_name, 0) + int(quantity)
+
+                    monthly_totals[j_month - 1] += int(quantity)
+
+                except Exception as e:
+                    print(f"⚠️ خطا در پردازش آنلاین: {e} → {row}")
+
+            # 🔹 پیدا کردن پرفروش‌ترین محصول
+            if product_Counter:
+                best_item = max(product_Counter, key=product_Counter.get)
+                sale_stats_off["best_item"] = best_item
+
+            print(f"📊 ماهانه (آفلاین+آنلاین): {sale_stats_off}")
+            self.sale_box_signal.emit(sale_stats_off)
 
         except sqlite3.Error as e:
             print(f"{e}: offline month db problem")
@@ -914,70 +964,131 @@ class ItemThread(QThread):
         if not os.path.exists(db_path):
             print("⚠️ no offline db path found!")
             return
+
         try:
             conn_sq = sqlite3.connect(db_path)
             cursor_sq = conn_sq.cursor()
             cursor_sq.execute("select id from users limit 1")
             id_result = cursor_sq.fetchone()
             id_user = id_result[0]
+
+            # 🟩 آفلاین (sale_factor)
             cursor_sq.execute('''
                 SELECT 
-                strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) as day_sale,
-                COUNT(quantity),
-                product_name
+                    strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) as day_sale,
+                    COUNT(quantity),
+                    product_name
                 FROM sale_factor
                 WHERE user_id = ?
                 GROUP BY day_sale, product_name;
-            ''',(id_user,))
-            offline_day_result= cursor_sq.fetchall()
-            ##
-            sale_day_stats_off = {
+            ''', (id_user,))
+            offline_day_result = cursor_sq.fetchall()
+
+            # 🟦 آنلاین (orders)
+            cursor_sq.execute('''
+                SELECT 
+                    strftime('%Y/%m/%d', REPLACE(created_at, '/', '-')) as day_sale,
+                    COUNT(quantity),
+                    product_name
+                FROM orders
+                WHERE user_id = ?
+                GROUP BY day_sale, product_name;
+            ''', (id_user,))
+            online_day_result = cursor_sq.fetchall()
+
+            # دیکشنری آمار نهایی
+            sale_day_stats = {
                 "online_sale": 0,
                 "offline_sale": 0,
-                "best_item": "خالی"}
-            
-            product_counter= {}
+                "best_item": "خالی"
+            }
+            product_counter = {}
 
+            # -------------------
+            # آفلاین
+            # -------------------
             for row in offline_day_result:
-                date_str, quantity, pro_name =row
+                date_str, quantity, pro_name = row
                 try:
-                    year, month, day= map(int, date_str.split("/"))
-                    g_date= datetime.date(year,month,day)
-                    j_date= jdatetime.date.fromgregorian(date= g_date)
-                    j_year= j_date.year
-                    j_month= j_date.month
-                    j_day= j_date.day
-                    key_day= f'{j_year:04d}/{j_month:02d}/{j_day:02d}'
-                    if self.selected_date and self.selected_date== key_day:
-                        sale_day_stats_off["offline_sale"] += int(quantity)
-                        product_counter[pro_name] = product_counter.get(pro_name,0) + int(quantity)
+                    year, month, day = map(int, date_str.split("/"))
+                    g_date = datetime.date(year, month, day)
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    key_day = f'{j_date.year:04d}/{j_date.month:02d}/{j_date.day:02d}'
+
+                    if self.selected_date and self.selected_date == key_day:
+                        sale_day_stats["offline_sale"] += int(quantity)
+                        product_counter[pro_name] = product_counter.get(pro_name, 0) + int(quantity)
+
                 except Exception as e:
-                    print(f"⚠️  db_dayخطا در تبدیل تاریخ آفلاین: {e} → {date_str}")
-                ##
+                    print(f"⚠️ خطا در پردازش آفلاین: {e} → {row}")
+
+            # -------------------
+            # آنلاین
+            # -------------------
+            for row in online_day_result:
+                date_str, quantity, pro_name = row
+                try:
+                    year, month, day = map(int, date_str.split("/"))
+                    g_date = datetime.date(year, month, day)
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    key_day = f'{j_date.year:04d}/{j_date.month:02d}/{j_date.day:02d}'
+
+                    if self.selected_date and self.selected_date == key_day:
+                        sale_day_stats["online_sale"] += int(quantity)
+                        product_counter[pro_name] = product_counter.get(pro_name, 0) + int(quantity)
+
+                except Exception as e:
+                    print(f"⚠️ خطا در پردازش آنلاین: {e} → {row}")
+
+            # -------------------
+            # پیدا کردن پرفروش‌ترین محصول
+            # -------------------
             if product_counter:
-                best_item= max(product_counter, key=product_counter.get)
-                sale_day_stats_off["best_item"] = best_item
-            self.day_sale_signal.emit(sale_day_stats_off)
+                best_item = max(product_counter, key=product_counter.get)
+                sale_day_stats["best_item"] = best_item
+
+            # -------------------
+            # ارسال نتیجه
+            # -------------------
+            self.day_sale_signal.emit(sale_day_stats)
+            print(f"📊 آمار روز {self.selected_date}: {sale_day_stats}")
 
         except sqlite3.Error as e:
             print(f'offline day problem: {e}')
+
     ##
     def offline_sale_table(self):
-        base_dir= os.path.dirname(os.path.abspath(__file__))
-        root_dir= os.path.dirname(base_dir)
-        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
         if not os.path.exists(db_path):
             print("no offline month sale db found")
             return
         try:
-            conn= sqlite3.connect(db_path)
-            cursor= conn.cursor()
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
             cursor.execute("select id from users limit 1")
             id_result = cursor.fetchone()
             id_user = id_result[0]
+
+            # ✅ فروشات آنلاین (ذخیره‌شده در جدول orders آفلاین)
+            cursor.execute('''
+                SELECT 
+                    strftime('%Y/%m/%d', REPLACE(created_at, '/', '-')) AS sale_date,
+                    product_name,
+                    SUM(quantity) AS total_quantity,
+                    product_unit,
+                    SUM(price) AS total_sale
+                FROM orders
+                WHERE user_id = ?
+                GROUP BY sale_date, product_name, product_unit
+            ''', (id_user,))
+            order_list = cursor.fetchall()
+
+            # ✅ فروشات آفلاین (sale_factor)
             cursor.execute(''' 
                 SELECT 
-                    strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS month_sale,
+                    strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS sale_date,
                     product_name,
                     SUM(quantity) AS total_quantity,
                     product_type,
@@ -985,53 +1096,64 @@ class ItemThread(QThread):
                     sale_type
                 FROM sale_factor
                 WHERE user_id = ?
-                GROUP BY month_sale, product_name, product_type, sale_type;
-
-            ''',(id_user,))
-            offline_result_table= cursor.fetchall()
+                GROUP BY sale_date, product_name, product_type, sale_type
+            ''', (id_user,))
+            offline_result_table = cursor.fetchall()
             
-            row_data= {}
-            row_index= 0
+            row_data = {}
+            row_index = 0
 
+            # 🔹 اضافه کردن محصولات آفلاین
             for row in offline_result_table:
-                date_str, product_name,quantity,product_type,total,sale_type= row
+                date_str, product_name, quantity, product_type, total, sale_type = row
                 try:
-                    year, month, day = map(int, date_str.split("/"))
-                    g_date = datetime.date(year, month, day)
+                    g_date = self.parse_date_safe(date_str)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
-                    j_year = j_date.year
-                    j_month = j_date.month
-                    key_month = f"{j_year:04d}/{j_month:02d}"
-                    
-                    # فقط اگر ماه مطابق بود ادامه ده
+                    key_month = f"{j_date.year:04d}/{j_date.month:02d}"
+
                     if self.selected_month and self.selected_month == key_month:
                         if sale_type == "عمده":
-                            # واکشی big_quantity برای این محصول
+                            # واکشی big_quantity
                             cursor.execute('''
                                 SELECT big_quantity FROM products
                                 WHERE user_id= ? AND name= ?
-                            ''',(id_user,product_name))
+                            ''', (id_user, product_name))
                             bg_result = cursor.fetchone()
                             if bg_result and bg_result[0] > 0:
                                 big_quantity = bg_result[0]
                                 best_quantity = quantity / big_quantity
                             else:
-                                print(f"⚠️ مقدار big_quantity برای '{product_name}' یافت نشد یا صفر است.")
-                                best_quantity = quantity  # fallback
+                                best_quantity = quantity
                         else:
                             best_quantity = quantity
 
                         row_data[row_index] = [product_name, best_quantity, product_type, total]
                         row_index += 1
 
+                except Exception as e:
+                    print(f"⚠️ خطا در پردازش فروش آفلاین: {e} → {row}")
+
+            # 🔹 اضافه کردن محصولات آنلاین ذخیره‌شده
+            for row in order_list:
+                date_str, product_name, quantity, product_unit, total = row
+                try:
+                    g_date = self.parse_date_safe(date_str)
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    key_month = f"{j_date.year:04d}/{j_date.month:02d}"
+
+                    if self.selected_month and self.selected_month == key_month:
+                        row_data[row_index] = [product_name, quantity, product_unit, total]
+                        row_index += 1
 
                 except Exception as e:
-                    print(f"⚠️ db tableخطا در پردازش ردیف فروش: {e} → {row}")
-            ##
-            print(f"offline sale table info month: {row_data}")
+                    print(f"⚠️ خطا در پردازش فروش آنلاین: {e} → {row}")
+
+            print(f"📊 offline + online sale table info month: {row_data}")
             self.sale_table_data.emit(row_data)
-        except pymysql.Error as e:
-            print(f"{e} : db online table error")
+
+        except sqlite3.Error as e:
+            print(f"{e} : db offline table error")
+
     ######### buy_date
     def offline_buy_month(self):
         date_now = datetime.date.today().strftime('%Y/%m/%d')
@@ -1400,44 +1522,57 @@ class ItemThread(QThread):
 
     ##
     def offline_sale_table_day(self):
-        base_dir= os.path.dirname(os.path.abspath(__file__))
-        root_dir= os.path.dirname(base_dir)
-        db_path= os.path.join(root_dir, 'Data', 'sh_online.db')
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(base_dir)
+        db_path = os.path.join(root_dir, 'Data', 'sh_online.db')
         if not os.path.exists(db_path):
-            print("no offline month sale db found")
+            print("no offline day sale db found")
             return
+
         try:
-            conn= sqlite3.connect(db_path)
-            cursor= conn.cursor()
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
             cursor.execute("select id from users limit 1")
             id_result = cursor.fetchone()
             id_user = id_result[0]
+
+            # 🟩 آفلاین (sale_factor)
             cursor.execute(''' 
-                SELECT strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS month_sale,
-                product_name,quantity,product_type,total,sale_type
+                SELECT strftime('%Y/%m/%d', REPLACE(sale_date, '/', '-')) AS sale_date,
+                    product_name, quantity, product_type, total, sale_type
                 FROM sale_factor
                 WHERE user_id = ?
-                GROUP BY month_sale, product_name;
-            ''',(id_user,))
-            offline_result_table= cursor.fetchall()
-            
-            row_data= {}
-            row_index= 0
+                GROUP BY sale_date, product_name, product_type, sale_type;
+            ''', (id_user,))
+            offline_result_table = cursor.fetchall()
 
+            # 🟦 آنلاین (orders)
+            cursor.execute(''' 
+                SELECT strftime('%Y/%m/%d', REPLACE(created_at, '/', '-')) AS sale_date,
+                    product_name, quantity, product_unit, price, sale_number
+                FROM orders
+                WHERE user_id = ?
+                GROUP BY sale_date, product_name, product_unit, sale_number;
+            ''', (id_user,))
+            online_result_table = cursor.fetchall()
+
+            row_data = {}
+            row_index = 0
+
+            # -------------------
+            # آفلاین
+            # -------------------
             for row in offline_result_table:
-                date_str, product_name,quantity,product_type,total,sale_type= row
+                date_str, product_name, quantity, product_type, total, sale_type = row
                 try:
                     year, month, day = map(int, date_str.split("/"))
                     g_date = datetime.date(year, month, day)
                     j_date = jdatetime.date.fromgregorian(date=g_date)
-                    j_year = j_date.year
-                    j_month = j_date.month
-                    j_day= j_date.day
-                    key_day = f"{j_year:04d}/{j_month:02d}/{j_day}"
-                    # فقط اگر ماه مطابق بود ادامه ده
+                    j_year, j_month, j_day = j_date.year, j_date.month, j_date.day
+                    key_day = f"{j_year:04d}/{j_month:02d}/{j_day:02d}"
+
                     if self.selected_date and self.selected_date == key_day:
                         if sale_type == "عمده":
-                            # واکشی big_quantity برای این محصول
                             cursor.execute('''
                                 SELECT big_quantity FROM products
                                 WHERE user_id = ? AND name = ?
@@ -1449,7 +1584,7 @@ class ItemThread(QThread):
                                 best_quantity = quantity / big_quantity
                             else:
                                 print(f"⚠️ مقدار big_quantity برای '{product_name}' یافت نشد یا صفر است.")
-                                best_quantity = quantity  # fallback
+                                best_quantity = quantity
                         else:
                             best_quantity = quantity
 
@@ -1457,9 +1592,32 @@ class ItemThread(QThread):
                         row_index += 1
 
                 except Exception as e:
-                    print(f"⚠️ db tableخطا در پردازش ردیف فروش: {e} → {row}")
-            ##
-            print(f"row data day signal table :{row_data}")
+                    print(f"⚠️ خطا در پردازش ردیف آفلاین: {e} → {row}")
+
+            # -------------------
+            # آنلاین
+            # -------------------
+            for row in online_result_table:
+                date_str, product_name, quantity, product_unit, price, sale_number = row
+                try:
+                    year, month, day = map(int, date_str.split("/"))
+                    g_date = datetime.date(year, month, day)
+                    j_date = jdatetime.date.fromgregorian(date=g_date)
+                    j_year, j_month, j_day = j_date.year, j_date.month, j_date.day
+                    key_day = f"{j_year:04d}/{j_month:02d}/{j_day:02d}"
+
+                    if self.selected_date and self.selected_date == key_day:
+                        row_data[row_index] = [product_name, quantity, product_unit, price]
+                        row_index += 1
+
+                except Exception as e:
+                    print(f"⚠️ خطا در پردازش ردیف آنلاین: {e} → {row}")
+
+            # -------------------
+            # ارسال داده
+            # -------------------
+            print(f"📊 row data day signal table (online+offline): {row_data}")
             self.sale_table_data_day.emit(row_data)
-        except pymysql.Error as e:
-            print(f"{e} : db online table error")
+
+        except sqlite3.Error as e:
+            print(f"{e} : db offline day table error")

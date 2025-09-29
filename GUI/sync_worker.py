@@ -81,13 +81,13 @@ class WorkerThread(QThread):
                 (employee_id,salary_id,pay_date,amount,note) = row
 
                 cursor.execute(
-                    "INSERT INTO employees (employee_id,first_name,last_name,phone,email,hire_date,address,position,salary,status,user_id) VALUES(%s,%s,%s,%s,%s)",
+                    "INSERT INTO salaries (employee_id,salary_id,pay_date,amount,note) VALUES(%s,%s,%s,%s,%s)",
                     (employee_id,salary_id,pay_date,amount,note)
                 )
                 print(f"salary {salary_id} synced to server ✅")
                 data.commit()
 
-                cursor_sq.execute('UPDATE salaries SET is_synced = 1 WHERE employee_id = ?', (employee_id,))
+                cursor_sq.execute('UPDATE salaries SET is_synced = 1 WHERE is_synced = 0')
                 conn_sq.commit()
 
         except pymysql.Error as e:

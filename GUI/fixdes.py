@@ -64,6 +64,11 @@ class FixThread(QThread):
             self.get_fixed_info()
             self.get_inventory_info()
             self.get_orders_info()
+            self.get_sale_factors()
+            self.get_customer_info()
+            self.get_salary_info()
+            self.get_barrow_info()
+            self.get_harvest_info()
             self.data_synced.emit(True)
         else:
             print("ℹ️ داده جدیدی وجود ندارد → ترید اجرا نشد")
@@ -227,8 +232,6 @@ class FixThread(QThread):
         except pymysql.Error as e:
             print(f"❌ خطا در دیتابیس آنلاین: {e}")
     
-
-
     def get_inventory_info(self):
         rows = []
         conn = None
@@ -437,3 +440,278 @@ class FixThread(QThread):
 
         except pymysql.Error as e:
             print(f"online orders problem: {e}")
+
+    def get_sale_factors(self):
+        try:
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                id_user = cursor_sq.fetchone()[0]
+
+                cursor.execute('''
+                    SELECT 
+                        product_name,barcode,factor_number,sale_price,sale_date,
+                        quantity,product_type,sale_type,user_id,discount,total,profit,cus_id,choise_type
+                    FROM sale_factor
+                    WHERE user_id = %s;
+                ''', (id_user,))
+                unsaved = cursor.fetchall()
+
+                for sale_factor in unsaved:
+                    (product_name,barcode,factor_number,sale_price,sale_date,
+                        quantity,product_type,sale_type,user_id,discount,total,profit,cus_id,choise_type) = sale_factor
+
+                    def safe_num(val):
+                        return float(val) if isinstance(val, Decimal) else val
+
+                    total = safe_num(total)
+                    total_profit = safe_num(profit)
+
+                    # ✅ بررسی وجود id_e در دیتابیس آفلاین
+                    cursor_sq.execute("SELECT COUNT(*) FROM sale_factor WHERE factor_number = ?", (factor_number,))
+                    exists = cursor_sq.fetchone()[0]
+
+                    if exists == 0:  # فقط اگر وجود ندارد وارد کن
+                        cursor_sq.execute('''
+                            INSERT INTO sale_factor(
+                                product_name,barcode,factor_number,sale_price,sale_date,
+                                quantity,product_type,sale_type,user_id,discount,total,profit,cus_id,choise_type
+                            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        ''',  (product_name,barcode,factor_number,sale_price,sale_date,
+                                quantity,product_type,sale_type,user_id,discount,total,total_profit,cus_id,choise_type))
+                        conn_sq.commit()
+                        print(f"✅ info factor inserted: {factor_number}")
+                    else:
+                        print(f"⚠️ فاکتور {factor_number} قبلا ذخیره شده و دوباره insert نشد.")
+
+        except pymysql.Error as e:
+            print(f"sale_factor db problems: {e}")
+    
+    def get_customer_info(self):
+        try:
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                id_user = cursor_sq.fetchone()[0]
+
+                cursor.execute('''
+                    SELECT 
+                    id,name,last_name,phone,register_date,email,user_id
+                    FROM customer
+                    WHERE user_id = %s 
+                ''', (id_user,))
+                unsaved = cursor.fetchall()
+
+                for customers in unsaved:
+                    ( id_e,name,last_name,phone,register_date,email,user_id) = customers
+
+                    # ✅ بررسی وجود id_e در دیتابیس آفلاین
+                    cursor_sq.execute("SELECT COUNT(*) FROM customers WHERE id = ?", (id_e,))
+                    exists = cursor_sq.fetchone()[0]
+
+                    if exists == 0:  # فقط اگر وجود ندارد وارد کن
+                        cursor_sq.execute('''
+                            INSERT INTO cusotmers(
+                                 id,name,last_name,phone,register_date,email,user_id
+                            ) VALUES (?,?,?,?,?,?,?)
+                        ''', ( id_e,name,last_name,phone,register_date,email,user_id))
+                        conn_sq.commit()
+                        print(f"✅ info customer inserted: {id_e}")
+                    else:
+                        print(f"⚠️ مشتری {id_e} قبلا ذخیره شده و دوباره insert نشد.")
+
+        except pymysql.Error as e:
+            print(f"online orders problem: {e}")
+
+    def get_worker_info(self):
+        try:
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                id_user = cursor_sq.fetchone()[0]
+
+                cursor.execute('''
+                    SELECT 
+                    employee_id,first_name,last_name,phone,email,address,city,position,salary,hire_date,status,user_id
+                    FROM employees
+                    WHERE user_id = %s 
+                ''', (id_user,))
+                unsaved = cursor.fetchall()
+
+                for employee in unsaved:
+                    ( employee_id,first_name,last_name,phone,email,address,city,position,salary,hire_date,status,user_id) = employee
+
+                    # ✅ بررسی وجود id_e در دیتابیس آفلاین
+                    cursor_sq.execute("SELECT COUNT(*) FROM employees WHERE employee_id = ?", (employee_id,))
+                    exists = cursor_sq.fetchone()[0]
+
+                    if exists == 0:  # فقط اگر وجود ندارد وارد کن
+                        cursor_sq.execute('''
+                            INSERT INTO employees(
+                                employee_id,first_name,last_name,phone,email,address,city,position,salary,hire_date,status,user_id
+                            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                        ''', (employee_id,first_name,last_name,phone,email,address,
+                            city,position,salary,hire_date,status,user_id))
+                        conn_sq.commit()
+                        print(f"✅ info employee inserted: {employee_id}")
+                    else:
+                        print(f"⚠️ کارمند {employee_id} قبلا ذخیره شده و دوباره insert نشد.")
+
+        except pymysql.Error as e:
+            print(f"online orders problem: {e}")
+
+    def get_salary_info(self):
+        try:
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                id_user = cursor_sq.fetchone()[0]
+
+                cursor.execute('''
+                    SELECT 
+                    salary_id,employee_id,pay_date,amount,note
+                    FROM salaries
+                    WHERE employee_id = %s 
+                ''', (id_user,))
+                unsaved = cursor.fetchall()
+
+                for salaries in unsaved:
+                    ( salary_id,employee_id,pay_date,amount,note) = salaries
+
+                    # ✅ بررسی وجود id_e در دیتابیس آفلاین
+                    cursor_sq.execute("SELECT COUNT(*) FROM salaries WHERE employee_id = ?", (employee_id,))
+                    exists = cursor_sq.fetchone()[0]
+
+                    if exists == 0:  # فقط اگر وجود ندارد وارد کن
+                        cursor_sq.execute('''
+                            INSERT INTO salaries(
+                                salary_id,employee_id,pay_date,amount,note
+                            ) VALUES (?,?,?,?,?)
+                        ''', (salary_id,employee_id,pay_date,amount,note))
+                        conn_sq.commit()
+                        print(f"✅ info salary employee inserted: {employee_id}")
+                    else:
+                        #print(f"⚠️ معاش کارمند {employee_id} قبلا ذخیره شده و دوباره insert نشد.")
+                        print(f"salary of employee:{employee_id}")
+
+        except pymysql.Error as e:
+            print(f"online orders problem: {e}")
+
+    def get_barrow_info(self):
+        try:
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                id_user = cursor_sq.fetchone()[0]
+
+                # گرفتن اطلاعات از سرور
+                cursor.execute('''
+                    SELECT 
+                        b_id, name, amount, type, date, description, user_id, phone, cus_id
+                    FROM barrow
+                    WHERE user_id = %s
+                ''', (id_user,))
+                unsaved = cursor.fetchall()
+
+                for row in unsaved:
+                    (id_e, name, amount, type_b, date, description, user_id, phone, cus_id) = row
+
+                    # ✅ بررسی وجود رکورد در دیتابیس آفلاین
+                    cursor_sq.execute("SELECT COUNT(*) FROM barrow WHERE b_id = ?", (id_e,))
+                    exists = cursor_sq.fetchone()[0]
+
+                    if exists == 0:  # فقط اگر وجود ندارد وارد کن
+                        cursor_sq.execute('''
+                            INSERT INTO barrow(
+                                b_id, name, amount, type, date, description, user_id, phone, cus_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (id_e, name, amount, type_b, date, description, user_id, phone, cus_id))
+                        conn_sq.commit()
+                        print(f"✅ info barrow inserted: {id_e}")
+                    else:
+                        print(f"⚠️ barrow {id_e} قبلا ذخیره شده و دوباره insert نشد.")
+
+        except pymysql.Error as e:
+            print(f"online barrow problem: {e}")
+
+    def get_harvest_info(self):
+        try:
+            conn = Connection().get_connection()
+            if conn:
+                cursor = conn.cursor()
+                # مسیر دیتابیس آفلاین
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(base_dir, ".."))
+                db_path = os.path.join(project_root, "Data", "sh_online.db")
+                conn_sq = sqlite3.connect(db_path)
+                cursor_sq = conn_sq.cursor()
+
+                cursor_sq.execute("SELECT id FROM users LIMIT 1")
+                id_user = cursor_sq.fetchone()[0]
+
+                # گرفتن اطلاعات از سرور
+                cursor.execute('''
+                    SELECT 
+                        h_id, name, amount,date, description, user_id,har_type
+                    FROM harvest
+                    WHERE user_id = %s
+                ''', (id_user,))
+                unsaved = cursor.fetchall()
+
+                for row in unsaved:
+                    (h_id, name, amount,date, description, user_id,har_type) = row
+
+                    # ✅ بررسی وجود رکورد در دیتابیس آفلاین
+                    cursor_sq.execute("SELECT COUNT(*) FROM harvest WHERE h_id = ?", (h_id,))
+                    exists = cursor_sq.fetchone()[0]
+
+                    if exists == 0:  # فقط اگر وجود ندارد وارد کن
+                        cursor_sq.execute('''
+                            INSERT INTO harvest(
+                                h_id, name, amount,date, description, user_id,har_type
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', h_id, name, amount,date, description, user_id,har_type)
+                        conn_sq.commit()
+                        print(f"✅ info harvest inserted: {h_id}")
+                    else:
+                        print(f"⚠️ harvest {h_id} قبلا ذخیره شده و دوباره insert نشد.")
+
+        except pymysql.Error as e:
+            print(f"online harvest problem: {e}")
+

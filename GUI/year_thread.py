@@ -363,6 +363,14 @@ class YearThread(QThread):
             year = date_str.strip().split("/")[0]
             if year == self.year_selected:
                 total_harvest += float(amount) if amount else 0
+        # salaries
+        cursor.execute("SELECT pay_date,amount FROM salaries")
+        for pay_date,money in cursor.fetchall():
+            if not pay_date:
+                continue
+            year= pay_date.split("/")[0]
+            if year == self.year_selected:
+                total_harvest += float(money) if money else 0
 
         # barrow (تاریخ شمسی است)
         cursor.execute("SELECT date, amount FROM barrow WHERE user_id = ? AND type in('برده گی','طلب مردم')", (id_user,))
@@ -592,6 +600,11 @@ class YearThread(QThread):
             if res:
                 total_harvest = float(res[0]) if res[0] else 0
             print(f"offline harvest={total_harvest}")
+            ##salary
+            cursor.execute("SELECT SUM(amount) FROM salaries")
+            s_rest= cursor.fetchone()
+            if s_rest:
+                total_salary= float(s_rest[0]) if s_rest[0] else 0
 
             # barrow
             cursor.execute("SELECT SUM(ABS(amount)) FROM barrow WHERE user_id = ? AND type in('برده گی','طلب مردم')", (id_user,))
@@ -606,14 +619,17 @@ class YearThread(QThread):
             if res:
                 total_money = float(res[0]) if res[0] else 0
             print(f"offline money={total_money}")
+            ##
+            total_h_s=0
+            total_h_s= total_harvest + total_salary
 
-            total_cush = total_sale - total_harvest - total_barrow + total_money
+            total_cush = total_sale - total_h_s - total_barrow + total_money 
 
             box_stats = {
                 "total_buy": total_buy,
                 "total_sale": total_sale,
                 "profit":total_full_profit,
-                "harvest": total_harvest,
+                "harvest": total_h_s,
                 "total_barrow": total_barrow,
                 "total_inventory":total_inventory,
                 "current_capital": total_cush + total_inventory,  # ✅ مثل آنلاین

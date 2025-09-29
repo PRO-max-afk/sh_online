@@ -91,6 +91,7 @@ class WidgetManager(QWidget):
         self.load_all_fonts()
         self.update_info_invnenvtory()
         self.get_info()
+        self.update_worker()
         self.select_name_products()
         self.select_customer_name()
         self.start_notification_checker()
@@ -2143,7 +2144,7 @@ class WidgetManager(QWidget):
         self.worker= Salary_worker()
         self.worker.start()
 
-        if hasattr('woker_timer',self):
+        if hasattr(self,'woker_timer'):
             self.worker_timer= QTimer(self)
             self.worker_timer.timeout.connect(self.update_worker)
             self.worker_timer.start(24 * 60 * 60 * 1000)
@@ -2168,6 +2169,12 @@ class WidgetManager(QWidget):
         from fixdes import FixThread
         self.thread_to_get= FixThread()
         self.thread_to_get.start()
+
+        if hasattr(self, 'fix_timer'):
+            self.fix_timer = QTimer()
+            self.fix_timer.timeout.connect(self.get_info)
+            self.fix_timer.start(20 * 1000)
+
 
     ##
     def start_notification_checker(self):

@@ -36,16 +36,16 @@ class HarvestThread(QThread):
         conn_sq= sqlite3.connect(db_path)
         cursor_sq= conn_sq.cursor()
         cursor_sq.execute('''
-        SELECT name,amount,har_type,date,description,user_id FROM harvest WHERE is_synced= 0
+        SELECT h_id,name,amount,har_type,date,description,user_id FROM harvest WHERE is_synced= 0
         ''')
         un_synced= cursor_sq.fetchall()
         try:
             cursor= data.cursor()
             for row in un_synced:
-                (name,amount,har_type,date,description,user_id)= row
+                (h_id,name,amount,har_type,date,description,user_id)= row
 
-                cursor.execute("INSERT INTO harvest (name,amount,har_type,date,description,user_id) VALUES(%s,%s,%s,%s,%s,%s)",
-                               (name,amount,har_type,date,description,user_id))
+                cursor.execute("INSERT INTO harvest (h_id,name,amount,har_type,date,description,user_id) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+                               (h_id,name,amount,har_type,date,description,user_id))
                 print("info harvest successfully entered to server ✅")
                 data.commit()
 
